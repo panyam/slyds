@@ -1,6 +1,6 @@
 {
   "name": "slyds",
-  "version": "0.0.1",
+  "version": "0.0.2",
   "description": "Lightweight HTML presentation toolkit — zero dependencies in output, works from file://",
   "bin": {
     "slyds": "./bin/slyds.js"
