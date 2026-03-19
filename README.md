@@ -47,14 +47,18 @@ my-talk/
 
 ## Commands
 
-### `slyds init "Title" [-n count]`
+### `slyds init "Title" [-n count] [--theme name]`
 
 Scaffolds a new presentation directory with the given number of slides (default 3, min 2).
 
 ```bash
-slyds init "My Talk"         # 3 slides
-slyds init "My Talk" -n 8    # 8 slides
+slyds init "My Talk"                  # 3 slides, default theme
+slyds init "My Talk" -n 8             # 8 slides
+slyds init "My Talk" --theme dark     # dark theme
+slyds init "My Talk" --theme minimal  # clean, no gradients
 ```
+
+Available themes: `default`, `minimal`, `dark`, `corporate`.
 
 ### `slyds serve [dir] [-p port]`
 
@@ -79,9 +83,13 @@ slyds build my-talk
 Adds a new slide, creates the file, and updates `index.html`.
 
 ```bash
-slyds add "demo"               # append content slide
+slyds add "demo"                          # append content slide
 slyds add "intro" --after 1 --type title
+slyds add "overview" --type two-column    # left/right split layout
+slyds add "part-2" --type section         # section divider
 ```
+
+Available slide types: `title`, `content`, `closing`, `two-column`, `section`.
 
 ### `slyds rm <name-or-number>`
 
@@ -141,7 +149,20 @@ No template syntax needed in slide files. The first slide gets `class="slide act
 | `.tier-table` | Styled table |
 | `.controls-bar` | Fixed top navigation bar |
 
-## Theming
+## Themes
+
+slyds ships with four built-in themes:
+
+| Theme | Description |
+|-------|-------------|
+| `default` | Purple gradient, white cards — conference talks |
+| `minimal` | White background, serif font — academic, maximum readability |
+| `dark` | Dark backgrounds, cyan accents — code talks, demos |
+| `corporate` | Navy blues, clean grays — business presentations |
+
+Each theme includes position-aware CSS: slides automatically get `--slide-index` and `--slide-progress` CSS custom properties, enabling effects like alternating backgrounds and progress-based color shifts.
+
+### Customizing
 
 Edit `theme.css` to override base styles. Common overrides:
 
@@ -150,6 +171,10 @@ Edit `theme.css` to override base styles. Common overrides:
 - `.slide h1` border color
 - `.nav-button` colors
 - `.stat-number` color
+
+### Custom slide types
+
+Each theme defines its slide types in `theme.yaml`. To add a custom type, create a `.html.tmpl` file in your theme's `slides/` directory and register it in `theme.yaml`.
 
 ## License
 

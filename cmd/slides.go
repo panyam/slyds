@@ -248,7 +248,7 @@ var lsCmd = &cobra.Command{
 
 func init() {
 	addCmd.Flags().IntVar(&slideAfter, "after", 0, "insert after slide N")
-	addCmd.Flags().StringVar(&slideType, "type", "content", "slide type: title, content, or closing")
+	addCmd.Flags().StringVar(&slideType, "type", "content", "slide type: title, content, closing, two-column, section")
 	rootCmd.AddCommand(addCmd)
 	rootCmd.AddCommand(rmCmd)
 	rootCmd.AddCommand(mvCmd)
@@ -296,15 +296,18 @@ func extractFirstHeading(filePath string) string {
 }
 
 // renderSlideFromTheme renders a slide using the embedded theme template.
-// Falls back to a simple default if the template is not found.
+// It looks up the slide type in the theme's theme.yaml config to find the
+// correct template file, falling back to the default theme if needed.
 func renderSlideFromTheme(name, slideType string, number int) (string, error) {
-	// Map slide type to template file
-	tmplFile := "content.html.tmpl"
-	switch slideType {
-	case "title":
-		tmplFile = "title.html.tmpl"
-	case "closing":
-		tmplFile = "closing.html.tmpl"
+	// Load theme config to resolve slide type → template path
+	cfg, err := scaffold.LoadThemeConfig("default")
+	if err != nil {
+		return "", err
+	}
+
+	tmplFile, err := cfg.TemplateForType(slideType)
+	if err != nil {
+		return "", err
 	}
 
 	// Title-case the name for display
@@ -317,7 +320,7 @@ func renderSlideFromTheme(name, slideType string, number int) (string, error) {
 	}
 	displayName = strings.Join(words, " ")
 
-	tmplPath := fmt.Sprintf("templates/default/slides/%s", tmplFile)
+	tmplPath := fmt.Sprintf("templates/default/%s", tmplFile)
 	content, err := assets.TemplatesFS.ReadFile(tmplPath)
 	if err != nil {
 		return "", fmt.Errorf("slide template %q not found: %w", tmplFile, err)

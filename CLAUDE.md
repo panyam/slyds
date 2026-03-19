@@ -19,7 +19,7 @@ make setup-tools # Install required Go tools (cobra-cli)
 ## Key Commands
 
 ```bash
-slyds init "Title" [-n count]                    # Scaffold presentation
+slyds init "Title" [-n count] [--theme dark]      # Scaffold presentation
 slyds serve [dir] [-p port]                      # Dev server with live include resolution
 slyds build [dir]                                # Flatten to dist/index.html
 slyds add "name" [--after N] [--type content]    # Add slide
@@ -31,6 +31,7 @@ slyds ls                                         # List slides
 ## Conventions
 
 - **No hardcoded HTML in Go code** — use embedded `.tmpl` files under `assets/templates/<theme>/`. New themes = new template dirs, not Go changes.
+- **Slide types are config-driven** — each theme has a `theme.yaml` that maps type names to template files. Add a custom type by adding a `.tmpl` file and registering it in `theme.yaml`.
 - **Configure templar programmatically** — don't generate `.templar.yaml` files. Use `TemplateGroup`, `FileSystemLoader`, etc. directly.
 - **Local deps via locallinks/** — `go.mod` uses `replace => ./locallinks/newstack/templar/main`. Run `make resymlink` to create the symlink.
 - **Slide files are pure HTML** — only `index.html` uses templar `{{# include #}}` syntax.
@@ -43,7 +44,7 @@ cmd/                        # Cobra commands (init, serve, build, add/rm/mv/ls)
 internal/scaffold/          # Presentation scaffolding from theme templates
 internal/builder/           # Include flattening + CSS/JS/image inlining
 assets/                     # go:embed package — slyds.css, slyds.js, theme templates
-assets/templates/default/   # Default theme template files (.tmpl)
+assets/templates/<theme>/   # Theme template files (.tmpl) — default, minimal, dark, corporate
 ```
 
 Legacy Node.js code (`bin/`, `lib/`, `templates/`, `package.json`) is still present but unused.

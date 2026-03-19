@@ -166,6 +166,21 @@
         }
     });
 
+    // Set position-aware CSS custom properties on each slide.
+    // Themes can use these for conditional styling:
+    //   --slide-index:    0-based position (0, 1, 2, ...)
+    //   --slide-progress: percentage through the deck ("0%", "50%", "100%")
+    //   --total-slides:   total number of slides
+    (function setSlidePositionProperties() {
+        var slides = document.querySelectorAll('.slide');
+        slides.forEach(function (slide, i) {
+            slide.style.setProperty('--slide-index', i);
+            var progress = totalSlides > 1 ? (i / (totalSlides - 1) * 100) : 0;
+            slide.style.setProperty('--slide-progress', progress + '%');
+            slide.style.setProperty('--total-slides', totalSlides);
+        });
+    })();
+
     // Expose to onclick handlers in HTML
     window.changeSlide = changeSlide;
     window.openNotesWindow = openNotesWindow;

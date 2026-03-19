@@ -3,14 +3,18 @@
 ## Cleanup
 - [ ] Remove legacy Node.js code (`bin/`, `lib/`, `templates/`, `package.json`, `package-lock.json`, `node_modules/`)
 - [ ] Update `.gitignore` to remove `node_modules/`
-- [ ] Update README.md to reflect Go CLI (currently documents the Node.js version)
 
 ## Features
-- [ ] Additional themes beyond "default"
-- [ ] `slyds add` should use theme templates for new slide types (currently uses default theme only)
+- [x] ~~Additional themes beyond "default"~~ — added minimal, dark, corporate
+- [x] ~~`--theme` flag on `slyds init` to select theme~~
+- [x] ~~Layout slide types (two-column, section)~~
+- [x] ~~Position-aware CSS (--slide-index, --slide-progress custom properties)~~
+- [x] ~~theme.yaml config for slide type → template mapping~~
+- [ ] Slide navigation hooks — drive demos from slide transitions (issue #1)
+- [ ] Interactive slides with TypeScript/esbuild support (issue #3)
 - [ ] Slide folders with co-located assets (e.g., `slides/03-architecture/slide.html` + `diagram.png`)
 - [ ] Live reload on file changes during `slyds serve`
-- [ ] `--theme` flag on `slyds init` to select theme
+- [ ] Theme composability via templar `extend`/`namespace` directives
 
 ## Polish
 - [ ] Better error messages (e.g., when running commands outside a presentation directory)

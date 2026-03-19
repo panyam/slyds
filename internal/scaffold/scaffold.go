@@ -19,6 +19,11 @@ func Create(title string, slideCount int) (string, error) {
 // CreateWithTheme scaffolds a new presentation using the given theme name.
 // Themes are embedded template sets under assets/templates/<theme>/.
 func CreateWithTheme(title string, slideCount int, theme string) (string, error) {
+	if !ThemeExists(theme) {
+		available, _ := ListThemes()
+		return "", fmt.Errorf("theme %q not found (available: %s)", theme, strings.Join(available, ", "))
+	}
+
 	slug := Slugify(title)
 	dir, err := filepath.Abs(slug)
 	if err != nil {
@@ -123,6 +128,36 @@ func renderEmbeddedTemplate(theme, tmplName string, data any, outPath string) er
 	defer f.Close()
 
 	return tmpl.Execute(f, data)
+}
+
+// ListThemes returns the names of all available themes from the embedded filesystem.
+func ListThemes() ([]string, error) {
+	entries, err := assets.TemplatesFS.ReadDir("templates")
+	if err != nil {
+		return nil, fmt.Errorf("failed to read templates dir: %w", err)
+	}
+	var themes []string
+	for _, e := range entries {
+		if e.IsDir() {
+			themes = append(themes, e.Name())
+		}
+	}
+	sort.Strings(themes)
+	return themes, nil
+}
+
+// ThemeExists checks if the given theme name is available in the embedded filesystem.
+func ThemeExists(theme string) bool {
+	themes, err := ListThemes()
+	if err != nil {
+		return false
+	}
+	for _, t := range themes {
+		if t == theme {
+			return true
+		}
+	}
+	return false
 }
 
 // Slugify converts a title to a directory-safe slug.
