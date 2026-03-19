@@ -1,0 +1,23 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>{{.Title}}</title>
+  <link rel="stylesheet" href="slyds.css">
+  <link rel="stylesheet" href="theme.css">
+</head>
+<body>
+  <div class="controls-bar">
+    <button class="presenter-mode-btn" onclick="openNotesWindow()">&#128221; Notes</button>
+    <div class="slide-counter"><span id="slideNum">1</span> / <span id="totalSlides"></span></div>
+  </div>
+  <div class="slideshow-container">
+{{.Includes}}    <div class="navigation">
+      <button class="nav-button" onclick="changeSlide(-1)" id="prevBtn">&#10094; Previous</button>
+      <button class="nav-button" onclick="changeSlide(1)" id="nextBtn">Next &#10095;</button>
+    </div>
+  </div>
+  <script src="slyds.js"></script>
+</body>
+</html>

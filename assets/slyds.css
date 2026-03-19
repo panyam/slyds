@@ -346,7 +346,57 @@ body {
     background: #c0392b;
 }
 
+/* ── Layout: Two-column ── */
+.layout-two-column {
+    display: none;
+}
+
+.layout-two-column.active {
+    display: flex;
+    flex-direction: row;
+    gap: 40px;
+}
+
+.layout-two-column .col-left,
+.layout-two-column .col-right {
+    flex: 1;
+    min-width: 0;
+}
+
+.layout-two-column .col-left {
+    border-right: 2px solid rgba(0,0,0,0.08);
+    padding-right: 40px;
+}
+
+/* ── Layout: Section divider ── */
+.section-slide {
+    text-align: center;
+    display: none;
+}
+
+.section-slide.active {
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+}
+
+.section-slide h1 {
+    font-size: 2.8em;
+    border-bottom: none;
+    margin-bottom: 20px;
+}
+
 /* ── Speaker notes (hidden in DOM, read by JS) ── */
 .speaker-notes {
     display: none;
 }
+
+/* ── Position-aware CSS variables ──
+   Set by slyds.js on each .slide element:
+     --slide-index:    0-based slide position
+     --slide-progress: percentage through deck (0% to 100%)
+     --total-slides:   total slide count
+   Use in theme.css for conditional styling, e.g.:
+     .slide { opacity: calc(0.8 + 0.2 * var(--slide-progress, 0%) / 100%); }
+*/
