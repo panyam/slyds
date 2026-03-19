@@ -12,26 +12,38 @@ import (
 )
 
 // Create scaffolds a new presentation directory using the default theme.
+// The output directory is derived from the slugified title.
 func Create(title string, slideCount int) (string, error) {
-	return CreateWithTheme(title, slideCount, "default")
+	return CreateInDir(title, slideCount, "default", Slugify(title))
 }
 
-// CreateWithTheme scaffolds a new presentation using the given theme name.
-// Themes are embedded template sets under assets/templates/<theme>/.
+// CreateWithTheme scaffolds a new presentation using the given built-in theme name.
+// The output directory is derived from the slugified title.
 func CreateWithTheme(title string, slideCount int, theme string) (string, error) {
+	return CreateInDir(title, slideCount, theme, Slugify(title))
+}
+
+// CreateInDir scaffolds a new presentation in the specified output directory
+// using the given built-in theme. The outDir can be a relative or absolute path.
+func CreateInDir(title string, slideCount int, theme string, outDir string) (string, error) {
 	if !ThemeExists(theme) {
 		available, _ := ListThemes()
 		return "", fmt.Errorf("theme %q not found (available: %s)", theme, strings.Join(available, ", "))
 	}
 
-	slug := Slugify(title)
-	dir, err := filepath.Abs(slug)
+	dir, err := filepath.Abs(outDir)
 	if err != nil {
 		return "", err
 	}
 
-	if _, err := os.Stat(dir); err == nil {
-		return "", fmt.Errorf("directory %q already exists", slug)
+	if info, err := os.Stat(dir); err == nil {
+		if !info.IsDir() {
+			return "", fmt.Errorf("%q exists and is not a directory", outDir)
+		}
+		entries, _ := os.ReadDir(dir)
+		if len(entries) > 0 {
+			return "", fmt.Errorf("directory %q already exists and is not empty", outDir)
+		}
 	}
 
 	if err := os.MkdirAll(filepath.Join(dir, "slides"), 0755); err != nil {
@@ -72,7 +84,7 @@ func CreateWithTheme(title string, slideCount int, theme string) (string, error)
 		return "", fmt.Errorf("failed to render index.html: %w", err)
 	}
 
-	return slug, nil
+	return outDir, nil
 }
 
 // generateSlides creates slide files from theme templates.
@@ -106,6 +118,101 @@ func generateSlides(theme, title string, count int, dir string) ([]string, error
 	slideFiles = append(slideFiles, name)
 
 	return slideFiles, nil
+}
+
+// CreateFromDir scaffolds a presentation using a theme directory on disk.
+// Used by slyds preview for external/community themes.
+func CreateFromDir(outDir, title string, slideCount int, themeDir string) error {
+	if err := os.MkdirAll(filepath.Join(outDir, "slides"), 0755); err != nil {
+		return err
+	}
+
+	if err := os.WriteFile(filepath.Join(outDir, "slyds.css"), []byte(assets.SlydsCSS), 0644); err != nil {
+		return err
+	}
+	if err := os.WriteFile(filepath.Join(outDir, "slyds.js"), []byte(assets.SlydsJS), 0644); err != nil {
+		return err
+	}
+
+	readTmpl := func(name string) ([]byte, error) {
+		return os.ReadFile(filepath.Join(themeDir, name))
+	}
+
+	themeData := map[string]any{"Title": title}
+	if err := renderTemplateFrom(readTmpl, "theme.css.tmpl", themeData, filepath.Join(outDir, "theme.css")); err != nil {
+		return fmt.Errorf("failed to render theme.css: %w", err)
+	}
+
+	slideFiles, err := generateSlidesFrom(readTmpl, title, slideCount, outDir)
+	if err != nil {
+		return err
+	}
+
+	var includes strings.Builder
+	sort.Strings(slideFiles)
+	for _, name := range slideFiles {
+		fmt.Fprintf(&includes, "    {{# include \"slides/%s\" #}}\n", name)
+	}
+	indexData := map[string]any{
+		"Title":    title,
+		"Includes": includes.String(),
+	}
+	if err := renderTemplateFrom(readTmpl, "index.html.tmpl", indexData, filepath.Join(outDir, "index.html")); err != nil {
+		return fmt.Errorf("failed to render index.html: %w", err)
+	}
+
+	return nil
+}
+
+// generateSlidesFrom creates slide files using a custom template reader.
+func generateSlidesFrom(readTmpl func(string) ([]byte, error), title string, count int, dir string) ([]string, error) {
+	var slideFiles []string
+
+	name := "01-title.html"
+	data := map[string]any{"Title": title, "Number": 1}
+	if err := renderTemplateFrom(readTmpl, "slides/title.html.tmpl", data, filepath.Join(dir, "slides", name)); err != nil {
+		return nil, fmt.Errorf("failed to render title slide: %w", err)
+	}
+	slideFiles = append(slideFiles, name)
+
+	for i := 2; i < count; i++ {
+		name := fmt.Sprintf("%02d-slide.html", i)
+		data := map[string]any{"Title": title, "Number": i}
+		if err := renderTemplateFrom(readTmpl, "slides/content.html.tmpl", data, filepath.Join(dir, "slides", name)); err != nil {
+			return nil, fmt.Errorf("failed to render slide %d: %w", i, err)
+		}
+		slideFiles = append(slideFiles, name)
+	}
+
+	name = fmt.Sprintf("%02d-closing.html", count)
+	data = map[string]any{"Title": title, "Number": count}
+	if err := renderTemplateFrom(readTmpl, "slides/closing.html.tmpl", data, filepath.Join(dir, "slides", name)); err != nil {
+		return nil, fmt.Errorf("failed to render closing slide: %w", err)
+	}
+	slideFiles = append(slideFiles, name)
+
+	return slideFiles, nil
+}
+
+// renderTemplateFrom reads a template using a custom reader, renders it, and writes to outPath.
+func renderTemplateFrom(readTmpl func(string) ([]byte, error), tmplName string, data any, outPath string) error {
+	content, err := readTmpl(tmplName)
+	if err != nil {
+		return fmt.Errorf("template %q not found: %w", tmplName, err)
+	}
+
+	tmpl, err := template.New(tmplName).Parse(string(content))
+	if err != nil {
+		return fmt.Errorf("failed to parse template %q: %w", tmplName, err)
+	}
+
+	f, err := os.Create(outPath)
+	if err != nil {
+		return err
+	}
+	defer f.Close()
+
+	return tmpl.Execute(f, data)
 }
 
 // renderEmbeddedTemplate reads a template from the embedded FS, renders it, and writes to outPath.

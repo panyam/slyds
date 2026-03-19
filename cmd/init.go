@@ -11,6 +11,7 @@ import (
 var (
 	initSlideCount int
 	initTheme      string
+	initDir        string
 )
 
 var initCmd = &cobra.Command{
@@ -25,7 +26,13 @@ var initCmd = &cobra.Command{
 		if initSlideCount < 2 {
 			return fmt.Errorf("slide count must be at least 2 (title + closing)")
 		}
-		dir, err := scaffold.CreateWithTheme(title, initSlideCount, initTheme)
+
+		outDir := initDir
+		if outDir == "" {
+			outDir = scaffold.Slugify(title)
+		}
+
+		dir, err := scaffold.CreateInDir(title, initSlideCount, initTheme, outDir)
 		if err != nil {
 			return err
 		}
@@ -40,5 +47,6 @@ var initCmd = &cobra.Command{
 func init() {
 	initCmd.Flags().IntVarP(&initSlideCount, "slides", "n", 3, "number of slides (min 2)")
 	initCmd.Flags().StringVar(&initTheme, "theme", "default", "theme to use (default, minimal, dark, corporate)")
+	initCmd.Flags().StringVar(&initDir, "dir", "", "output directory (default: slugified title)")
 	rootCmd.AddCommand(initCmd)
 }

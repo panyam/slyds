@@ -148,3 +148,66 @@ func TestCreateDuplicateDir(t *testing.T) {
 		t.Error("expected error for duplicate directory, got nil")
 	}
 }
+
+// TestCreateInDir verifies that --dir flag routes output to the specified
+// directory instead of deriving it from the slugified title.
+func TestCreateInDir(t *testing.T) {
+	tmp := t.TempDir()
+	origDir, _ := os.Getwd()
+	os.Chdir(tmp)
+	defer os.Chdir(origDir)
+
+	outDir := filepath.Join(tmp, "custom", "path")
+	result, err := CreateInDir("My Talk", 3, "default", outDir)
+	if err != nil {
+		t.Fatalf("CreateInDir failed: %v", err)
+	}
+	if result != outDir {
+		t.Errorf("returned dir = %q, want %q", result, outDir)
+	}
+
+	// Verify files exist in the custom path
+	if _, err := os.Stat(filepath.Join(outDir, "index.html")); os.IsNotExist(err) {
+		t.Error("index.html not found in custom dir")
+	}
+	if _, err := os.Stat(filepath.Join(outDir, "slides", "01-title.html")); os.IsNotExist(err) {
+		t.Error("slides not found in custom dir")
+	}
+}
+
+// TestCreateInDirNonEmpty verifies that creating a presentation in a
+// non-empty directory returns an error to prevent overwriting existing files.
+func TestCreateInDirNonEmpty(t *testing.T) {
+	tmp := t.TempDir()
+
+	// Create a non-empty directory
+	targetDir := filepath.Join(tmp, "existing")
+	os.MkdirAll(targetDir, 0755)
+	os.WriteFile(filepath.Join(targetDir, "file.txt"), []byte("existing"), 0644)
+
+	_, err := CreateInDir("My Talk", 3, "default", targetDir)
+	if err == nil {
+		t.Error("expected error for non-empty directory, got nil")
+	}
+	if !strings.Contains(err.Error(), "not empty") {
+		t.Errorf("error should mention 'not empty', got: %v", err)
+	}
+}
+
+// TestCreateInDirEmpty verifies that creating a presentation in an
+// existing but empty directory succeeds.
+func TestCreateInDirEmpty(t *testing.T) {
+	tmp := t.TempDir()
+
+	targetDir := filepath.Join(tmp, "empty-dir")
+	os.MkdirAll(targetDir, 0755)
+
+	_, err := CreateInDir("My Talk", 3, "default", targetDir)
+	if err != nil {
+		t.Fatalf("CreateInDir into empty dir failed: %v", err)
+	}
+
+	if _, err := os.Stat(filepath.Join(targetDir, "index.html")); os.IsNotExist(err) {
+		t.Error("index.html not found")
+	}
+}
