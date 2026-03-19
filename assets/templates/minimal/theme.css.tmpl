@@ -86,7 +86,7 @@ body {
     border-left: 4px solid #111111;
 }
 
-/* Position-aware: subtle alternating backgrounds */
-.slide:nth-child(even) {
+/* Position-aware: subtle alternating backgrounds on content slides only */
+.slide:nth-child(even):not(.title-slide):not(.conclusion-slide):not(.section-slide) {
     background: #fafafa;
 }

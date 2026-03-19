@@ -114,12 +114,12 @@ pre {
     border: 1px solid #30363d;
 }
 
-/* Position-aware: alternating subtle tints */
-.slide:nth-child(odd) {
+/* Position-aware: alternating subtle tints on content slides only */
+.slide:nth-child(odd):not(.title-slide):not(.conclusion-slide):not(.section-slide) {
     background-color: rgba(255, 255, 255, 0.02);
 }
 
-.slide:nth-child(even) {
+.slide:nth-child(even):not(.title-slide):not(.conclusion-slide):not(.section-slide) {
     background-color: rgba(0, 0, 0, 0.1);
 }
 

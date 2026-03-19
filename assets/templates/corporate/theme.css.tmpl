@@ -107,11 +107,12 @@ body {
     background: #003366;
 }
 
-/* Position-aware: alternating row-like backgrounds */
-.slide:nth-child(even) {
+/* Position-aware: alternating backgrounds on content slides only.
+   Uses :not() to avoid overriding special slide type backgrounds. */
+.slide:nth-child(even):not(.title-slide):not(.conclusion-slide):not(.section-slide) {
     background: #f8f9fb;
 }
 
-.slide:nth-child(odd) {
+.slide:nth-child(odd):not(.title-slide):not(.conclusion-slide):not(.section-slide) {
     background: #ffffff;
 }
