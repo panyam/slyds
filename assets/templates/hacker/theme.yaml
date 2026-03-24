@@ -1,0 +1,8 @@
+name: hacker
+description: Technical, nerdy but fun — indigo/purple palette with terminal aesthetics for backend engineers
+slide_types:
+  title: slides/title.html.tmpl
+  content: slides/content.html.tmpl
+  closing: slides/closing.html.tmpl
+  two-column: slides/two-column.html.tmpl
+  section: slides/section.html.tmpl

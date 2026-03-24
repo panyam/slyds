@@ -12,6 +12,7 @@
 - [x] ~~theme.yaml config for slide type → template mapping~~
 - [ ] Slide navigation hooks — drive demos from slide transitions (issue #1)
 - [ ] Interactive slides with TypeScript/esbuild support (issue #3)
+- [x] ~~Theme static asset copying (images, fonts) during scaffold~~
 - [ ] Slide folders with co-located assets (e.g., `slides/03-architecture/slide.html` + `diagram.png`)
 - [ ] Live reload on file changes during `slyds serve`
 - [ ] Theme composability via templar `extend`/`namespace` directives

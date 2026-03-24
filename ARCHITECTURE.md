@@ -33,18 +33,24 @@ Only `index.html` uses templar's `{{# include "slides/01-title.html" #}}` syntax
 
 ## Theme System
 
-Themes are sets of `.tmpl` files under `assets/templates/<theme>/`:
+Themes are sets of `.tmpl` files under `assets/templates/<theme>/`, plus optional static assets (images, fonts, etc.):
 
 ```
 assets/templates/default/
   index.html.tmpl                  # Go text/template for index.html
   theme.css.tmpl                   # Go text/template for theme.css
+  theme.yaml                       # Slide type → template mapping
   slides/title.html.tmpl           # Slide type templates
   slides/content.html.tmpl
   slides/closing.html.tmpl
+  images/                          # Optional — copied verbatim during scaffold
 ```
 
-Templates receive `{{.Title}}`, `{{.Number}}`, `{{.Includes}}` etc. Adding a new theme means adding a new directory with the same file names.
+Templates receive `{{.Title}}`, `{{.Number}}`, `{{.Includes}}` etc. Adding a new theme means adding a new directory with the same file names. Non-template static files (images, fonts) are copied as-is during `slyds init`.
+
+### Presentation Layout
+
+The presentation uses a border layout (flexbox column): slide content fills the center and a navigation bar is pinned to the bottom. The nav bar contains Prev/Next buttons with a slide counter between them, and a small icon button for speaker notes on the far right.
 
 ## Serve vs Build
 

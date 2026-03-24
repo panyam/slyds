@@ -46,7 +46,8 @@ var initCmd = &cobra.Command{
 
 func init() {
 	initCmd.Flags().IntVarP(&initSlideCount, "slides", "n", 3, "number of slides (min 2)")
-	initCmd.Flags().StringVar(&initTheme, "theme", "default", "theme to use (default, minimal, dark, corporate)")
+	themes, _ := scaffold.ListThemes()
+	initCmd.Flags().StringVar(&initTheme, "theme", "default", "theme to use ("+strings.Join(themes, ", ")+")")
 	initCmd.Flags().StringVar(&initDir, "dir", "", "output directory (default: slugified title)")
 	rootCmd.AddCommand(initCmd)
 }

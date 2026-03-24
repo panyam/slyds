@@ -84,7 +84,54 @@ func CreateInDir(title string, slideCount int, theme string, outDir string) (str
 		return "", fmt.Errorf("failed to render index.html: %w", err)
 	}
 
+	// Copy static assets (images, fonts, etc.) from theme
+	if err := copyEmbeddedAssets(theme, dir); err != nil {
+		return "", fmt.Errorf("failed to copy theme assets: %w", err)
+	}
+
 	return outDir, nil
+}
+
+// copyEmbeddedAssets copies non-template files (images, etc.) from an embedded theme directory.
+func copyEmbeddedAssets(theme, outDir string) error {
+	themeRoot := fmt.Sprintf("templates/%s", theme)
+	return copyEmbeddedDir(themeRoot, themeRoot, outDir)
+}
+
+func copyEmbeddedDir(base, dir, outDir string) error {
+	entries, err := assets.TemplatesFS.ReadDir(dir)
+	if err != nil {
+		return err
+	}
+	for _, e := range entries {
+		entryPath := dir + "/" + e.Name()
+		relPath := strings.TrimPrefix(entryPath, base+"/")
+		if e.IsDir() {
+			if e.Name() == "slides" {
+				continue // slides are generated separately
+			}
+			if err := copyEmbeddedDir(base, entryPath, outDir); err != nil {
+				return err
+			}
+			continue
+		}
+		// Skip template files — they're rendered, not copied
+		if strings.HasSuffix(e.Name(), ".tmpl") || e.Name() == "theme.yaml" {
+			continue
+		}
+		data, err := assets.TemplatesFS.ReadFile(entryPath)
+		if err != nil {
+			return err
+		}
+		destPath := filepath.Join(outDir, relPath)
+		if err := os.MkdirAll(filepath.Dir(destPath), 0755); err != nil {
+			return err
+		}
+		if err := os.WriteFile(destPath, data, 0644); err != nil {
+			return err
+		}
+	}
+	return nil
 }
 
 // generateSlides creates slide files from theme templates.
@@ -161,7 +208,40 @@ func CreateFromDir(outDir, title string, slideCount int, themeDir string) error 
 		return fmt.Errorf("failed to render index.html: %w", err)
 	}
 
+	// Copy static assets (images, fonts, etc.) from theme dir
+	if err := copyDirAssets(themeDir, outDir); err != nil {
+		return fmt.Errorf("failed to copy theme assets: %w", err)
+	}
+
 	return nil
+}
+
+// copyDirAssets copies non-template files from a disk-based theme directory.
+func copyDirAssets(themeDir, outDir string) error {
+	return filepath.WalkDir(themeDir, func(path string, d os.DirEntry, err error) error {
+		if err != nil {
+			return err
+		}
+		relPath, _ := filepath.Rel(themeDir, path)
+		if d.IsDir() {
+			if d.Name() == "slides" {
+				return filepath.SkipDir
+			}
+			return nil
+		}
+		if strings.HasSuffix(d.Name(), ".tmpl") || d.Name() == "theme.yaml" {
+			return nil
+		}
+		data, err := os.ReadFile(path)
+		if err != nil {
+			return err
+		}
+		destPath := filepath.Join(outDir, relPath)
+		if err := os.MkdirAll(filepath.Dir(destPath), 0755); err != nil {
+			return err
+		}
+		return os.WriteFile(destPath, data, 0644)
+	})
 }
 
 // generateSlidesFrom creates slide files using a custom template reader.
