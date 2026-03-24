@@ -20,8 +20,8 @@ make build       # produces ./slyds binary
 ## Quick Start
 
 ```bash
-slyds init "My Talk" -n 5
-slyds serve my-talk
+slyds init "Scaling at the Edge" -n 5
+slyds serve scaling-at-the-edge
 # → http://localhost:3000
 ```
 
@@ -30,7 +30,7 @@ slyds serve my-talk
 `slyds init` creates a presentation with each slide in its own file:
 
 ```
-my-talk/
+scaling-at-the-edge/
   index.html              # Organizer — composes slides via templar includes
   slyds.css               # Base presentation styles
   slyds.js                # Client-side slide engine
@@ -52,11 +52,11 @@ my-talk/
 Scaffolds a new presentation directory with the given number of slides (default 3, min 2).
 
 ```bash
-slyds init "My Talk"                  # 3 slides, default theme
-slyds init "My Talk" -n 8             # 8 slides
-slyds init "My Talk" --theme dark     # dark theme
-slyds init "My Talk" --theme minimal  # clean, no gradients
-slyds init "My Talk" --theme hacker   # terminal vibes, nerdy fun
+slyds init "Why Go is Secretly Fun"                  # 3 slides, default theme
+slyds init "Distributed Systems 101" -n 8             # 8 slides
+slyds init "Zero to Production" --theme dark           # dark theme
+slyds init "The Art of Simplicity" --theme minimal     # clean, no gradients
+slyds init "Hacking the Mainframe" --theme hacker      # terminal vibes, nerdy fun
 ```
 
 Available themes: `default`, `minimal`, `dark`, `corporate`, `hacker`.
@@ -66,8 +66,8 @@ Available themes: `default`, `minimal`, `dark`, `corporate`, `hacker`.
 Dev server with live template resolution. Edits to slide files are reflected on browser refresh.
 
 ```bash
-slyds serve my-talk           # default port 3000
-slyds serve my-talk -p 8080
+slyds serve zero-to-production           # default port 3000
+slyds serve zero-to-production -p 8080
 ```
 
 ### `slyds build [dir]`
@@ -75,8 +75,8 @@ slyds serve my-talk -p 8080
 Flattens all includes and inlines CSS, JS, and images into a single `dist/index.html`. The result works offline from `file://` with zero external dependencies.
 
 ```bash
-slyds build my-talk
-# → my-talk/dist/index.html
+slyds build zero-to-production
+# → zero-to-production/dist/index.html
 ```
 
 ### `slyds add "name" [--after N] [--type title|content|closing]`
