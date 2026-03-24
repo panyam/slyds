@@ -7,7 +7,7 @@ Core CLI rewritten in Go with templar integration. Multi-file slide authoring wi
 Remove legacy Node.js code. Update README. Fix module path. Add live reload to serve. Release binaries.
 
 ## v0.3 — Theme System
-Multiple built-in themes. `--theme` flag on init. Theme preview/switching.
+Multiple built-in themes (default, minimal, dark, corporate, hacker). `--theme` flag on init. Theme preview/switching.
 
 ## v0.4 — Slide Folders
 Support `slides/03-name/slide.html` with co-located assets (images, per-slide CSS). Auto-detect folder vs file slides.

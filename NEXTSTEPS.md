@@ -5,7 +5,7 @@
 - [ ] Update `.gitignore` to remove `node_modules/`
 
 ## Features
-- [x] ~~Additional themes beyond "default"~~ — added minimal, dark, corporate
+- [x] ~~Additional themes beyond "default"~~ — added minimal, dark, corporate, hacker
 - [x] ~~`--theme` flag on `slyds init` to select theme~~
 - [x] ~~Layout slide types (two-column, section)~~
 - [x] ~~Position-aware CSS (--slide-index, --slide-progress custom properties)~~

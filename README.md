@@ -56,9 +56,10 @@ slyds init "My Talk"                  # 3 slides, default theme
 slyds init "My Talk" -n 8             # 8 slides
 slyds init "My Talk" --theme dark     # dark theme
 slyds init "My Talk" --theme minimal  # clean, no gradients
+slyds init "My Talk" --theme hacker   # terminal vibes, nerdy fun
 ```
 
-Available themes: `default`, `minimal`, `dark`, `corporate`.
+Available themes: `default`, `minimal`, `dark`, `corporate`, `hacker`.
 
 ### `slyds serve [dir] [-p port]`
 
@@ -151,7 +152,7 @@ No template syntax needed in slide files. The first slide gets `class="slide act
 
 ## Themes
 
-slyds ships with four built-in themes:
+slyds ships with five built-in themes:
 
 | Theme | Description |
 |-------|-------------|
@@ -159,6 +160,7 @@ slyds ships with four built-in themes:
 | `minimal` | White background, serif font — academic, maximum readability |
 | `dark` | Dark backgrounds, cyan accents — code talks, demos |
 | `corporate` | Navy blues, clean grays — business presentations |
+| `hacker` | Terminal aesthetics, nerdy but fun — backend engineers, tech demos |
 
 Each theme includes position-aware CSS: slides automatically get `--slide-index` and `--slide-progress` CSS custom properties, enabling effects like alternating backgrounds and progress-based color shifts.
 

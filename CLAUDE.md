@@ -44,7 +44,7 @@ cmd/                        # Cobra commands (init, serve, build, add/rm/mv/ls)
 internal/scaffold/          # Presentation scaffolding from theme templates
 internal/builder/           # Include flattening + CSS/JS/image inlining
 assets/                     # go:embed package — slyds.css, slyds.js, theme templates
-assets/templates/<theme>/   # Theme template files (.tmpl) — default, minimal, dark, corporate
+assets/templates/<theme>/   # Theme template files (.tmpl) — default, minimal, dark, corporate, hacker
 ```
 
 Legacy Node.js code (`bin/`, `lib/`, `templates/`, `package.json`) is still present but unused.
