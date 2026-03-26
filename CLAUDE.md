@@ -28,6 +28,7 @@ slyds insert <pos> "name" [--type T] [--title T] # Insert slide at position
 slyds rm <name-or-number>                        # Remove slide
 slyds mv <from> <to>                             # Reorder slides
 slyds ls [dir]                                   # List slides (index.html order)
+slyds slugify [dir]                              # Rename all slides to slugs from <h1>
 ```
 
 ## Conventions

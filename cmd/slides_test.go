@@ -549,3 +549,137 @@ func TestMultipleInserts(t *testing.T) {
 		}
 	}
 }
+
+// TestRenameSlugs verifies that renameToSlugs reads each slide's <h1> content,
+// slugifies it, and renames files + updates index.html accordingly. Slides
+// whose slug already matches their current name should be left unchanged.
+func TestRenameSlugs(t *testing.T) {
+	root, cleanup := setupTestPresentation(t)
+	defer cleanup()
+
+	// Scaffolded slides: 01-title.html (<h1>Test Pres</h1>),
+	// 02-slide.html (<h1>Slide 2</h1>), 03-slide.html (<h1>Slide 3</h1>),
+	// 04-closing.html (<h1>Thank You</h1>)
+	renamed, err := renameToSlugs(root)
+	if err != nil {
+		t.Fatalf("renameToSlugs failed: %v", err)
+	}
+
+	if renamed != 4 {
+		t.Errorf("expected 4 renames, got %d", renamed)
+	}
+
+	slides, _ := listSlidesFromIndex(root)
+
+	// 01-title.html → 01-test-pres.html (title slide has <h1>Test Pres</h1>)
+	if slides[0] != "01-test-pres.html" {
+		t.Errorf("expected 01-test-pres.html, got %s", slides[0])
+	}
+	// 02-slide.html → 02-slide-2.html
+	if slides[1] != "02-slide-2.html" {
+		t.Errorf("expected 02-slide-2.html, got %s", slides[1])
+	}
+	// 03-slide.html → 03-slide-3.html
+	if slides[2] != "03-slide-3.html" {
+		t.Errorf("expected 03-slide-3.html, got %s", slides[2])
+	}
+	// 04-closing.html → 04-thank-you.html
+	if slides[3] != "04-thank-you.html" {
+		t.Errorf("expected 04-thank-you.html, got %s", slides[3])
+	}
+
+	// Verify index.html references match
+	indexHTML, _ := os.ReadFile(filepath.Join(root, "index.html"))
+	indexStr := string(indexHTML)
+	for _, s := range slides {
+		if !strings.Contains(indexStr, fmt.Sprintf(`"slides/%s"`, s)) {
+			t.Errorf("index.html missing include for %s", s)
+		}
+	}
+}
+
+// TestRenameSlugsIdempotent verifies that running renameToSlugs twice produces
+// the same result — slides already matching their h1 slug are not renamed again.
+func TestRenameSlugsIdempotent(t *testing.T) {
+	root, cleanup := setupTestPresentation(t)
+	defer cleanup()
+
+	renameToSlugs(root)
+	renamed, err := renameToSlugs(root)
+	if err != nil {
+		t.Fatalf("second renameToSlugs failed: %v", err)
+	}
+	if renamed != 0 {
+		t.Errorf("expected 0 renames on second run, got %d", renamed)
+	}
+}
+
+// TestRenameSlugsNoHeading verifies that slides without an <h1> tag keep
+// their existing name rather than being renamed to an empty slug.
+func TestRenameSlugsNoHeading(t *testing.T) {
+	root, cleanup := setupTestPresentation(t)
+	defer cleanup()
+
+	// Replace slide 2 content with no heading
+	slidePath := filepath.Join(root, "slides", "02-slide.html")
+	os.WriteFile(slidePath, []byte(`<div class="slide"><p>No heading here</p></div>`), 0644)
+
+	_, err := renameToSlugs(root)
+	if err != nil {
+		t.Fatalf("renameToSlugs failed: %v", err)
+	}
+
+	// Slide 2 should keep its existing name part since there's no h1
+	slides, _ := listSlidesFromIndex(root)
+	if slides[1] != "02-slide.html" {
+		t.Errorf("expected 02-slide.html (no h1 to slug from), got %s", slides[1])
+	}
+}
+
+// TestRenameSlugsPreservesContent verifies that renaming does not modify
+// the actual HTML content of any slide file.
+func TestRenameSlugsPreservesContent(t *testing.T) {
+	root, cleanup := setupTestPresentation(t)
+	defer cleanup()
+
+	// Read original content
+	origContent, _ := os.ReadFile(filepath.Join(root, "slides", "02-slide.html"))
+
+	renameToSlugs(root)
+
+	// Content should be identical, just in a new file
+	newContent, err := os.ReadFile(filepath.Join(root, "slides", "02-slide-2.html"))
+	if err != nil {
+		t.Fatalf("failed to read renamed slide: %v", err)
+	}
+	if string(origContent) != string(newContent) {
+		t.Error("slide content was modified during rename")
+	}
+}
+
+// TestRenameSlugsDeduplicates verifies that when two slides have the same <h1>
+// text, the rename produces unique filenames by appending a suffix.
+func TestRenameSlugsDeduplicates(t *testing.T) {
+	root, cleanup := setupTestPresentation(t)
+	defer cleanup()
+
+	// Set slides 2 and 3 to have the same heading
+	for _, f := range []string{"02-slide.html", "03-slide.html"} {
+		path := filepath.Join(root, "slides", f)
+		os.WriteFile(path, []byte(`<div class="slide"><h1>Same Title</h1></div>`), 0644)
+	}
+
+	_, err := renameToSlugs(root)
+	if err != nil {
+		t.Fatalf("renameToSlugs failed: %v", err)
+	}
+
+	slides, _ := listSlidesFromIndex(root)
+	// Both should have "same-title" but one needs a suffix
+	if slides[1] != "02-same-title.html" {
+		t.Errorf("expected 02-same-title.html, got %s", slides[1])
+	}
+	if slides[2] != "03-same-title-2.html" {
+		t.Errorf("expected 03-same-title-2.html, got %s", slides[2])
+	}
+}
