@@ -5,8 +5,8 @@ import (
 	"os"
 	"path/filepath"
 
-	"github.com/spf13/cobra"
 	"github.com/panyam/slyds/internal/builder"
+	"github.com/spf13/cobra"
 )
 
 var buildCmd = &cobra.Command{
@@ -18,13 +18,9 @@ var buildCmd = &cobra.Command{
 		if len(args) > 0 {
 			dir = args[0]
 		}
-		root, err := filepath.Abs(dir)
+		root, err := findRootIn(dir)
 		if err != nil {
 			return err
-		}
-		indexPath := filepath.Join(root, "index.html")
-		if _, err := os.Stat(indexPath); os.IsNotExist(err) {
-			return fmt.Errorf("no index.html found in %s", root)
 		}
 
 		result, err := builder.Build(root)

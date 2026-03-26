@@ -6,7 +6,6 @@ import (
 	"log"
 	"net"
 	"net/http"
-	"os"
 	"path/filepath"
 
 	"github.com/panyam/templar"
@@ -24,13 +23,9 @@ var serveCmd = &cobra.Command{
 		if len(args) > 0 {
 			dir = args[0]
 		}
-		root, err := filepath.Abs(dir)
+		root, err := findRootIn(dir)
 		if err != nil {
 			return err
-		}
-		indexPath := filepath.Join(root, "index.html")
-		if _, err := os.Stat(indexPath); os.IsNotExist(err) {
-			return fmt.Errorf("no index.html found in %s", root)
 		}
 
 		// Set up templar for on-the-fly include resolution

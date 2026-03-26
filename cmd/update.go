@@ -32,9 +32,8 @@ you will be prompted to enter the theme and title.`,
 			return err
 		}
 
-		indexPath := filepath.Join(root, "index.html")
-		if _, err := os.Stat(indexPath); os.IsNotExist(err) {
-			return fmt.Errorf("no index.html found in %s — is this a slyds presentation?", root)
+		if _, err := findRootIn(dir); err != nil {
+			return err
 		}
 
 		manifest, err := scaffold.ReadManifest(root)

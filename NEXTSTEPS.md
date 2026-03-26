@@ -22,7 +22,7 @@
 - [ ] Theme composability via templar `extend`/`namespace` directives
 
 ## Polish
-- [ ] Better error messages (e.g., when running commands outside a presentation directory)
-- [ ] `slyds version` command
+- [x] ~~Better error messages — centralized `findRootIn` with actionable hints~~
+- [x] ~~`slyds version` command + build-time version injection from git tags~~
 - [ ] Release automation / goreleaser setup
 - [x] Publish module path (`github.com/panyam/slyds`)

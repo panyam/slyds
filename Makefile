@@ -1,8 +1,11 @@
-.PHONY: build setup-tools install test clean
+.PHONY: build setup-tools install test clean version
+
+VERSION ?= $(shell git describe --tags --always --dirty 2>/dev/null || echo "dev")
+LDFLAGS := -X github.com/panyam/slyds/cmd.Version=$(VERSION)
 
 # Build the slyds binary
 build:
-	go build -o slyds .
+	go build -ldflags="$(LDFLAGS)" -o slyds .
 
 # Install required Go tools
 setup-tools:
@@ -15,6 +18,10 @@ install:
 # Run tests
 test:
 	go test ./...
+
+# Print the version that would be injected
+version:
+	@echo $(VERSION)
 
 # Clean build artifacts
 clean:
