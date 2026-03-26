@@ -18,6 +18,14 @@ var rootCmd = &cobra.Command{
 	},
 }
 
+var versionCmd = &cobra.Command{
+	Use:   "version",
+	Short: "Print the slyds version",
+	Run: func(cmd *cobra.Command, args []string) {
+		fmt.Printf("slyds %s\n", Version)
+	},
+}
+
 func Execute() {
 	if err := rootCmd.Execute(); err != nil {
 		fmt.Fprintln(os.Stderr, err)
@@ -27,4 +35,5 @@ func Execute() {
 
 func init() {
 	rootCmd.Version = Version
+	rootCmd.AddCommand(versionCmd)
 }

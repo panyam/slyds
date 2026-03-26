@@ -323,7 +323,7 @@ func findRootIn(dir string) (string, error) {
 		return "", err
 	}
 	if _, err := os.Stat(filepath.Join(root, "index.html")); os.IsNotExist(err) {
-		return "", fmt.Errorf("no index.html found in %s", root)
+		return "", fmt.Errorf("no index.html found in %s — is this a slyds presentation? Run 'slyds init' to create one", root)
 	}
 	return root, nil
 }
