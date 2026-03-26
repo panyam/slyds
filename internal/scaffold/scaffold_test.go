@@ -211,3 +211,143 @@ func TestCreateInDirEmpty(t *testing.T) {
 		t.Error("index.html not found")
 	}
 }
+
+func TestCreateWritesManifest(t *testing.T) {
+	tmp := t.TempDir()
+	origDir, _ := os.Getwd()
+	os.Chdir(tmp)
+	defer os.Chdir(origDir)
+
+	_, err := CreateWithTheme("Manifest Test", 3, "dark")
+	if err != nil {
+		t.Fatalf("CreateWithTheme failed: %v", err)
+	}
+
+	dir := filepath.Join(tmp, "manifest-test")
+	m, err := ReadManifest(dir)
+	if err != nil {
+		t.Fatalf("ReadManifest: %v", err)
+	}
+	if m.Theme != "dark" {
+		t.Errorf("theme = %q, want %q", m.Theme, "dark")
+	}
+	if m.Title != "Manifest Test" {
+		t.Errorf("title = %q, want %q", m.Title, "Manifest Test")
+	}
+}
+
+func TestParseIncludeDirectives(t *testing.T) {
+	indexHTML := `<!DOCTYPE html>
+<html>
+<body>
+  <div class="slideshow-container">
+    {{# include "slides/01-title.html" #}}
+    {{# include "slides/02-slide.html" #}}
+    {{# include "slides/03-closing.html" #}}
+    <div class="navigation">
+    </div>
+  </div>
+</body>
+</html>`
+
+	got := ParseIncludeDirectives(indexHTML)
+
+	if !strings.Contains(got, `{{# include "slides/01-title.html" #}}`) {
+		t.Error("missing 01-title.html include")
+	}
+	if !strings.Contains(got, `{{# include "slides/02-slide.html" #}}`) {
+		t.Error("missing 02-slide.html include")
+	}
+	if !strings.Contains(got, `{{# include "slides/03-closing.html" #}}`) {
+		t.Error("missing 03-closing.html include")
+	}
+	// Should have exactly 3 lines (each ending with \n)
+	lines := strings.Split(strings.TrimRight(got, "\n"), "\n")
+	if len(lines) != 3 {
+		t.Errorf("expected 3 include lines, got %d", len(lines))
+	}
+}
+
+func TestParseIncludeDirectivesEmpty(t *testing.T) {
+	got := ParseIncludeDirectives("<html><body>no includes here</body></html>")
+	if got != "" {
+		t.Errorf("expected empty string, got %q", got)
+	}
+}
+
+func TestUpdate(t *testing.T) {
+	tmp := t.TempDir()
+	origDir, _ := os.Getwd()
+	os.Chdir(tmp)
+	defer os.Chdir(origDir)
+
+	// Create initial presentation
+	dir := filepath.Join(tmp, "update-test")
+	_, err := CreateInDir("Update Test", 3, "default", dir)
+	if err != nil {
+		t.Fatalf("CreateInDir failed: %v", err)
+	}
+
+	// Modify a slide to simulate user content
+	slideFile := filepath.Join(dir, "slides", "02-slide.html")
+	customContent := []byte("<div class=\"slide\"><h1>My Custom Content</h1></div>")
+	if err := os.WriteFile(slideFile, customContent, 0644); err != nil {
+		t.Fatalf("failed to write custom slide: %v", err)
+	}
+
+	// Corrupt slyds.css to prove update refreshes it
+	if err := os.WriteFile(filepath.Join(dir, "slyds.css"), []byte("/* old */"), 0644); err != nil {
+		t.Fatalf("failed to corrupt slyds.css: %v", err)
+	}
+
+	// Run update
+	if err := Update(dir, "default", "Update Test"); err != nil {
+		t.Fatalf("Update failed: %v", err)
+	}
+
+	// Verify slide content preserved
+	got, err := os.ReadFile(slideFile)
+	if err != nil {
+		t.Fatalf("failed to read slide: %v", err)
+	}
+	if string(got) != string(customContent) {
+		t.Errorf("slide content changed after update:\ngot:  %s\nwant: %s", got, customContent)
+	}
+
+	// Verify slyds.css was refreshed
+	cssData, _ := os.ReadFile(filepath.Join(dir, "slyds.css"))
+	if string(cssData) == "/* old */" {
+		t.Error("slyds.css was not refreshed")
+	}
+
+	// Verify index.html still has includes
+	indexData, _ := os.ReadFile(filepath.Join(dir, "index.html"))
+	indexStr := string(indexData)
+	if !strings.Contains(indexStr, `{{# include "slides/01-title.html" #}}`) {
+		t.Error("index.html missing include for 01-title.html after update")
+	}
+	if !strings.Contains(indexStr, `{{# include "slides/03-closing.html" #}}`) {
+		t.Error("index.html missing include for 03-closing.html after update")
+	}
+
+	// Verify manifest updated
+	m, err := ReadManifest(dir)
+	if err != nil {
+		t.Fatalf("ReadManifest after update: %v", err)
+	}
+	if m.Theme != "default" || m.Title != "Update Test" {
+		t.Errorf("manifest = %+v, want theme=default title=Update Test", m)
+	}
+}
+
+func TestUpdateInvalidTheme(t *testing.T) {
+	tmp := t.TempDir()
+	dir := filepath.Join(tmp, "bad-theme")
+	os.MkdirAll(dir, 0755)
+	os.WriteFile(filepath.Join(dir, "index.html"), []byte("<html></html>"), 0644)
+
+	err := Update(dir, "nonexistent", "Test")
+	if err == nil {
+		t.Error("expected error for invalid theme, got nil")
+	}
+}

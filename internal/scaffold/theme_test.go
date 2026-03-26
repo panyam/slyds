@@ -15,7 +15,7 @@ func TestListThemes(t *testing.T) {
 		t.Fatalf("ListThemes failed: %v", err)
 	}
 
-	expected := []string{"corporate", "dark", "default", "minimal"}
+	expected := []string{"corporate", "dark", "default", "hacker", "minimal"}
 	if len(themes) != len(expected) {
 		t.Fatalf("ListThemes returned %d themes %v, want %d %v", len(themes), themes, len(expected), expected)
 	}

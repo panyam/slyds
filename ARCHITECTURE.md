@@ -17,10 +17,12 @@ Presentations use one file per slide, composed via templar includes:
 
 ```
 my-talk/
+  .slyds.yaml             # Manifest (theme, title) — used by slyds update
   index.html              # Organizer — templar {{# include #}} directives
   slyds.css               # Presentation engine styles (copied from embedded)
   slyds.js                # Client-side slide engine (copied from embedded)
-  theme.css               # User's theme overrides
+  theme.css               # Theme styles (rendered from theme template)
+  images/                 # Optional theme assets (copied from theme)
   slides/
     01-title.html          # Pure HTML slide files
     02-slide.html
@@ -51,6 +53,19 @@ Templates receive `{{.Title}}`, `{{.Number}}`, `{{.Includes}}` etc. Adding a new
 ### Presentation Layout
 
 The presentation uses a border layout (flexbox column): slide content fills the center and a navigation bar is pinned to the bottom. The nav bar contains Prev/Next buttons with a slide counter between them, and a small icon button for speaker notes on the far right.
+
+## Manifest & Update
+
+Each scaffolded presentation gets a `.slyds.yaml` manifest:
+
+```yaml
+theme: dark
+title: "My Presentation"
+```
+
+`slyds update` reads this manifest and refreshes engine files (`slyds.css`, `slyds.js`, `theme.css`, `index.html` layout, theme images) from the latest embedded assets — without touching `slides/`. It parses existing `{{# include #}}` directives from `index.html` to preserve slide ordering.
+
+If `.slyds.yaml` is missing (pre-existing presentations), `update` prompts for theme and title interactively.
 
 ## Serve vs Build
 

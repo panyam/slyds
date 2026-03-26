@@ -4,12 +4,15 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"regexp"
 	"sort"
 	"strings"
 	"text/template"
 
 	"github.com/user/slyds/assets"
 )
+
+var includeRe = regexp.MustCompile(`\{\{#\s*include\s+"(slides/[^"]+)"\s*#\}\}`)
 
 // Create scaffolds a new presentation directory using the default theme.
 // The output directory is derived from the slugified title.
@@ -87,6 +90,11 @@ func CreateInDir(title string, slideCount int, theme string, outDir string) (str
 	// Copy static assets (images, fonts, etc.) from theme
 	if err := copyEmbeddedAssets(theme, dir); err != nil {
 		return "", fmt.Errorf("failed to copy theme assets: %w", err)
+	}
+
+	// Write .slyds.yaml manifest
+	if err := WriteManifest(dir, Manifest{Theme: theme, Title: title}); err != nil {
+		return "", fmt.Errorf("failed to write manifest: %w", err)
 	}
 
 	return outDir, nil
@@ -211,6 +219,12 @@ func CreateFromDir(outDir, title string, slideCount int, themeDir string) error 
 	// Copy static assets (images, fonts, etc.) from theme dir
 	if err := copyDirAssets(themeDir, outDir); err != nil {
 		return fmt.Errorf("failed to copy theme assets: %w", err)
+	}
+
+	// Write .slyds.yaml manifest
+	themeName := filepath.Base(themeDir)
+	if err := WriteManifest(outDir, Manifest{Theme: themeName, Title: title}); err != nil {
+		return fmt.Errorf("failed to write manifest: %w", err)
 	}
 
 	return nil
@@ -345,6 +359,69 @@ func ThemeExists(theme string) bool {
 		}
 	}
 	return false
+}
+
+// ParseIncludeDirectives extracts templar include lines from an index.html file
+// and returns them formatted for the Includes template field.
+func ParseIncludeDirectives(indexHTML string) string {
+	matches := includeRe.FindAllString(indexHTML, -1)
+	var buf strings.Builder
+	for _, m := range matches {
+		fmt.Fprintf(&buf, "    %s\n", strings.TrimSpace(m))
+	}
+	return buf.String()
+}
+
+// Update refreshes engine and theme files in an existing presentation directory
+// without touching the slides/ directory.
+func Update(dir, theme, title string) error {
+	if !ThemeExists(theme) {
+		available, _ := ListThemes()
+		return fmt.Errorf("theme %q not found (available: %s)", theme, strings.Join(available, ", "))
+	}
+
+	// Overwrite slyds.css and slyds.js
+	if err := os.WriteFile(filepath.Join(dir, "slyds.css"), []byte(assets.SlydsCSS), 0644); err != nil {
+		return fmt.Errorf("failed to write slyds.css: %w", err)
+	}
+	if err := os.WriteFile(filepath.Join(dir, "slyds.js"), []byte(assets.SlydsJS), 0644); err != nil {
+		return fmt.Errorf("failed to write slyds.js: %w", err)
+	}
+
+	// Re-render theme.css
+	themeData := map[string]any{"Title": title}
+	if err := renderEmbeddedTemplate(theme, "theme.css.tmpl", themeData, filepath.Join(dir, "theme.css")); err != nil {
+		return fmt.Errorf("failed to render theme.css: %w", err)
+	}
+
+	// Parse existing includes from index.html
+	indexPath := filepath.Join(dir, "index.html")
+	indexBytes, err := os.ReadFile(indexPath)
+	if err != nil {
+		return fmt.Errorf("failed to read index.html: %w", err)
+	}
+	includes := ParseIncludeDirectives(string(indexBytes))
+
+	// Re-render index.html with preserved includes
+	indexData := map[string]any{
+		"Title":    title,
+		"Includes": includes,
+	}
+	if err := renderEmbeddedTemplate(theme, "index.html.tmpl", indexData, indexPath); err != nil {
+		return fmt.Errorf("failed to render index.html: %w", err)
+	}
+
+	// Re-copy theme static assets
+	if err := copyEmbeddedAssets(theme, dir); err != nil {
+		return fmt.Errorf("failed to copy theme assets: %w", err)
+	}
+
+	// Write/update manifest
+	if err := WriteManifest(dir, Manifest{Theme: theme, Title: title}); err != nil {
+		return fmt.Errorf("failed to write manifest: %w", err)
+	}
+
+	return nil
 }
 
 // Slugify converts a title to a directory-safe slug.

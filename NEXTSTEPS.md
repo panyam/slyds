@@ -13,6 +13,9 @@
 - [ ] Slide navigation hooks — drive demos from slide transitions (issue #1)
 - [ ] Interactive slides with TypeScript/esbuild support (issue #3)
 - [x] ~~Theme static asset copying (images, fonts) during scaffold~~
+- [x] ~~`slyds update` command — refresh engine/theme files without touching slides~~
+- [x] ~~`.slyds.yaml` manifest for tracking theme and title~~
+- [x] ~~Bottom navigation bar with border layout (Prev | counter | Next + Notes icon)~~
 - [ ] Slide folders with co-located assets (e.g., `slides/03-architecture/slide.html` + `diagram.png`)
 - [ ] Live reload on file changes during `slyds serve`
 - [ ] Theme composability via templar `extend`/`namespace` directives
