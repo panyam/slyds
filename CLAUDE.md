@@ -27,7 +27,7 @@ slyds add "name" [--after N] [--type content]    # Add slide (append or after po
 slyds insert <pos> "name" [--type T] [--title T] # Insert slide at position
 slyds rm <name-or-number>                        # Remove slide
 slyds mv <from> <to>                             # Reorder slides
-slyds ls                                         # List slides (index.html order)
+slyds ls [dir]                                   # List slides (index.html order)
 ```
 
 ## Conventions

@@ -164,10 +164,15 @@ var mvCmd = &cobra.Command{
 }
 
 var lsCmd = &cobra.Command{
-	Use:   "ls",
+	Use:   "ls [dir]",
 	Short: "List slides in order",
+	Args:  cobra.MaximumNArgs(1),
 	RunE: func(cmd *cobra.Command, args []string) error {
-		root, err := findRoot()
+		dir := "."
+		if len(args) > 0 {
+			dir = args[0]
+		}
+		root, err := findRootIn(dir)
 		if err != nil {
 			return err
 		}
@@ -309,12 +314,16 @@ func listSlidesFromIndex(root string) ([]string, error) {
 }
 
 func findRoot() (string, error) {
-	root, err := filepath.Abs(".")
+	return findRootIn(".")
+}
+
+func findRootIn(dir string) (string, error) {
+	root, err := filepath.Abs(dir)
 	if err != nil {
 		return "", err
 	}
 	if _, err := os.Stat(filepath.Join(root, "index.html")); os.IsNotExist(err) {
-		return "", fmt.Errorf("no index.html found in current directory")
+		return "", fmt.Errorf("no index.html found in %s", root)
 	}
 	return root, nil
 }
