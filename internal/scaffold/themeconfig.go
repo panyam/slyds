@@ -5,7 +5,7 @@ import (
 	"os"
 	"path/filepath"
 
-	"github.com/user/slyds/assets"
+	"github.com/panyam/slyds/assets"
 	"gopkg.in/yaml.v3"
 )
 

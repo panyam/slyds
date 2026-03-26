@@ -6,7 +6,7 @@ import (
 	"path/filepath"
 
 	"github.com/spf13/cobra"
-	"github.com/user/slyds/internal/builder"
+	"github.com/panyam/slyds/internal/builder"
 )
 
 var buildCmd = &cobra.Command{

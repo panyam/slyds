@@ -24,4 +24,4 @@
 - [ ] Better error messages (e.g., when running commands outside a presentation directory)
 - [ ] `slyds version` command
 - [ ] Release automation / goreleaser setup
-- [ ] Publish module path (currently `github.com/user/slyds` — placeholder)
+- [x] Publish module path (`github.com/panyam/slyds`)

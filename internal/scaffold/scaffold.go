@@ -9,7 +9,7 @@ import (
 	"strings"
 	"text/template"
 
-	"github.com/user/slyds/assets"
+	"github.com/panyam/slyds/assets"
 )
 
 var includeRe = regexp.MustCompile(`\{\{#\s*include\s+"(slides/[^"]+)"\s*#\}\}`)

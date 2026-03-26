@@ -6,7 +6,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/user/slyds/internal/scaffold"
+	"github.com/panyam/slyds/internal/scaffold"
 )
 
 // TestPreviewScaffoldsFromDiskTheme verifies that CreateFromDir can scaffold

@@ -5,7 +5,7 @@ import (
 	"strings"
 
 	"github.com/spf13/cobra"
-	"github.com/user/slyds/internal/scaffold"
+	"github.com/panyam/slyds/internal/scaffold"
 )
 
 var (

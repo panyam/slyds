@@ -6,7 +6,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/user/slyds/internal/scaffold"
+	"github.com/panyam/slyds/internal/scaffold"
 )
 
 // setupTestPresentation creates a test presentation in a temp dir and chdir into it.

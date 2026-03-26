@@ -1,4 +1,4 @@
-module github.com/user/slyds
+module github.com/panyam/slyds
 
 go 1.25
 

@@ -5,7 +5,7 @@ Lightweight HTML presentation toolkit. Each slide lives in its own file. A singl
 ## Install
 
 ```bash
-go install github.com/user/slyds@latest
+go install github.com/panyam/slyds@latest
 ```
 
 Or build from source:
