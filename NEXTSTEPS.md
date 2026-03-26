@@ -1,9 +1,5 @@
 # Next Steps
 
-## Cleanup
-- [ ] Remove legacy Node.js code (`bin/`, `lib/`, `templates/`, `package.json`, `package-lock.json`, `node_modules/`)
-- [ ] Update `.gitignore` to remove `node_modules/`
-
 ## Features
 - [x] ~~Additional themes beyond "default"~~ — added minimal, dark, corporate, hacker
 - [x] ~~`--theme` flag on `slyds init` to select theme~~

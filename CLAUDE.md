@@ -48,9 +48,6 @@ internal/builder/           # Include flattening + CSS/JS/image inlining
 assets/                     # go:embed package — slyds.css, slyds.js, theme templates
 assets/templates/<theme>/   # Theme template files (.tmpl) — default, minimal, dark, corporate, hacker
 ```
-
-Legacy Node.js code (`bin/`, `lib/`, `templates/`, `package.json`) is still present but unused.
-
 ## Gotchas
 
 - **macOS /private symlinks**: `filepath.Abs` on temp dirs returns `/var/...` but the actual path is `/private/var/...`. Don't compare paths directly in tests; check file existence instead.
