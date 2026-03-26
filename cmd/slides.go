@@ -16,11 +16,14 @@ import (
 )
 
 var (
-	slideAfter int
-	slideType  string
+	slideAfter   int
+	slideType    string
+	insertType   string
+	insertTitle  string
 )
 
 var includeRe = regexp.MustCompile(`\{\{#\s*include\s+"(slides/[^"]+)"\s*#\}\}`)
+var numPrefixRe = regexp.MustCompile(`^(\d+)-(.+)$`)
 
 var addCmd = &cobra.Command{
 	Use:   `add "name"`,
@@ -33,83 +36,26 @@ var addCmd = &cobra.Command{
 			return err
 		}
 
-		existing := listSlideFiles(root)
-		newNum := len(existing) + 1
+		existing, err := listSlidesFromIndex(root)
+		if err != nil {
+			return err
+		}
 
-		// If --after is specified, insert after that position
-		insertAt := len(existing) // default: append at end
+		// Determine insert position
+		position := len(existing) + 1 // default: append at end
 		if slideAfter > 0 {
 			if slideAfter > len(existing) {
 				return fmt.Errorf("--after %d is out of range (have %d slides)", slideAfter, len(existing))
 			}
-			insertAt = slideAfter
-			newNum = slideAfter + 1
+			position = slideAfter + 1
 		}
 
-		slideFileName := fmt.Sprintf("%02d-%s.html", newNum, name)
-		slidePath := filepath.Join(root, "slides", slideFileName)
-
-		// Render slide from theme template
-		content, err := renderSlideFromTheme(name, slideType, newNum)
-		if err != nil {
-			return err
-		}
-		if err := os.MkdirAll(filepath.Join(root, "slides"), 0755); err != nil {
-			return err
-		}
-		if err := os.WriteFile(slidePath, []byte(content), 0644); err != nil {
+		if err := runInsert(root, position, name, slideType, ""); err != nil {
 			return err
 		}
 
-		// Update index.html
-		indexPath := filepath.Join(root, "index.html")
-		indexHTML, err := os.ReadFile(indexPath)
-		if err != nil {
-			return err
-		}
-
-		includeLine := fmt.Sprintf(`    {{# include "slides/%s" #}}`, slideFileName)
-		lines := strings.Split(string(indexHTML), "\n")
-		var newLines []string
-		includeCount := 0
-		inserted := false
-
-		for _, line := range lines {
-			if includeRe.MatchString(line) {
-				includeCount++
-				if includeCount == insertAt && !inserted {
-					newLines = append(newLines, line)
-					newLines = append(newLines, includeLine)
-					inserted = true
-					continue
-				}
-			}
-			newLines = append(newLines, line)
-		}
-		if !inserted {
-			// Insert before the navigation div
-			var finalLines []string
-			for _, line := range newLines {
-				if strings.Contains(line, `<div class="navigation">`) {
-					finalLines = append(finalLines, includeLine)
-				}
-				finalLines = append(finalLines, line)
-			}
-			newLines = finalLines
-		}
-
-		if err := os.WriteFile(indexPath, []byte(strings.Join(newLines, "\n")), 0644); err != nil {
-			return err
-		}
-
-		// Renumber all slides
-		if slideAfter > 0 {
-			if err := renumberSlides(root); err != nil {
-				return err
-			}
-		}
-
-		fmt.Printf("Added slide: slides/%s\n", slideFileName)
+		slides, _ := listSlidesFromIndex(root)
+		fmt.Printf("Added slide: slides/%s\n", slides[position-1])
 		return nil
 	},
 }
@@ -125,7 +71,10 @@ var rmCmd = &cobra.Command{
 		}
 
 		target := args[0]
-		existing := listSlideFiles(root)
+		existing, err := listSlidesFromIndex(root)
+		if err != nil {
+			return err
+		}
 
 		var slideFile string
 		// Try as number first
@@ -154,27 +103,15 @@ var rmCmd = &cobra.Command{
 			return err
 		}
 
-		// Remove include line from index.html
-		indexPath := filepath.Join(root, "index.html")
-		indexHTML, err := os.ReadFile(indexPath)
-		if err != nil {
-			return err
-		}
-
-		lines := strings.Split(string(indexHTML), "\n")
-		var newLines []string
-		for _, line := range lines {
-			if strings.Contains(line, fmt.Sprintf(`"slides/%s"`, slideFile)) {
-				continue
+		// Remove from ordering and renumber
+		var remaining []string
+		for _, f := range existing {
+			if f != slideFile {
+				remaining = append(remaining, f)
 			}
-			newLines = append(newLines, line)
 		}
 
-		if err := os.WriteFile(indexPath, []byte(strings.Join(newLines, "\n")), 0644); err != nil {
-			return err
-		}
-
-		if err := renumberSlides(root); err != nil {
+		if err := rewriteSlidesAndIndex(root, remaining); err != nil {
 			return err
 		}
 
@@ -202,7 +139,10 @@ var mvCmd = &cobra.Command{
 			return fmt.Errorf("to must be a slide number: %w", err)
 		}
 
-		existing := listSlideFiles(root)
+		existing, err := listSlidesFromIndex(root)
+		if err != nil {
+			return err
+		}
 		if from < 1 || from > len(existing) || to < 1 || to > len(existing) {
 			return fmt.Errorf("slide numbers out of range (have %d slides)", len(existing))
 		}
@@ -232,7 +172,10 @@ var lsCmd = &cobra.Command{
 			return err
 		}
 
-		slides := listSlideFiles(root)
+		slides, err := listSlidesFromIndex(root)
+		if err != nil {
+			return err
+		}
 		if len(slides) == 0 {
 			fmt.Println("No slides found.")
 			return nil
@@ -246,13 +189,123 @@ var lsCmd = &cobra.Command{
 	},
 }
 
+var insertCmd = &cobra.Command{
+	Use:   "insert <position> <name>",
+	Short: "Insert a new slide at a specific position",
+	Long: `Insert creates a new slide at the given position (1-based), shifting all
+subsequent slides by +1. The position can range from 1 (insert at beginning)
+to len(slides)+1 (append at end).
+
+Handles slides with or without numeric prefixes — all files are renumbered
+after insertion to maintain consistent NN-name.html naming.`,
+	Args: cobra.ExactArgs(2),
+	RunE: func(cmd *cobra.Command, args []string) error {
+		pos, err := strconv.Atoi(args[0])
+		if err != nil {
+			return fmt.Errorf("position must be an integer: %w", err)
+		}
+		name := scaffold.Slugify(args[1])
+
+		root, err := findRoot()
+		if err != nil {
+			return err
+		}
+
+		if err := runInsert(root, pos, name, insertType, insertTitle); err != nil {
+			return err
+		}
+
+		slides, _ := listSlidesFromIndex(root)
+		fmt.Printf("Inserted slide %d of %d: slides/%s\n", pos, len(slides), slides[pos-1])
+		return nil
+	},
+}
+
+// runInsert is the core logic for inserting a slide at a given position.
+// It reads ordering from index.html, creates the new slide file, inserts it
+// into the ordering, and renumbers all slides + rebuilds index.html.
+func runInsert(root string, position int, name, slideType, title string) error {
+	existing, err := listSlidesFromIndex(root)
+	if err != nil {
+		return err
+	}
+
+	if position < 1 || position > len(existing)+1 {
+		return fmt.Errorf("position %d out of range (have %d slides, valid range 1-%d)", position, len(existing), len(existing)+1)
+	}
+
+	// Create a temporary filename (will be renumbered by rewriteSlidesAndIndex)
+	tmpFileName := fmt.Sprintf("%02d-%s.html", position, name)
+	slidePath := filepath.Join(root, "slides", tmpFileName)
+
+	// Render slide from theme template
+	content, err := renderSlideFromTheme(root, name, slideType, position, title)
+	if err != nil {
+		return err
+	}
+	if err := os.MkdirAll(filepath.Join(root, "slides"), 0755); err != nil {
+		return err
+	}
+	if err := os.WriteFile(slidePath, []byte(content), 0644); err != nil {
+		return err
+	}
+
+	// Build new ordered list with the insertion
+	newOrder := make([]string, 0, len(existing)+1)
+	newOrder = append(newOrder, existing[:position-1]...)
+	newOrder = append(newOrder, tmpFileName)
+	newOrder = append(newOrder, existing[position-1:]...)
+
+	// Renumber everything and rebuild index.html
+	return rewriteSlidesAndIndex(root, newOrder)
+}
+
 func init() {
 	addCmd.Flags().IntVar(&slideAfter, "after", 0, "insert after slide N")
 	addCmd.Flags().StringVar(&slideType, "type", "content", "slide type: title, content, closing, two-column, section")
+	insertCmd.Flags().StringVar(&insertType, "type", "content", "slide type: title, content, closing, two-column, section")
+	insertCmd.Flags().StringVar(&insertTitle, "title", "", "display title for the slide")
 	rootCmd.AddCommand(addCmd)
 	rootCmd.AddCommand(rmCmd)
 	rootCmd.AddCommand(mvCmd)
 	rootCmd.AddCommand(lsCmd)
+	rootCmd.AddCommand(insertCmd)
+}
+
+// extractNamePart strips the numeric prefix (e.g., "01-") from a slide filename,
+// returning just the name portion. For files without a numeric prefix (e.g.,
+// "blah.html" or "my-intro.html"), returns the filename unchanged.
+func extractNamePart(filename string) string {
+	if m := numPrefixRe.FindStringSubmatch(filename); m != nil {
+		return m[2]
+	}
+	return filename
+}
+
+// listSlidesFromIndex returns slide filenames in the order they appear in
+// index.html include directives. This is the canonical ordering source.
+// Falls back to filesystem listing if index.html has no includes.
+func listSlidesFromIndex(root string) ([]string, error) {
+	indexPath := filepath.Join(root, "index.html")
+	data, err := os.ReadFile(indexPath)
+	if err != nil {
+		return nil, err
+	}
+
+	var slides []string
+	for _, line := range strings.Split(string(data), "\n") {
+		if m := includeRe.FindStringSubmatch(line); m != nil {
+			// m[1] is "slides/filename.html", strip the "slides/" prefix
+			name := strings.TrimPrefix(m[1], "slides/")
+			slides = append(slides, name)
+		}
+	}
+
+	if len(slides) == 0 {
+		// Fallback to filesystem
+		return listSlideFiles(root), nil
+	}
+	return slides, nil
 }
 
 func findRoot() (string, error) {
@@ -296,11 +349,16 @@ func extractFirstHeading(filePath string) string {
 }
 
 // renderSlideFromTheme renders a slide using the embedded theme template.
-// It looks up the slide type in the theme's theme.yaml config to find the
-// correct template file, falling back to the default theme if needed.
-func renderSlideFromTheme(name, slideType string, number int) (string, error) {
-	// Load theme config to resolve slide type → template path
-	cfg, err := scaffold.LoadThemeConfig("default")
+// It reads the theme from .slyds.yaml manifest in root (falling back to
+// "default"), then looks up the slide type in the theme's theme.yaml config
+// to find the correct template file.
+func renderSlideFromTheme(root, name, slideType string, number int, titleOverride ...string) (string, error) {
+	theme := "default"
+	if m, err := scaffold.ReadManifest(root); err == nil && m.Theme != "" {
+		theme = m.Theme
+	}
+
+	cfg, err := scaffold.LoadThemeConfig(theme)
 	if err != nil {
 		return "", err
 	}
@@ -320,7 +378,12 @@ func renderSlideFromTheme(name, slideType string, number int) (string, error) {
 	}
 	displayName = strings.Join(words, " ")
 
-	tmplPath := fmt.Sprintf("templates/default/%s", tmplFile)
+	// Allow explicit title override
+	if len(titleOverride) > 0 && titleOverride[0] != "" {
+		displayName = titleOverride[0]
+	}
+
+	tmplPath := fmt.Sprintf("templates/%s/%s", theme, tmplFile)
 	content, err := assets.TemplatesFS.ReadFile(tmplPath)
 	if err != nil {
 		return "", fmt.Errorf("slide template %q not found: %w", tmplFile, err)
@@ -343,11 +406,6 @@ func renderSlideFromTheme(name, slideType string, number int) (string, error) {
 	return buf.String(), nil
 }
 
-func renumberSlides(root string) error {
-	existing := listSlideFiles(root)
-	return rewriteSlidesAndIndex(root, existing)
-}
-
 func rewriteSlidesAndIndex(root string, orderedFiles []string) error {
 	slidesDir := filepath.Join(root, "slides")
 
@@ -356,12 +414,7 @@ func rewriteSlidesAndIndex(root string, orderedFiles []string) error {
 	var renames []rename
 
 	for i, oldName := range orderedFiles {
-		// Extract the name part (after the NN- prefix)
-		parts := strings.SplitN(oldName, "-", 2)
-		namePart := oldName
-		if len(parts) == 2 {
-			namePart = parts[1]
-		}
+		namePart := extractNamePart(oldName)
 		newName := fmt.Sprintf("%02d-%s", i+1, namePart)
 		if oldName != newName {
 			renames = append(renames, rename{oldName, newName})

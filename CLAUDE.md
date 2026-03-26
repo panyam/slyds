@@ -23,10 +23,11 @@ slyds init "Title" [-n count] [--theme dark]      # Scaffold presentation
 slyds update [dir]                               # Refresh engine/theme files, preserve slides
 slyds serve [dir] [-p port]                      # Dev server with live include resolution
 slyds build [dir]                                # Flatten to dist/index.html
-slyds add "name" [--after N] [--type content]    # Add slide
+slyds add "name" [--after N] [--type content]    # Add slide (append or after position)
+slyds insert <pos> "name" [--type T] [--title T] # Insert slide at position
 slyds rm <name-or-number>                        # Remove slide
 slyds mv <from> <to>                             # Reorder slides
-slyds ls                                         # List slides
+slyds ls                                         # List slides (index.html order)
 ```
 
 ## Conventions
