@@ -265,6 +265,132 @@ func runInsert(root string, position int, name, slideType, title string) error {
 	return rewriteSlidesAndIndex(root, newOrder)
 }
 
+var slugifyCmd = &cobra.Command{
+	Use:   "slugify [dir]",
+	Short: "Rename all slides to slug-based filenames from their <h1> content",
+	Long: `Slugify reads each slide's <h1> heading, slugifies it, and renames the file
+to use that slug (preserving the numeric prefix). This makes git diffs cleaner
+when slides are reordered or inserted, since the slug stays stable.
+
+Slides without an <h1> or whose slug already matches are left unchanged.`,
+	Args: cobra.MaximumNArgs(1),
+	RunE: func(cmd *cobra.Command, args []string) error {
+		dir := "."
+		if len(args) > 0 {
+			dir = args[0]
+		}
+		root, err := findRootIn(dir)
+		if err != nil {
+			return err
+		}
+
+		renamed, err := renameToSlugs(root)
+		if err != nil {
+			return err
+		}
+
+		if renamed == 0 {
+			fmt.Println("All slides already have slug-based names.")
+		} else {
+			fmt.Printf("Renamed %d slide(s).\n", renamed)
+		}
+		return nil
+	},
+}
+
+// renameToSlugs reads each slide's <h1> content, slugifies it, and renames
+// files + updates index.html. Returns the number of slides renamed.
+// Slides without an <h1> or whose slug already matches are left unchanged.
+func renameToSlugs(root string) (int, error) {
+	slides, err := listSlidesFromIndex(root)
+	if err != nil {
+		return 0, err
+	}
+
+	// Build new names, tracking used slugs for deduplication
+	usedSlugs := make(map[string]int)
+	newNames := make([]string, len(slides))
+	renamed := 0
+
+	for i, filename := range slides {
+		heading := extractFirstHeading(filepath.Join(root, "slides", filename))
+		if heading == "" {
+			// No h1 — keep existing name
+			newNames[i] = filename
+			namePart := extractNamePart(filename)
+			slug := strings.TrimSuffix(namePart, ".html")
+			usedSlugs[slug]++
+			continue
+		}
+
+		slug := scaffold.Slugify(heading)
+		usedSlugs[slug]++
+		if usedSlugs[slug] > 1 {
+			slug = fmt.Sprintf("%s-%d", slug, usedSlugs[slug])
+		}
+
+		newName := fmt.Sprintf("%02d-%s.html", i+1, slug)
+		newNames[i] = newName
+		if newName != filename {
+			renamed++
+		}
+	}
+
+	if renamed == 0 {
+		return 0, nil
+	}
+
+	// Use the existing rewrite infrastructure — but we need to rename
+	// files directly since rewriteSlidesAndIndex expects the files to
+	// exist with their OLD names and renames them.
+	slidesDir := filepath.Join(root, "slides")
+
+	// Rename via temp to avoid collisions
+	type renamePair struct{ from, to string }
+	var renames []renamePair
+	for i, oldName := range slides {
+		if newNames[i] != oldName {
+			renames = append(renames, renamePair{oldName, newNames[i]})
+		}
+	}
+	for _, r := range renames {
+		os.Rename(filepath.Join(slidesDir, r.from), filepath.Join(slidesDir, r.from+".tmp"))
+	}
+	for _, r := range renames {
+		os.Rename(filepath.Join(slidesDir, r.from+".tmp"), filepath.Join(slidesDir, r.to))
+	}
+
+	// Rebuild index.html with new names
+	indexPath := filepath.Join(root, "index.html")
+	indexHTML, err := os.ReadFile(indexPath)
+	if err != nil {
+		return 0, err
+	}
+
+	lines := strings.Split(string(indexHTML), "\n")
+	var newLines []string
+	includeInserted := false
+
+	for _, line := range lines {
+		if includeRe.MatchString(line) {
+			if !includeInserted {
+				for _, f := range newNames {
+					newLines = append(newLines, fmt.Sprintf(`    {{# include "slides/%s" #}}`, f))
+				}
+				includeInserted = true
+			}
+			continue
+		}
+		newLines = append(newLines, line)
+	}
+
+	if err := os.WriteFile(indexPath, []byte(strings.Join(newLines, "\n")), 0644); err != nil {
+		return 0, err
+	}
+
+	return renamed, nil
+}
+
 func init() {
 	addCmd.Flags().IntVar(&slideAfter, "after", 0, "insert after slide N")
 	addCmd.Flags().StringVar(&slideType, "type", "content", "slide type: title, content, closing, two-column, section")
@@ -275,6 +401,7 @@ func init() {
 	rootCmd.AddCommand(mvCmd)
 	rootCmd.AddCommand(lsCmd)
 	rootCmd.AddCommand(insertCmd)
+	rootCmd.AddCommand(slugifyCmd)
 }
 
 // extractNamePart strips the numeric prefix (e.g., "01-") from a slide filename,
