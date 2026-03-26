@@ -13,7 +13,7 @@ import (
 // can be rendered from the embedded theme template and contains the expected
 // CSS class and column structure.
 func TestRenderSlideFromThemeTwoColumn(t *testing.T) {
-	content, err := renderSlideFromTheme("architecture", "two-column", 3)
+	content, err := renderSlideFromTheme("", "architecture", "two-column", 3)
 	if err != nil {
 		t.Fatalf("renderSlideFromTheme(two-column) failed: %v", err)
 	}
@@ -32,7 +32,7 @@ func TestRenderSlideFromThemeTwoColumn(t *testing.T) {
 // TestRenderSlideFromThemeSection verifies that a section divider slide
 // can be rendered and contains the expected CSS class.
 func TestRenderSlideFromThemeSection(t *testing.T) {
-	content, err := renderSlideFromTheme("part-two", "section", 4)
+	content, err := renderSlideFromTheme("", "part-two", "section", 4)
 	if err != nil {
 		t.Fatalf("renderSlideFromTheme(section) failed: %v", err)
 	}
