@@ -30,6 +30,7 @@ slyds mv <from> <to>                             # Reorder slides
 slyds ls [dir]                                   # List slides (index.html order)
 slyds slugify [dir]                              # Rename all slides to slugs from <h1>
 slyds check [dir]                                # Validate deck (sync, notes, assets)
+slyds query <slide> <sel> [--set|--append|...]   # CSS selector read/write on slide HTML
 ```
 
 ## Conventions
