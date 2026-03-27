@@ -29,6 +29,7 @@ slyds rm <name-or-number>                        # Remove slide
 slyds mv <from> <to>                             # Reorder slides
 slyds ls [dir]                                   # List slides (index.html order)
 slyds slugify [dir]                              # Rename all slides to slugs from <h1>
+slyds check [dir]                                # Validate deck (sync, notes, assets)
 ```
 
 ## Conventions
