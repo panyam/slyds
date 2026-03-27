@@ -10,13 +10,20 @@ Removed legacy Node.js code. Fixed module path. Version command + build-time inj
 Multiple built-in themes (default, minimal, dark, corporate, hacker). `--theme` flag on init. Theme preview/switching. Theme-aware slide rendering from manifest.
 
 ## v0.4 — Slide Management (done)
-`slyds insert` with auto-renumber. Index-based ordering (index.html as source of truth). Robust non-prefixed filename handling.
+`slyds insert` with auto-renumber. Index-based ordering (index.html as source of truth). Robust non-prefixed filename handling. `slyds slugify` for diff-friendly filenames.
 
-## v0.4 — Slide Folders
+## v0.5 — Content Tooling (done)
+`slyds check` for deck validation. `slyds query` for CSS selector-based slide content access via goquery. No-regex-HTML-mutation constraint established.
+
+## v0.6 — Slide Folders
 Support `slides/03-name/slide.html` with co-located assets (images, per-slide CSS). Auto-detect folder vs file slides.
 
 ## Future
+- Structured slide formats (YAML, JSON, MD) with format-aware query dispatch
+- Decouple slyds.js/css into independently publishable npm package (issue #12)
+- Slide animations — PowerPoint-style entry/exit/emphasis (issue #5)
+- Interactive slides with TypeScript/esbuild (issue #3)
+- Slide navigation hooks (issue #1)
 - Markdown slide authoring (convert `.md` to slide HTML)
 - PDF export
-- Remote collaboration / sharing
 - Plugin system for custom slide components

@@ -11,6 +11,9 @@
 - [x] ~~Robust non-prefixed filename handling — files without `NN-` prefix are preserved during renumber~~
 - [x] ~~Theme-aware slide rendering — `add`/`insert` use manifest theme, not hardcoded "default"~~
 - [x] ~~GitHub Actions CI + pre-push hook running tests~~
+- [x] ~~`slyds slugify` — bulk rename slides to slug-based filenames from `<h1>` (issue #10)~~
+- [x] ~~`slyds check` — validate deck sync, speaker notes, broken assets, talk time (issue #9 partial)~~
+- [x] ~~`slyds query` — CSS selector read/write interface for slide HTML via goquery (issue #18)~~
 - [ ] Slide navigation hooks — drive demos from slide transitions (issue #1)
 - [ ] Interactive slides with TypeScript/esbuild support (issue #3)
 - [x] ~~Theme static asset copying (images, fonts) during scaffold~~

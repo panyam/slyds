@@ -10,9 +10,10 @@ See [ARCHITECTURE.md](ARCHITECTURE.md) for design details.
 
 ```bash
 make resymlink   # Set up locallinks/ for local templar dependency (first time only)
-make build       # Build the slyds binary
+make build       # Build the slyds binary (injects version from git tags)
 make test        # Run all tests
-make install     # Install to $GOBIN
+make install     # Install to $GOBIN (injects version from git tags)
+make version     # Print the version that would be injected
 make setup-tools # Install required Go tools (cobra-cli)
 ```
 
@@ -38,19 +39,24 @@ slyds query <slide> <sel> [--set|--append|...]   # CSS selector read/write on sl
 - **No hardcoded HTML in Go code** — use embedded `.tmpl` files under `assets/templates/<theme>/`. New themes = new template dirs, not Go changes.
 - **Slide types are config-driven** — each theme has a `theme.yaml` that maps type names to template files. Add a custom type by adding a `.tmpl` file and registering it in `theme.yaml`.
 - **Configure templar programmatically** — don't generate `.templar.yaml` files. Use `TemplateGroup`, `FileSystemLoader`, etc. directly.
-- **Local deps via locallinks/** — `go.mod` uses `replace => ./locallinks/newstack/templar/main`. Run `make resymlink` to create the symlink.
+- **Local deps via locallinks/** — `go.mod` uses `replace => ./locallinks/newstack/templar/main`. Run `make resymlink` to create the symlink. The replace must be **commented out** before pushing (pre-push hook enforces this).
 - **Slide files are pure HTML** — only `index.html` uses templar `{{# include #}}` syntax.
 - **`.slyds.yaml` manifest** — created by `init`, stores `theme` and `title`. Used by `update` to know how to re-render templates. If missing, `update` prompts interactively.
+- **Index.html is source of truth** for slide ordering — not filesystem sort. All commands use `listSlidesFromIndex()`.
+- **No regex-based HTML mutation** — use `slyds query` (goquery/CSS selectors) for reading/writing slide content. See [CONSTRAINTS.md](CONSTRAINTS.md).
+- **Version from git tags** — `make build`/`make install` inject version via ldflags from `git describe --tags`. No manual version file.
 
 ## Project Layout
 
 ```
 main.go                     # Entry point
-cmd/                        # Cobra commands (init, update, serve, build, add/rm/mv/ls)
+cmd/                        # Cobra commands (init, update, serve, build, add/rm/mv/ls, insert, slugify, check, query)
 internal/scaffold/          # Presentation scaffolding, update, and manifest management
 internal/builder/           # Include flattening + CSS/JS/image inlining
 assets/                     # go:embed package — slyds.css, slyds.js, theme templates
 assets/templates/<theme>/   # Theme template files (.tmpl) — default, minimal, dark, corporate, hacker
+.github/workflows/          # CI (test.yml) and release (release.yml via goreleaser)
+.goreleaser.yaml            # Cross-platform binary release config
 ```
 ## Gotchas
 

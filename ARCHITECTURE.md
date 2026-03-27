@@ -83,6 +83,18 @@ slyds uses templar as a Go library, configuring it programmatically:
 
 No `.templar.yaml` config files are generated or needed.
 
+## Slide Ordering
+
+`index.html` is the **source of truth** for slide ordering. All commands (`ls`, `rm`, `mv`, `add`, `insert`) use `listSlidesFromIndex()` which parses include directives from `index.html`. The filesystem sort (`listSlideFiles`) is a fallback only when index.html has no includes.
+
+`rewriteSlidesAndIndex()` is the core mutation function — it renames slide files (via temp files to avoid collisions) and rebuilds all include directives atomically.
+
+## Content Access Layer
+
+`slyds query` provides CSS selector-based read/write access to slide HTML content using `PuerkitoBio/goquery`. Slide files are HTML fragments, not full documents — the query layer wraps them in a sentinel div for parsing and extracts the fragment on write-back (no `<html><body>` wrappers leak).
+
+This is the approved path for all programmatic slide content access. Regex-based HTML mutation is prohibited (see CONSTRAINTS.md).
+
 ## Dependency Management
 
 The `go.mod` uses a local replace directive for templar development:
@@ -90,4 +102,8 @@ The `go.mod` uses a local replace directive for templar development:
 replace github.com/panyam/templar => ./locallinks/newstack/templar/main
 ```
 
-The `locallinks/` directory contains symlinks created by `make resymlink`.
+The `locallinks/` directory contains symlinks created by `make resymlink`. The replace directive must be **commented out** before pushing — the pre-push hook enforces this.
+
+## Release
+
+Version is injected from git tags at build time via ldflags (`-X cmd.Version`). Goreleaser builds cross-platform binaries on `v*` tag push via GitHub Actions.

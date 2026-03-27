@@ -9,10 +9,15 @@ slyds is a Go CLI for creating, serving, and building self-contained HTML presen
 - **`serve`**: Dev server that resolves templar includes on-the-fly
 - **`build`**: Flattens all includes and inlines CSS/JS/images into a single `dist/index.html`
 - **`add/rm/mv/ls`**: Slide management — create, delete, reorder slides with auto-renumbering
+- **`insert`**: Insert slide at any position with auto-renumber
+- **`slugify`**: Bulk rename slides to slug-based filenames from `<h1>` content
+- **`check`**: Validate deck — sync, missing notes, broken assets, talk time estimate
+- **`query`**: CSS selector interface for reading/writing slide HTML content (goquery)
+- **`version`**: Print version (injected from git tags at build time)
 
 ## Current State
 
-The Go rewrite is functional with all core commands working and 30+ unit/integration tests passing. Five built-in themes (default, minimal, dark, corporate, hacker). The legacy Node.js code (`bin/`, `lib/`, `templates/`, `package.json`) is still present but unused — pending cleanup.
+The Go rewrite is complete with all core commands working, 80+ tests passing, CI/CD via GitHub Actions, and cross-platform binary releases via goreleaser. Five built-in themes. Legacy Node.js code removed. Published as `github.com/panyam/slyds` at v0.0.4.
 
 ## Key Patterns
 
@@ -20,4 +25,7 @@ The Go rewrite is functional with all core commands working and 30+ unit/integra
 - Templar used as a Go library (programmatic config, no YAML files)
 - Slide files are pure HTML fragments — no template syntax
 - Only `index.html` uses templar's `{{# include #}}` directives
+- `index.html` is the source of truth for slide ordering (not filesystem sort)
 - `.slyds.yaml` manifest tracks theme and title for `slyds update`
+- HTML content access via goquery/CSS selectors (`slyds query`), not regex
+- Version injected from git tags via ldflags at build time
