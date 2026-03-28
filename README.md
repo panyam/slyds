@@ -154,7 +154,10 @@ No template syntax needed in slide files. The first slide gets `class="slide act
 | `→` | Next slide |
 | `←` | Previous slide |
 | `N` | Open speaker notes window |
+| `T` | Start/pause presentation timer |
 | `Esc` | Close notes window |
+
+The speaker notes window includes an elapsed timer, per-slide reading time estimate (~200 WPM), and remaining deck time. Timer state persists across notes window close/reopen.
 
 ## Built-in CSS Classes
 

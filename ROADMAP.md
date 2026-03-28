@@ -21,6 +21,9 @@ Client-side slide export/download from built presentations. Download button in n
 ## v0.6.1 — Examples & Documentation
 Three example presentations (slyds-intro, rich-content, hacker-showcase) demonstrating themes and CSS components. GitHub Pages deployment via `make gh-pages`. `make examples` build target.
 
+## v0.6.2 — Presenter Timer
+Elapsed presentation timer, per-slide reading time (~200 WPM), and remaining deck time in the speaker notes window. Toggle with T key. Timer state persists across notes window close/reopen.
+
 ## v0.7 — Slide Folders
 Support `slides/03-name/slide.html` with co-located assets (images, per-slide CSS). Auto-detect folder vs file slides.
 
