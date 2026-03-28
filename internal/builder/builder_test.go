@@ -5,6 +5,8 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+
+	"github.com/panyam/slyds/internal/scaffold"
 )
 
 func TestFlattenIncludes(t *testing.T) {
@@ -52,6 +54,33 @@ func TestFlattenIncludesMultiple(t *testing.T) {
 
 	if !strings.Contains(result, "Slide 1") || !strings.Contains(result, "Slide 2") {
 		t.Error("not all includes resolved")
+	}
+}
+
+// TestBuildIncludesExportJS verifies the full build pipeline: scaffold a presentation,
+// build it, and confirm the output HTML contains the inlined export JS (exportPresentation
+// function) and the export button markup (class="export-btn"). This is an end-to-end test
+// ensuring the export feature survives the complete init → build workflow.
+func TestBuildIncludesExportJS(t *testing.T) {
+	tmp := t.TempDir()
+
+	// Scaffold a presentation
+	_, err := scaffold.CreateInDir("Build Export Test", 3, "default", filepath.Join(tmp, "deck"))
+	if err != nil {
+		t.Fatalf("CreateInDir failed: %v", err)
+	}
+
+	// Build it
+	result, err := Build(filepath.Join(tmp, "deck"))
+	if err != nil {
+		t.Fatalf("Build failed: %v", err)
+	}
+
+	if !strings.Contains(result.HTML, "exportPresentation") {
+		t.Error("built HTML missing inlined export JS (exportPresentation function)")
+	}
+	if !strings.Contains(result.HTML, `class="export-btn"`) {
+		t.Error("built HTML missing export button")
 	}
 }
 

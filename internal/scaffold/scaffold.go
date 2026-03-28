@@ -60,6 +60,9 @@ func CreateInDir(title string, slideCount int, theme string, outDir string) (str
 	if err := os.WriteFile(filepath.Join(dir, "slyds.js"), []byte(assets.SlydsJS), 0644); err != nil {
 		return "", err
 	}
+	if err := os.WriteFile(filepath.Join(dir, "slyds-export.js"), []byte(assets.SlydsExportJS), 0644); err != nil {
+		return "", err
+	}
 
 	// Render and write theme.css from template
 	themeData := map[string]any{"Title": title}
@@ -188,6 +191,9 @@ func CreateFromDir(outDir, title string, slideCount int, themeDir string) error 
 	if err := os.WriteFile(filepath.Join(outDir, "slyds.js"), []byte(assets.SlydsJS), 0644); err != nil {
 		return err
 	}
+	if err := os.WriteFile(filepath.Join(outDir, "slyds-export.js"), []byte(assets.SlydsExportJS), 0644); err != nil {
+		return err
+	}
 
 	readTmpl := func(name string) ([]byte, error) {
 		return os.ReadFile(filepath.Join(themeDir, name))
@@ -310,11 +316,20 @@ func renderTemplateFrom(readTmpl func(string) ([]byte, error), tmplName string, 
 }
 
 // renderEmbeddedTemplate reads a template from the embedded FS, renders it, and writes to outPath.
+// It tries the theme-specific path first (templates/<theme>/<name>), then falls back to the
+// shared path (templates/<name>). This allows themes to override any template while sharing
+// common ones like index.html.tmpl.
 func renderEmbeddedTemplate(theme, tmplName string, data any, outPath string) error {
+	// Try theme-specific first
 	tmplPath := fmt.Sprintf("templates/%s/%s", theme, tmplName)
 	content, err := assets.TemplatesFS.ReadFile(tmplPath)
 	if err != nil {
-		return fmt.Errorf("template %q not found in theme %q: %w", tmplName, theme, err)
+		// Fall back to shared template
+		tmplPath = fmt.Sprintf("templates/%s", tmplName)
+		content, err = assets.TemplatesFS.ReadFile(tmplPath)
+		if err != nil {
+			return fmt.Errorf("template %q not found in theme %q or shared templates", tmplName, theme)
+		}
 	}
 
 	tmpl, err := template.New(tmplName).Parse(string(content))
@@ -386,6 +401,9 @@ func Update(dir, theme, title string) error {
 	}
 	if err := os.WriteFile(filepath.Join(dir, "slyds.js"), []byte(assets.SlydsJS), 0644); err != nil {
 		return fmt.Errorf("failed to write slyds.js: %w", err)
+	}
+	if err := os.WriteFile(filepath.Join(dir, "slyds-export.js"), []byte(assets.SlydsExportJS), 0644); err != nil {
+		return fmt.Errorf("failed to write slyds-export.js: %w", err)
 	}
 
 	// Re-render theme.css

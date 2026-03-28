@@ -217,6 +217,30 @@ body {
     border-color: rgba(0,0,0,0.25);
 }
 
+/* ── Export icon button ── */
+.export-btn {
+    position: absolute;
+    right: 80px;
+    background: none;
+    border: 1px solid rgba(0,0,0,0.15);
+    color: #6c757d;
+    width: 36px;
+    height: 36px;
+    border-radius: 50%;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.3s ease;
+    padding: 0;
+}
+
+.export-btn:hover {
+    background: rgba(0,0,0,0.06);
+    color: #2c3e50;
+    border-color: rgba(0,0,0,0.25);
+}
+
 /* ── Title slide ── */
 .title-slide {
     text-align: center;

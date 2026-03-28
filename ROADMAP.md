@@ -15,7 +15,10 @@ Multiple built-in themes (default, minimal, dark, corporate, hacker). `--theme` 
 ## v0.5 — Content Tooling (done)
 `slyds check` for deck validation. `slyds query` for CSS selector-based slide content access via goquery. No-regex-HTML-mutation constraint established.
 
-## v0.6 — Slide Folders
+## v0.6 — Export & Sharing (done)
+Client-side slide export/download from built presentations. Download button in nav bar extracts slides from DOM, wraps in standalone HTML, zips, and triggers browser download. Works from `file://`, static hosts, and `slyds serve` — no server required. Shared template system for `index.html.tmpl` to reduce cross-theme duplication.
+
+## v0.7 — Slide Folders
 Support `slides/03-name/slide.html` with co-located assets (images, per-slide CSS). Auto-detect folder vs file slides.
 
 ## Future
@@ -25,5 +28,6 @@ Support `slides/03-name/slide.html` with co-located assets (images, per-slide CS
 - Interactive slides with TypeScript/esbuild (issue #3)
 - Slide navigation hooks (issue #1)
 - Markdown slide authoring (convert `.md` to slide HTML)
+- WASM-based browser editor and source-level rebuild (issue #21)
 - PDF export
 - Plugin system for custom slide components
