@@ -1,0 +1,19 @@
+<div class="slide nerdy-bg">
+  <h1>Under the Hood</h1>
+  <h3>// TEMPLATE ENGINE</h3>
+  <p>slyds uses <em>templar</em> for include resolution — each slide is composed into <code>index.html</code> via <code>&lcub;&lcub;# include #&rcub;&rcub;</code> directives at build time.</p>
+  <div class="highlight">
+    <strong>Key insight:</strong> Slides are pure HTML fragments. No template syntax in slide files — only <code>index.html</code> uses templar directives. This keeps slides portable and editable with any HTML tool.
+  </div>
+  <h3>// BUILD PIPELINE</h3>
+  <ul>
+    <li>Resolve includes → flatten into single document</li>
+    <li>Inline CSS → replace <code>&lt;link&gt;</code> with <code>&lt;style&gt;</code></li>
+    <li>Inline JS → replace <code>&lt;script src&gt;</code> with inline scripts</li>
+    <li>Inline images → convert local files to base64 data URIs</li>
+  </ul>
+  <div class="speaker-notes">
+    <h3>Template Engine</h3>
+    <p>The nerdy-bg class adds the abstract-purple-waves.jpg background with a dark overlay. Use this for deep-dive technical content. The h3 elements render in JetBrains Mono uppercase — great for section labels within a slide.</p>
+  </div>
+</div>

@@ -1,0 +1,19 @@
+<div class="slide">
+  <h1>One File Per Slide</h1>
+  <p>Your presentation is a directory of plain HTML files:</p>
+  <pre><code>my-talk/
+  index.html          ← composes slides via includes
+  theme.css           ← visual theme
+  slyds.css           ← engine styles
+  slyds.js            ← navigation engine
+  slides/
+    01-title.html     ← each slide is its own file
+    02-problem.html
+    03-solution.html
+    04-closing.html</code></pre>
+  <p>Edit slides independently. Reorder by renaming. Diff with git.</p>
+  <div class="speaker-notes">
+    <h3>File Structure</h3>
+    <p>Each slide is a standalone HTML fragment. The index.html uses templar include directives to compose them. This means you can diff individual slides, reorder them by renaming files, and use standard git workflows for collaboration.</p>
+  </div>
+</div>

@@ -3,3 +3,6 @@ dist/
 *.log
 slyds
 locallinks/
+examples/*/dist/
+examples/dist/
+_site/

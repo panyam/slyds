@@ -1,0 +1,43 @@
+<div class="slide server-bg">
+  <h1>Deployment</h1>
+  <h3>// ZERO INFRASTRUCTURE</h3>
+  <p>The built output is a single HTML file with everything inlined:</p>
+  <table>
+    <thead>
+      <tr>
+        <th>Asset</th>
+        <th>Strategy</th>
+        <th>Result</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td>CSS</td>
+        <td><code>&lt;link&gt;</code> → <code>&lt;style&gt;</code></td>
+        <td>Embedded in document</td>
+      </tr>
+      <tr>
+        <td>JavaScript</td>
+        <td><code>&lt;script src&gt;</code> → inline</td>
+        <td>Embedded in document</td>
+      </tr>
+      <tr>
+        <td>Images</td>
+        <td>File → base64 data URI</td>
+        <td>Embedded in document</td>
+      </tr>
+      <tr>
+        <td>Fonts</td>
+        <td>CSS @import (remote)</td>
+        <td>Loaded at view time</td>
+      </tr>
+    </tbody>
+  </table>
+  <div class="highlight">
+    <strong>Host anywhere:</strong> GitHub Pages, S3, email the file, open from disk — it just works.
+  </div>
+  <div class="speaker-notes">
+    <h3>Deployment</h3>
+    <p>The server-bg class adds the server-rack-blue.jpg background — perfect for infrastructure and deployment topics. The table uses the hacker theme's monospace headers with indigo accent colors. Note how the hover effect highlights rows.</p>
+  </div>
+</div>

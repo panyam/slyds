@@ -18,6 +18,9 @@ Multiple built-in themes (default, minimal, dark, corporate, hacker). `--theme` 
 ## v0.6 — Export & Sharing (done)
 Client-side slide export/download from built presentations. Download button in nav bar extracts slides from DOM, wraps in standalone HTML, zips, and triggers browser download. Works from `file://`, static hosts, and `slyds serve` — no server required. Shared template system for `index.html.tmpl` to reduce cross-theme duplication.
 
+## v0.6.1 — Examples & Documentation
+Three example presentations (slyds-intro, rich-content, hacker-showcase) demonstrating themes and CSS components. GitHub Pages deployment via `make gh-pages`. `make examples` build target.
+
 ## v0.7 — Slide Folders
 Support `slides/03-name/slide.html` with co-located assets (images, per-slide CSS). Auto-detect folder vs file slides.
 

@@ -1,0 +1,117 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>slyds — Example Presentations</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      font-family: 'Segoe UI', system-ui, sans-serif;
+      background: #0f1219;
+      color: #e2e4f0;
+      min-height: 100vh;
+      padding: 60px 20px;
+    }
+    .container { max-width: 900px; margin: 0 auto; }
+    h1 {
+      font-size: 2.5em;
+      font-weight: 900;
+      margin-bottom: 8px;
+      background: linear-gradient(135deg, #7b93ff, #73d1ff);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+    }
+    .subtitle {
+      color: #8888a0;
+      font-size: 1.1em;
+      margin-bottom: 50px;
+    }
+    .subtitle a {
+      color: #7b93ff;
+      text-decoration: none;
+    }
+    .subtitle a:hover { text-decoration: underline; }
+    .grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+      gap: 24px;
+    }
+    .card {
+      background: #1a1d28;
+      border: 1px solid #2a2d3a;
+      border-radius: 12px;
+      padding: 30px;
+      text-decoration: none;
+      color: inherit;
+      transition: border-color 0.2s, transform 0.2s;
+    }
+    .card:hover {
+      border-color: #7b93ff;
+      transform: translateY(-3px);
+    }
+    .card h2 {
+      font-size: 1.3em;
+      margin-bottom: 8px;
+      color: #e2e4f0;
+    }
+    .card .theme-badge {
+      display: inline-block;
+      font-size: 0.75em;
+      padding: 3px 10px;
+      border-radius: 20px;
+      background: rgba(123, 147, 255, 0.15);
+      color: #7b93ff;
+      margin-bottom: 12px;
+    }
+    .card p {
+      color: #8888a0;
+      font-size: 0.95em;
+      line-height: 1.5;
+    }
+    footer {
+      margin-top: 60px;
+      text-align: center;
+      color: #555;
+      font-size: 0.85em;
+    }
+    footer a { color: #7b93ff; text-decoration: none; }
+    footer a:hover { text-decoration: underline; }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>slyds</h1>
+    <p class="subtitle">
+      Multi-file HTML presentations — example decks.
+      <a href="https://github.com/panyam/slyds">View on GitHub</a>
+    </p>
+
+    <div class="grid">
+      <a class="card" href="slyds-intro/index.html">
+        <span class="theme-badge">default theme</span>
+        <h2>What is slyds?</h2>
+        <p>A meta-presentation that introduces slyds itself — the workflow, CLI commands, theming, and philosophy.</p>
+      </a>
+
+      <a class="card" href="rich-content/index.html">
+        <span class="theme-badge">dark theme</span>
+        <h2>Rich Content</h2>
+        <p>Showcases every CSS component: code blocks, callout boxes, stats grids, data tables, phase boxes, and two-column layouts.</p>
+      </a>
+
+      <a class="card" href="hacker-showcase/index.html">
+        <span class="theme-badge">hacker theme</span>
+        <h2>Hacker Showcase</h2>
+        <p>Visual showcase of the hacker theme — background images, JetBrains Mono, progress-aware color shifts, and terminal aesthetics.</p>
+      </a>
+    </div>
+
+    <footer>
+      Built with <a href="https://github.com/panyam/slyds">slyds</a>.
+      Navigate with arrow keys. Press N for speaker notes.
+    </footer>
+  </div>
+</body>
+</html>

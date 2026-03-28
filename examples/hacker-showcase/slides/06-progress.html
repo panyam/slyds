@@ -1,0 +1,37 @@
+<div class="slide">
+  <h1>Progress-Aware Styling</h1>
+  <p>Every slide receives CSS custom properties from the engine:</p>
+  <table>
+    <thead>
+      <tr>
+        <th>Property</th>
+        <th>Value</th>
+        <th>Use Case</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td><code>--slide-index</code></td>
+        <td>0-based position</td>
+        <td>Conditional per-slide styling</td>
+      </tr>
+      <tr>
+        <td><code>--slide-progress</code></td>
+        <td>0% to 100%</td>
+        <td>Gradual transitions through deck</td>
+      </tr>
+      <tr>
+        <td><code>--total-slides</code></td>
+        <td>Slide count</td>
+        <td>Relative calculations</td>
+      </tr>
+    </tbody>
+  </table>
+  <div class="highlight">
+    <strong>Watch the h1 border:</strong> It shifts from <span style="color: #7b93ff;">indigo</span> to <span style="color: #73d1ff;">cyan</span> as you advance through slides, using <code>color-mix(in srgb, #7b93ff, #73d1ff var(--slide-progress))</code>.
+  </div>
+  <div class="speaker-notes">
+    <h3>Progress-Aware CSS</h3>
+    <p>The slyds.js engine sets CSS custom properties on every slide element. Themes can use these for dynamic styling — the hacker theme shifts the h1 border color from indigo to cyan as you progress through the deck. This creates a subtle visual progression that reinforces the audience's sense of progress.</p>
+  </div>
+</div>

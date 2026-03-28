@@ -25,6 +25,23 @@ slyds serve scaling-at-the-edge
 # → http://localhost:3000
 ```
 
+## Examples
+
+Three demo presentations are included in `examples/`:
+
+| Deck | Theme | Showcases |
+|------|-------|-----------|
+| [slyds-intro](examples/slyds-intro/) | default | Meta-presentation about slyds itself — workflow, commands, theming |
+| [rich-content](examples/rich-content/) | dark | CSS components: code blocks, callouts, stats grids, tables, phase boxes |
+| [hacker-showcase](examples/hacker-showcase/) | hacker | Background images, JetBrains Mono, progress-aware styling |
+
+Build and preview locally:
+
+```bash
+make examples          # builds to examples/dist/
+make examples-serve    # serves at localhost:8080
+```
+
 ## How It Works
 
 `slyds init` creates a presentation with each slide in its own file:
