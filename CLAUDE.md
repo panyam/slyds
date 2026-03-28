@@ -69,3 +69,13 @@ assets/templates/<theme>/   # Theme template files (.tmpl) — default, minimal,
 ## Memories
 
 Memories are stored in-repo under `memories/` (not in the global `~/.claude/` config) so they're tracked in version control. See [memories/MEMORY.md](memories/MEMORY.md) for the index. When saving new memories, write them to `memories/` in this repo.
+
+<!-- stack-brain:start -->
+## Constraints
+
+Architectural rules — do not violate these.
+
+### No Regex-Based HTML Mutation
+Do not build CLI commands that modify slide HTML content using regex or string manipulation. All HTML content reads and writes must go through a proper DOM parser (`slyds query` uses goquery/CSS selectors).
+*Why: Regex-based HTML manipulation is fragile (breaks on nested tags, attributes, whitespace). The `slyds query` command provides a safe, format-aware interface. When structured slide formats (YAML, JSON, MD) are added, query dispatch will route to format-specific handlers.*
+<!-- stack-brain:end -->

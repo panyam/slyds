@@ -18,7 +18,7 @@ slyds is a Go CLI for creating, serving, and building self-contained HTML presen
 
 ## Current State
 
-The Go rewrite is complete with all core commands working, 80+ tests passing, CI/CD via GitHub Actions, and cross-platform binary releases via goreleaser. Five built-in themes. Legacy Node.js code removed. Published as `github.com/panyam/slyds` at v0.0.4.
+The Go rewrite is complete with all core commands working, 80+ tests passing, CI/CD via GitHub Actions, and cross-platform binary releases via goreleaser. Five built-in themes. Legacy Node.js code removed. Published as `github.com/panyam/slyds` at v0.0.6.
 
 ## Key Patterns
 
