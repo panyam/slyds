@@ -1,0 +1,25 @@
+<div class="slide layout-two-column">
+  <h1>Side-by-Side Layout</h1>
+  <div style="display: flex; gap: 40px; margin-top: 30px; text-align: left; width: 100%;">
+    <div class="col-left" style="flex: 1;">
+      <h2>Source HTML</h2>
+      <pre><code>&lt;div class=&#34;highlight&#34;&gt;
+  &lt;strong&gt;Tip:&lt;/strong&gt;
+  Use callouts for
+  key information.
+&lt;/div&gt;</code></pre>
+      <p>Write plain HTML — no custom syntax or preprocessors needed.</p>
+    </div>
+    <div class="col-right" style="flex: 1;">
+      <h2>Rendered Result</h2>
+      <div class="highlight">
+        <strong>Tip:</strong> Use callouts for key information.
+      </div>
+      <p>The theme CSS handles all the visual styling automatically.</p>
+    </div>
+  </div>
+  <div class="speaker-notes">
+    <h3>Two-Column Layout</h3>
+    <p>The two-column layout uses flexbox with a subtle left-column border separator. Perfect for before/after comparisons, source vs. rendered views, or any side-by-side content. The col-left class gets a right border for visual separation.</p>
+  </div>
+</div>

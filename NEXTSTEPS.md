@@ -16,6 +16,7 @@
 - [x] ~~`slyds query` — CSS selector read/write interface for slide HTML via goquery (issue #18)~~
 - [x] ~~Client-side slide export/download from built presentations (issue #20)~~
 - [x] ~~Shared `index.html.tmpl` with theme-specific override support — reduces cross-theme duplication~~
+- [x] ~~Example presentations — 3 demo decks (intro, rich-content, hacker) with GitHub Pages deployment~~
 - [ ] Slide navigation hooks — drive demos from slide transitions (issue #1)
 - [ ] Interactive slides with TypeScript/esbuild support (issue #3)
 - [x] ~~Theme static asset copying (images, fonts) during scaffold~~

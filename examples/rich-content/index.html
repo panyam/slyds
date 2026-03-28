@@ -1,0 +1,35 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Rich Content Showcase</title>
+  <link rel="stylesheet" href="slyds.css">
+  <link rel="stylesheet" href="theme.css">
+</head>
+<body>
+  <div class="slideshow-container">
+    {{# include "slides/01-rich-content-showcase.html" #}}
+    {{# include "slides/02-code-blocks.html" #}}
+    {{# include "slides/03-highlight-callouts.html" #}}
+    {{# include "slides/04-stats-at-a-glance.html" #}}
+    {{# include "slides/05-side-by-side-layout.html" #}}
+    {{# include "slides/06-data-tables.html" #}}
+    {{# include "slides/07-phase-boxes.html" #}}
+    {{# include "slides/08-build-your-own.html" #}}
+    <div class="navigation">
+      <button class="nav-button" onclick="changeSlide(-1)" id="prevBtn">&#10094; Prev</button>
+      <div class="slide-counter"><span id="slideNum">1</span> / <span id="totalSlides"></span></div>
+      <button class="nav-button" onclick="changeSlide(1)" id="nextBtn">Next &#10095;</button>
+      <button class="export-btn" onclick="exportPresentation()" title="Export Slides">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+      </button>
+      <button class="notes-btn" onclick="openNotesWindow()" title="Speaker Notes">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><line x1="10" y1="9" x2="8" y2="9"/></svg>
+      </button>
+    </div>
+  </div>
+  <script src="slyds.js"></script>
+  <script src="slyds-export.js"></script>
+</body>
+</html>

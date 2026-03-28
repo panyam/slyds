@@ -1,0 +1,23 @@
+<div class="slide">
+  <h1>Code Blocks</h1>
+  <p>Inline code uses <code>monospace styling</code> with a dark background.</p>
+  <h3>Go Example</h3>
+  <pre><code>func Build(root string) (*Result, error) {
+    html, err := resolveIncludes(root, &#34;index.html&#34;)
+    if err != nil {
+        return nil, fmt.Errorf(&#34;include resolution: %w&#34;, err)
+    }
+    inlined, warnings := InlineAssets(html, root)
+    return &amp;Result{HTML: inlined, Warnings: warnings}, nil
+}</code></pre>
+  <h3>Shell Example</h3>
+  <pre><code>$ slyds init &#34;My Talk&#34; --theme dark -n 6
+Created &#34;my-talk&#34; with 6 slides (theme: dark).
+
+$ slyds build my-talk
+Built dist/index.html (42 KB, 6 slides)</code></pre>
+  <div class="speaker-notes">
+    <h3>Code Blocks</h3>
+    <p>Code blocks use the theme&#39;s monospace font and dark background. The dark theme styles them with a GitHub-dark inspired color scheme. Both inline code and pre/code blocks are styled automatically.</p>
+  </div>
+</div>

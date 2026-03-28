@@ -1,0 +1,21 @@
+<div class="slide">
+  <h1>CLI Commands</h1>
+  <pre><code># Create a new presentation
+slyds init "My Talk" --theme dark -n 10
+
+# Add and manage slides
+slyds add "Architecture" --type two-column --after 3
+slyds mv 5 2
+slyds rm old-slide
+
+# Develop and publish
+slyds serve              # live dev server
+slyds build              # single self-contained HTML</code></pre>
+  <div class="highlight">
+    <strong>No build tools, no npm, no config files.</strong> Just a single binary.
+  </div>
+  <div class="speaker-notes">
+    <h3>CLI Commands</h3>
+    <p>slyds provides a complete CLI for managing presentations. init scaffolds a new deck, add/mv/rm manage slides, serve gives you a live dev server, and build produces a single HTML file with everything inlined.</p>
+  </div>
+</div>

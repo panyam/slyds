@@ -1,0 +1,19 @@
+<div class="slide">
+  <h1>Live Code</h1>
+  <h3>// CONTENT ACCESS VIA CSS SELECTORS</h3>
+  <pre><code>// Read slide content with CSS selectors
+$ slyds query slides/01-title.html "h1"
+Hacker Theme Showcase
+
+// Modify content safely through the DOM
+$ slyds query slides/01-title.html "h1" --set "New Title"
+
+// Append content to a slide
+$ slyds query slides/03-nerdy.html "ul" \
+    --append "&lt;li&gt;New pipeline step&lt;/li&gt;"</code></pre>
+  <p>The <code>slyds query</code> command uses <em>goquery</em> (CSS selectors) for safe HTML access — no regex, no string hacking.</p>
+  <div class="speaker-notes">
+    <h3>Code Demo</h3>
+    <p>Code blocks in the hacker theme use JetBrains Mono with a very dark background (#0a0d14) and cyan text (#73d1ff). The pre element gets a subtle inset shadow and dark border. This is ideal for showing terminal output or code snippets.</p>
+  </div>
+</div>
