@@ -36,12 +36,12 @@ EXAMPLES := examples/slyds-intro examples/rich-content examples/hacker-showcase
 
 # Build all example presentations into examples/dist/
 examples: build
-	@mkdir -p examples/dist
+	@mkdir -p examples/dist/examples
 	@for dir in $(EXAMPLES); do \
 		./slyds build "$$dir"; \
 		name=$$(basename "$$dir"); \
-		mkdir -p "examples/dist/$$name"; \
-		cp "$$dir/dist/index.html" "examples/dist/$$name/"; \
+		mkdir -p "examples/dist/examples/$$name"; \
+		cp "$$dir/dist/index.html" "examples/dist/examples/$$name/"; \
 	done
 	@cp examples/landing/index.html examples/dist/
 	@echo "Examples built to examples/dist/"

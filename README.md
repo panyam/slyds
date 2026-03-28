@@ -27,19 +27,20 @@ slyds serve scaling-at-the-edge
 
 ## Examples
 
-Three demo presentations are included in `examples/`:
+**[Live demos](https://panyam.github.io/slyds/)** — or browse the source in `examples/`:
 
 | Deck | Theme | Showcases |
 |------|-------|-----------|
-| [slyds-intro](examples/slyds-intro/) | default | Meta-presentation about slyds itself — workflow, commands, theming |
-| [rich-content](examples/rich-content/) | dark | CSS components: code blocks, callouts, stats grids, tables, phase boxes |
-| [hacker-showcase](examples/hacker-showcase/) | hacker | Background images, JetBrains Mono, progress-aware styling |
+| [slyds-intro](https://panyam.github.io/slyds/examples/slyds-intro/) | default | Meta-presentation about slyds itself — workflow, commands, theming |
+| [rich-content](https://panyam.github.io/slyds/examples/rich-content/) | dark | CSS components: code blocks, callouts, stats grids, tables, phase boxes |
+| [hacker-showcase](https://panyam.github.io/slyds/examples/hacker-showcase/) | hacker | Background images, JetBrains Mono, progress-aware styling |
 
 Build and preview locally:
 
 ```bash
 make examples          # builds to examples/dist/
 make examples-serve    # serves at localhost:8080
+make gh-pages          # deploy to GitHub Pages
 ```
 
 ## How It Works
