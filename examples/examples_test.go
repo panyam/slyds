@@ -198,6 +198,37 @@ func TestExampleContentNotPlaceholder(t *testing.T) {
 	}
 }
 
+// TestExampleBuildContainsTimer verifies that each example deck's built
+// output includes the presenter timer and reading time features. Checks
+// for the toggleTimer function, the notes window timer UI elements, and
+// the reading time computation — ensuring the timer feature is present
+// in all shipped examples.
+func TestExampleBuildContainsTimer(t *testing.T) {
+	root := examplesDir(t)
+
+	timerMarkers := []string{
+		"toggleTimer",
+		"computeReadingTimes",
+		"notesTimer",
+		"notesTimerToggle",
+		"formatReadingTime",
+	}
+
+	for _, deck := range decks {
+		t.Run(deck.dir, func(t *testing.T) {
+			result, err := builder.Build(filepath.Join(root, deck.dir))
+			if err != nil {
+				t.Fatalf("Build failed: %v", err)
+			}
+			for _, marker := range timerMarkers {
+				if !strings.Contains(result.HTML, marker) {
+					t.Errorf("built output missing timer marker: %s", marker)
+				}
+			}
+		})
+	}
+}
+
 // TestExampleSpeakerNotes verifies that every slide in each example deck
 // contains a speaker-notes section. This ensures presenters always have
 // notes available and validates consistent slide authoring.
