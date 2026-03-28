@@ -13,6 +13,7 @@ slyds is a Go CLI for creating, serving, and building self-contained HTML presen
 - **`slugify`**: Bulk rename slides to slug-based filenames from `<h1>` content
 - **`check`**: Validate deck — sync, missing notes, broken assets, talk time estimate
 - **`query`**: CSS selector interface for reading/writing slide HTML content (goquery)
+- **Export button**: Client-side download in built presentations — extracts slides from DOM, zips, triggers browser download (works from `file://`)
 - **`version`**: Print version (injected from git tags at build time)
 
 ## Current State
@@ -21,7 +22,7 @@ The Go rewrite is complete with all core commands working, 80+ tests passing, CI
 
 ## Key Patterns
 
-- Theme templates embedded via `go:embed` under `assets/templates/<theme>/`
+- Theme templates embedded via `go:embed` under `assets/templates/` (shared) and `assets/templates/<theme>/` (overrides)
 - Templar used as a Go library (programmatic config, no YAML files)
 - Slide files are pure HTML fragments — no template syntax
 - Only `index.html` uses templar's `{{# include #}}` directives

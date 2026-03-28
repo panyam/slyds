@@ -36,7 +36,8 @@ slyds query <slide> <sel> [--set|--append|...]   # CSS selector read/write on sl
 
 ## Conventions
 
-- **No hardcoded HTML in Go code** — use embedded `.tmpl` files under `assets/templates/<theme>/`. New themes = new template dirs, not Go changes.
+- **No hardcoded HTML in Go code** — use embedded `.tmpl` files under `assets/templates/`. New themes = new template dirs, not Go changes.
+- **Shared template fallback** — `renderEmbeddedTemplate` tries `templates/<theme>/<name>` first, falls back to `templates/<name>`. Common templates like `index.html.tmpl` live at the shared level; themes override only when they need different HTML structure (e.g., hacker theme).
 - **Slide types are config-driven** — each theme has a `theme.yaml` that maps type names to template files. Add a custom type by adding a `.tmpl` file and registering it in `theme.yaml`.
 - **Configure templar programmatically** — don't generate `.templar.yaml` files. Use `TemplateGroup`, `FileSystemLoader`, etc. directly.
 - **Local deps via locallinks/** — `go.mod` uses `replace => ./locallinks/newstack/templar/main`. Run `make resymlink` to create the symlink. The replace must be **commented out** before pushing (pre-push hook enforces this).
@@ -53,7 +54,8 @@ main.go                     # Entry point
 cmd/                        # Cobra commands (init, update, serve, build, add/rm/mv/ls, insert, slugify, check, query)
 internal/scaffold/          # Presentation scaffolding, update, and manifest management
 internal/builder/           # Include flattening + CSS/JS/image inlining
-assets/                     # go:embed package — slyds.css, slyds.js, theme templates
+assets/                     # go:embed package — slyds.css, slyds.js, slyds-export.js, theme templates
+assets/templates/           # Shared templates (index.html.tmpl) + per-theme overrides
 assets/templates/<theme>/   # Theme template files (.tmpl) — default, minimal, dark, corporate, hacker
 .github/workflows/          # CI (test.yml) and release (release.yml via goreleaser)
 .goreleaser.yaml            # Cross-platform binary release config

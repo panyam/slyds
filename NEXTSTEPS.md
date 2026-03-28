@@ -14,6 +14,8 @@
 - [x] ~~`slyds slugify` — bulk rename slides to slug-based filenames from `<h1>` (issue #10)~~
 - [x] ~~`slyds check` — validate deck sync, speaker notes, broken assets, talk time (issue #9 partial)~~
 - [x] ~~`slyds query` — CSS selector read/write interface for slide HTML via goquery (issue #18)~~
+- [x] ~~Client-side slide export/download from built presentations (issue #20)~~
+- [x] ~~Shared `index.html.tmpl` with theme-specific override support — reduces cross-theme duplication~~
 - [ ] Slide navigation hooks — drive demos from slide transitions (issue #1)
 - [ ] Interactive slides with TypeScript/esbuild support (issue #3)
 - [x] ~~Theme static asset copying (images, fonts) during scaffold~~
@@ -23,6 +25,8 @@
 - [ ] Slide folders with co-located assets (e.g., `slides/03-architecture/slide.html` + `diagram.png`)
 - [ ] Live reload on file changes during `slyds serve`
 - [ ] Theme composability via templar `extend`/`namespace` directives
+- [ ] WASM-based browser editor and source-level rebuild (issue #21)
+- [ ] Decouple slyds.js/css/export.js into npm package (issue #12)
 
 ## Polish
 - [x] ~~Better error messages — centralized `findRootIn` with actionable hints~~

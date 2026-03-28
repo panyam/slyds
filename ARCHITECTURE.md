@@ -21,6 +21,7 @@ my-talk/
   index.html              # Organizer — templar {{# include #}} directives
   slyds.css               # Presentation engine styles (copied from embedded)
   slyds.js                # Client-side slide engine (copied from embedded)
+  slyds-export.js         # Client-side export/download (copied from embedded)
   theme.css               # Theme styles (rendered from theme template)
   images/                 # Optional theme assets (copied from theme)
   slides/
@@ -38,21 +39,26 @@ Only `index.html` uses templar's `{{# include "slides/01-title.html" #}}` syntax
 Themes are sets of `.tmpl` files under `assets/templates/<theme>/`, plus optional static assets (images, fonts, etc.):
 
 ```
-assets/templates/default/
-  index.html.tmpl                  # Go text/template for index.html
-  theme.css.tmpl                   # Go text/template for theme.css
-  theme.yaml                       # Slide type → template mapping
-  slides/title.html.tmpl           # Slide type templates
-  slides/content.html.tmpl
-  slides/closing.html.tmpl
-  images/                          # Optional — copied verbatim during scaffold
+assets/templates/
+  index.html.tmpl                  # Shared Go text/template for index.html (used by all themes unless overridden)
+  default/
+    theme.css.tmpl                 # Go text/template for theme.css
+    theme.yaml                     # Slide type → template mapping
+    slides/title.html.tmpl         # Slide type templates
+    slides/content.html.tmpl
+    slides/closing.html.tmpl
+    images/                        # Optional — copied verbatim during scaffold
+  hacker/
+    index.html.tmpl                # Theme-specific override (optional — falls back to shared)
+    theme.css.tmpl
+    ...
 ```
 
-Templates receive `{{.Title}}`, `{{.Number}}`, `{{.Includes}}` etc. Adding a new theme means adding a new directory with the same file names. Non-template static files (images, fonts) are copied as-is during `slyds init`.
+Templates receive `{{.Title}}`, `{{.Number}}`, `{{.Includes}}` etc. Adding a new theme means adding a new directory with theme-specific files. Common templates like `index.html.tmpl` live at the shared level and are inherited unless a theme provides its own override. Non-template static files (images, fonts) are copied as-is during `slyds init`.
 
 ### Presentation Layout
 
-The presentation uses a border layout (flexbox column): slide content fills the center and a navigation bar is pinned to the bottom. The nav bar contains Prev/Next buttons with a slide counter between them, and a small icon button for speaker notes on the far right.
+The presentation uses a border layout (flexbox column): slide content fills the center and a navigation bar is pinned to the bottom. The nav bar contains Prev/Next buttons with a slide counter between them, and icon buttons for export (download) and speaker notes on the far right.
 
 ## Manifest & Update
 
@@ -63,7 +69,7 @@ theme: dark
 title: "My Presentation"
 ```
 
-`slyds update` reads this manifest and refreshes engine files (`slyds.css`, `slyds.js`, `theme.css`, `index.html` layout, theme images) from the latest embedded assets — without touching `slides/`. It parses existing `{{# include #}}` directives from `index.html` to preserve slide ordering.
+`slyds update` reads this manifest and refreshes engine files (`slyds.css`, `slyds.js`, `slyds-export.js`, `theme.css`, `index.html` layout, theme images) from the latest embedded assets — without touching `slides/`. It parses existing `{{# include #}}` directives from `index.html` to preserve slide ordering.
 
 If `.slyds.yaml` is missing (pre-existing presentations), `update` prompts for theme and title interactively.
 
@@ -94,6 +100,18 @@ No `.templar.yaml` config files are generated or needed.
 `slyds query` provides CSS selector-based read/write access to slide HTML content using `PuerkitoBio/goquery`. Slide files are HTML fragments, not full documents — the query layer wraps them in a sentinel div for parsing and extracts the fragment on write-back (no `<html><body>` wrappers leak).
 
 This is the approved path for all programmatic slide content access. Regex-based HTML mutation is prohibited (see CONSTRAINTS.md).
+
+## Client-Side Export
+
+Built presentations include `slyds-export.js` which provides a download button in the nav bar. When clicked, it:
+
+1. Extracts all `<style>` blocks from the page (already inlined CSS)
+2. Adds the full deck as `index.html` to a ZIP
+3. Wraps each `<div class="slide">` in standalone HTML with the extracted styles
+4. Generates a ZIP using a minimal store-only ZIP writer (no external dependencies)
+5. Triggers a browser download via `Blob` URL
+
+This works entirely client-side — no server required, including from `file://` protocol. The ZIP writer is ~120 lines of vanilla JS implementing the ZIP format with store-only compression (no deflate needed for small HTML files).
 
 ## Dependency Management
 

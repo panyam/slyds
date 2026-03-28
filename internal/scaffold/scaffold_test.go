@@ -49,6 +49,7 @@ func TestCreate(t *testing.T) {
 		"index.html",
 		"slyds.css",
 		"slyds.js",
+		"slyds-export.js",
 		"theme.css",
 		"slides/01-title.html",
 		"slides/02-slide.html",
@@ -320,6 +321,15 @@ func TestUpdate(t *testing.T) {
 		t.Error("slyds.css was not refreshed")
 	}
 
+	// Verify slyds-export.js was written during update
+	exportJS, err := os.ReadFile(filepath.Join(dir, "slyds-export.js"))
+	if err != nil {
+		t.Fatalf("slyds-export.js not found after update: %v", err)
+	}
+	if len(exportJS) == 0 {
+		t.Error("slyds-export.js is empty after update")
+	}
+
 	// Verify index.html still has includes
 	indexData, _ := os.ReadFile(filepath.Join(dir, "index.html"))
 	indexStr := string(indexData)
@@ -337,6 +347,67 @@ func TestUpdate(t *testing.T) {
 	}
 	if m.Theme != "default" || m.Title != "Update Test" {
 		t.Errorf("manifest = %+v, want theme=default title=Update Test", m)
+	}
+}
+
+// TestCreateHasExportButton verifies that a scaffolded presentation's index.html
+// contains the export button onclick handler and a script reference to slyds-export.js,
+// ensuring the client-side export feature is wired up during init.
+func TestCreateHasExportButton(t *testing.T) {
+	tmp := t.TempDir()
+	origDir, _ := os.Getwd()
+	os.Chdir(tmp)
+	defer os.Chdir(origDir)
+
+	_, err := CreateInDir("Export Button Test", 3, "default", filepath.Join(tmp, "export-btn"))
+	if err != nil {
+		t.Fatalf("CreateInDir failed: %v", err)
+	}
+
+	indexHTML, err := os.ReadFile(filepath.Join(tmp, "export-btn", "index.html"))
+	if err != nil {
+		t.Fatalf("failed to read index.html: %v", err)
+	}
+	indexStr := string(indexHTML)
+
+	if !strings.Contains(indexStr, "exportPresentation()") {
+		t.Error("index.html missing exportPresentation() onclick handler")
+	}
+	if !strings.Contains(indexStr, `slyds-export.js`) {
+		t.Error("index.html missing slyds-export.js script reference")
+	}
+}
+
+// TestAllThemesHaveExportButton verifies that every built-in theme produces an
+// index.html with the export button and export JS script reference, ensuring no
+// theme is accidentally missing the export feature.
+func TestAllThemesHaveExportButton(t *testing.T) {
+	themes, err := ListThemes()
+	if err != nil {
+		t.Fatalf("ListThemes failed: %v", err)
+	}
+
+	for _, theme := range themes {
+		t.Run(theme, func(t *testing.T) {
+			tmp := t.TempDir()
+			_, err := CreateInDir("Theme Test", 2, theme, filepath.Join(tmp, "deck"))
+			if err != nil {
+				t.Fatalf("CreateInDir(%s) failed: %v", theme, err)
+			}
+
+			indexHTML, err := os.ReadFile(filepath.Join(tmp, "deck", "index.html"))
+			if err != nil {
+				t.Fatalf("failed to read index.html: %v", err)
+			}
+			indexStr := string(indexHTML)
+
+			if !strings.Contains(indexStr, "exportPresentation()") {
+				t.Errorf("theme %s: index.html missing export button", theme)
+			}
+			if !strings.Contains(indexStr, `slyds-export.js`) {
+				t.Errorf("theme %s: index.html missing export script", theme)
+			}
+		})
 	}
 }
 

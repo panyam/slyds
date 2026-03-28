@@ -138,6 +138,33 @@ func TestInlineMissingFile(t *testing.T) {
 	}
 }
 
+// TestInlineMultipleJS verifies that when an HTML document references two separate
+// JS files via <script src="...">, both are inlined into inline <script> blocks
+// and no src attributes remain. This confirms the export JS (slyds-export.js) is
+// inlined alongside the main engine JS (slyds.js) during build.
+func TestInlineMultipleJS(t *testing.T) {
+	tmp := t.TempDir()
+
+	os.WriteFile(filepath.Join(tmp, "a.js"), []byte("var a=1;"), 0644)
+	os.WriteFile(filepath.Join(tmp, "b.js"), []byte("var b=2;"), 0644)
+
+	html := `<html><script src="a.js"></script><script src="b.js"></script></html>`
+	result, err := InlineAssets(html, tmp)
+	if err != nil {
+		t.Fatalf("InlineAssets failed: %v", err)
+	}
+
+	if !strings.Contains(result.HTML, "var a=1;") {
+		t.Error("first JS file not inlined")
+	}
+	if !strings.Contains(result.HTML, "var b=2;") {
+		t.Error("second JS file not inlined")
+	}
+	if strings.Contains(result.HTML, `src=`) {
+		t.Error("script src attributes still present after inlining")
+	}
+}
+
 func TestInlineNoAssets(t *testing.T) {
 	html := `<html><body><h1>Hello</h1></body></html>`
 	result, err := InlineAssets(html, ".")
