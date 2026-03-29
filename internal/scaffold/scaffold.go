@@ -183,7 +183,8 @@ func generateSlides(theme, title string, count int, dir string) ([]string, error
 	// Content slides
 	for i := 2; i < count; i++ {
 		name := fmt.Sprintf("%02d-slide.html", i)
-		content, err := renderLayout("content", map[string]any{"Title": title, "Number": i})
+		slideTitle := fmt.Sprintf("Slide %d", i)
+		content, err := renderLayout("content", map[string]any{"Title": slideTitle, "Number": i})
 		if err != nil {
 			return nil, fmt.Errorf("failed to render slide %d: %w", i, err)
 		}
