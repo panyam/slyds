@@ -10,6 +10,7 @@ import (
 	"text/template"
 
 	"github.com/panyam/slyds/assets"
+	"github.com/panyam/slyds/internal/layout"
 )
 
 var includeRe = regexp.MustCompile(`\{\{#\s*include\s+"(slides/[^"]+)"\s*#\}\}`)
@@ -162,33 +163,44 @@ func copyEmbeddedDir(base, dir, outDir string) error {
 	return nil
 }
 
-// generateSlides creates slide files from theme templates.
+// generateSlides creates slide files using layout templates.
+// The first slide uses the "title" layout, middle slides use "content",
+// and the last slide uses "closing".
 func generateSlides(theme, title string, count int, dir string) ([]string, error) {
 	var slideFiles []string
 
 	// Title slide
 	name := "01-title.html"
-	data := map[string]any{"Title": title, "Number": 1}
-	if err := renderEmbeddedTemplate(theme, "slides/title.html.tmpl", data, filepath.Join(dir, "slides", name)); err != nil {
+	content, err := renderLayout("title", map[string]any{"Title": title, "Number": 1})
+	if err != nil {
 		return nil, fmt.Errorf("failed to render title slide: %w", err)
+	}
+	if err := os.WriteFile(filepath.Join(dir, "slides", name), []byte(content), 0644); err != nil {
+		return nil, err
 	}
 	slideFiles = append(slideFiles, name)
 
 	// Content slides
 	for i := 2; i < count; i++ {
 		name := fmt.Sprintf("%02d-slide.html", i)
-		data := map[string]any{"Title": title, "Number": i}
-		if err := renderEmbeddedTemplate(theme, "slides/content.html.tmpl", data, filepath.Join(dir, "slides", name)); err != nil {
+		content, err := renderLayout("content", map[string]any{"Title": title, "Number": i})
+		if err != nil {
 			return nil, fmt.Errorf("failed to render slide %d: %w", i, err)
+		}
+		if err := os.WriteFile(filepath.Join(dir, "slides", name), []byte(content), 0644); err != nil {
+			return nil, err
 		}
 		slideFiles = append(slideFiles, name)
 	}
 
 	// Closing slide
 	name = fmt.Sprintf("%02d-closing.html", count)
-	data = map[string]any{"Title": title, "Number": count}
-	if err := renderEmbeddedTemplate(theme, "slides/closing.html.tmpl", data, filepath.Join(dir, "slides", name)); err != nil {
+	content, err = renderLayout("closing", map[string]any{"Title": title, "Number": count})
+	if err != nil {
 		return nil, fmt.Errorf("failed to render closing slide: %w", err)
+	}
+	if err := os.WriteFile(filepath.Join(dir, "slides", name), []byte(content), 0644); err != nil {
+		return nil, err
 	}
 	slideFiles = append(slideFiles, name)
 
@@ -485,6 +497,11 @@ func Update(dir, theme, title string) error {
 	}
 
 	return nil
+}
+
+// renderLayout renders a layout template by name with the given data.
+func renderLayout(name string, data map[string]any) (string, error) {
+	return layout.Render(name, data)
 }
 
 // writeThemeFiles writes all theme CSS files into a themes/ subdirectory.

@@ -10,16 +10,19 @@ import (
 	"strings"
 	"text/template"
 
-	"github.com/spf13/cobra"
 	"github.com/panyam/slyds/assets"
+	"github.com/panyam/slyds/internal/layout"
 	"github.com/panyam/slyds/internal/scaffold"
+	"github.com/spf13/cobra"
 )
 
 var (
-	slideAfter   int
-	slideType    string
-	insertType   string
-	insertTitle  string
+	slideAfter  int
+	slideType   string
+	slideLayout string
+	insertType  string
+	insertLayout string
+	insertTitle string
 )
 
 var includeRe = regexp.MustCompile(`\{\{#\s*include\s+"(slides/[^"]+)"\s*#\}\}`)
@@ -50,7 +53,8 @@ var addCmd = &cobra.Command{
 			position = slideAfter + 1
 		}
 
-		if err := runInsert(root, position, name, slideType, ""); err != nil {
+		layoutName := resolveLayoutFlag(slideLayout, slideType)
+		if err := runInsert(root, position, name, layoutName, ""); err != nil {
 			return err
 		}
 
@@ -187,8 +191,10 @@ var lsCmd = &cobra.Command{
 		}
 
 		for i, f := range slides {
-			heading := extractFirstHeading(filepath.Join(root, "slides", f))
-			fmt.Printf("  %2d. %-30s %s\n", i+1, f, heading)
+			slidePath := filepath.Join(root, "slides", f)
+			heading := extractFirstHeading(slidePath)
+			slideLayout := detectSlideLayout(slidePath)
+			fmt.Printf("  %2d. %-30s [%-8s] %s\n", i+1, f, slideLayout, heading)
 		}
 		return nil
 	},
@@ -216,7 +222,8 @@ after insertion to maintain consistent NN-name.html naming.`,
 			return err
 		}
 
-		if err := runInsert(root, pos, name, insertType, insertTitle); err != nil {
+		layoutName := resolveLayoutFlag(insertLayout, insertType)
+		if err := runInsert(root, pos, name, layoutName, insertTitle); err != nil {
 			return err
 		}
 
@@ -229,7 +236,8 @@ after insertion to maintain consistent NN-name.html naming.`,
 // runInsert is the core logic for inserting a slide at a given position.
 // It reads ordering from index.html, creates the new slide file, inserts it
 // into the ordering, and renumbers all slides + rebuilds index.html.
-func runInsert(root string, position int, name, slideType, title string) error {
+// The layoutName parameter selects the structural layout template.
+func runInsert(root string, position int, name, layoutName, title string) error {
 	existing, err := listSlidesFromIndex(root)
 	if err != nil {
 		return err
@@ -243,10 +251,14 @@ func runInsert(root string, position int, name, slideType, title string) error {
 	tmpFileName := fmt.Sprintf("%02d-%s.html", position, name)
 	slidePath := filepath.Join(root, "slides", tmpFileName)
 
-	// Render slide from theme template
-	content, err := renderSlideFromTheme(root, name, slideType, position, title)
+	// Render slide from layout template
+	content, err := renderSlideFromLayout(name, layoutName, position, title)
 	if err != nil {
-		return err
+		// Fall back to legacy theme-based rendering for backward compatibility
+		content, err = renderSlideFromTheme(root, name, layoutName, position, title)
+		if err != nil {
+			return err
+		}
 	}
 	if err := os.MkdirAll(filepath.Join(root, "slides"), 0755); err != nil {
 		return err
@@ -393,9 +405,15 @@ func renameToSlugs(root string) (int, error) {
 
 func init() {
 	addCmd.Flags().IntVar(&slideAfter, "after", 0, "insert after slide N")
-	addCmd.Flags().StringVar(&slideType, "type", "content", "slide type: title, content, closing, two-column, section")
-	insertCmd.Flags().StringVar(&insertType, "type", "content", "slide type: title, content, closing, two-column, section")
+	addCmd.Flags().StringVar(&slideLayout, "layout", "content", "slide layout: title, content, two-col, section, blank, closing")
+	addCmd.Flags().StringVar(&slideType, "type", "", "deprecated: use --layout instead")
+	_ = addCmd.Flags().MarkHidden("type")
+
+	insertCmd.Flags().StringVar(&insertLayout, "layout", "content", "slide layout: title, content, two-col, section, blank, closing")
+	insertCmd.Flags().StringVar(&insertType, "type", "", "deprecated: use --layout instead")
+	_ = insertCmd.Flags().MarkHidden("type")
 	insertCmd.Flags().StringVar(&insertTitle, "title", "", "display title for the slide")
+
 	rootCmd.AddCommand(addCmd)
 	rootCmd.AddCommand(rmCmd)
 	rootCmd.AddCommand(mvCmd)
@@ -595,4 +613,50 @@ func rewriteSlidesAndIndex(root string, orderedFiles []string) error {
 	}
 
 	return os.WriteFile(indexPath, []byte(strings.Join(newLines, "\n")), 0644)
+}
+
+// resolveLayoutFlag resolves the layout name from --layout and deprecated --type flags.
+// If --type is set (non-empty), it maps to a layout name and prints a deprecation warning.
+// If both are set, --layout takes precedence.
+func resolveLayoutFlag(layoutFlag, typeFlag string) string {
+	if typeFlag != "" && layoutFlag == "content" {
+		// --type was explicitly set and --layout was left at default
+		resolved, _ := layout.ResolveType(typeFlag)
+		fmt.Fprintf(os.Stderr, "Warning: --type is deprecated, use --layout %s instead\n", resolved)
+		return resolved
+	}
+	return layoutFlag
+}
+
+// renderSlideFromLayout renders a slide using the layout template system.
+// This is the preferred method for creating new slides (Phase 2+).
+func renderSlideFromLayout(name, layoutName string, number int, titleOverride string) (string, error) {
+	displayName := strings.ReplaceAll(name, "-", " ")
+	words := strings.Fields(displayName)
+	for i, w := range words {
+		if len(w) > 0 {
+			words[i] = strings.ToUpper(w[:1]) + w[1:]
+		}
+	}
+	displayName = strings.Join(words, " ")
+
+	if titleOverride != "" {
+		displayName = titleOverride
+	}
+
+	data := map[string]any{
+		"Title":  displayName,
+		"Number": number,
+	}
+	return layout.Render(layoutName, data)
+}
+
+// detectSlideLayout reads a slide file and detects its layout from the
+// data-layout attribute or legacy CSS classes.
+func detectSlideLayout(path string) string {
+	data, err := os.ReadFile(path)
+	if err != nil {
+		return "content"
+	}
+	return layout.DetectLayout(string(data))
 }

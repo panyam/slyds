@@ -24,7 +24,10 @@ Three example presentations (slyds-intro, rich-content, hacker-showcase) demonst
 ## v0.6.2 — Presenter Timer
 Elapsed presentation timer, per-slide reading time (~200 WPM), and remaining deck time in the speaker notes window. Toggle with T key. Timer state persists across notes window close/reopen.
 
-## v0.7 — Slide Folders
+## v0.7 — Layout/Theme Separation
+Layouts (structural templates) separated from themes (visual skins). `--layout` flag on `slyds add`/`insert` selects from 6 built-in layouts: title, content, two-col, section, blank, closing. `data-layout` attribute on slides enables machine-parseable structure. CSS variable-based theming with runtime theme switcher. `slyds ls` shows layout per slide. `slyds check` validates layout attributes. Module system via templar SourceLoader for 3P themes/layouts.
+
+## v0.8 — Slide Folders
 Support `slides/03-name/slide.html` with co-located assets (images, per-slide CSS). Auto-detect folder vs file slides.
 
 ## Future

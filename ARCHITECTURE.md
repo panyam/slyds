@@ -56,9 +56,26 @@ assets/templates/
 
 Templates receive `{{.Title}}`, `{{.Number}}`, `{{.Includes}}` etc. Adding a new theme means adding a new directory with theme-specific files. Common templates like `index.html.tmpl` live at the shared level and are inherited unless a theme provides its own override. Non-template static files (images, fonts) are copied as-is during `slyds init`.
 
+## Layout System
+
+Layouts define the structural arrangement of slide content, independent of visual themes. Six built-in layouts live in `assets/layouts/`:
+
+| Layout | Description | Slots |
+|--------|-------------|-------|
+| `title` | Full-screen title with subtitle | title, subtitle |
+| `content` | Standard heading + body | title, body |
+| `two-col` | Two-column side-by-side | title, left, right |
+| `section` | Section divider | title, subtitle |
+| `blank` | Empty slide | body |
+| `closing` | Closing/thank-you | title, body |
+
+Each layout template sets a `data-layout` attribute on the slide div and uses `data-slot` attributes for named content regions. `slyds add --layout two-col "Name"` scaffolds a slide from the layout template. `slyds ls` shows the layout per slide.
+
+Layouts use CSS classes (`.layout-two-col`, `.title-slide`, etc.) for structural styling, referencing `--slyds-*` variables so any theme can skin any layout. The layout registry lives in `assets/layouts/layouts.yaml`.
+
 ### Presentation Layout
 
-The presentation uses a border layout (flexbox column): slide content fills the center and a navigation bar is pinned to the bottom. The nav bar contains Prev/Next buttons with a slide counter between them, and icon buttons for export (download) and speaker notes on the far right.
+The presentation uses a border layout (flexbox column): slide content fills the center and a navigation bar is pinned to the bottom. The nav bar contains Prev/Next buttons with a slide counter between them, and icon buttons for theme switching, export (download), and speaker notes on the far right.
 
 ## Manifest & Update
 
@@ -67,6 +84,10 @@ Each scaffolded presentation gets a `.slyds.yaml` manifest:
 ```yaml
 theme: dark
 title: "My Presentation"
+sources:
+  core:
+    url: github.com/panyam/slyds
+    path: core
 ```
 
 `slyds update` reads this manifest and refreshes engine files (`slyds.css`, `slyds.js`, `slyds-export.js`, `theme.css`, `index.html` layout, theme images) from the latest embedded assets — without touching `slides/`. It parses existing `{{# include #}}` directives from `index.html` to preserve slide ordering.
