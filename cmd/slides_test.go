@@ -833,3 +833,228 @@ func TestCheckRemoteAssetIgnored(t *testing.T) {
 		}
 	}
 }
+
+// TestInsertWithLayoutFlag verifies that runInsert with a layout name produces
+// a slide containing the correct data-layout attribute and data-slot markers.
+func TestInsertWithLayoutFlag(t *testing.T) {
+	root, cleanup := setupTestPresentation(t)
+	defer cleanup()
+
+	err := runInsert(root, 2, "comparison", "two-col", "")
+	if err != nil {
+		t.Fatalf("insert with layout two-col failed: %v", err)
+	}
+
+	content, err := os.ReadFile(filepath.Join(root, "slides", "02-comparison.html"))
+	if err != nil {
+		t.Fatalf("failed to read inserted slide: %v", err)
+	}
+	html := string(content)
+
+	if !strings.Contains(html, `data-layout="two-col"`) {
+		t.Error("inserted slide missing data-layout=\"two-col\" attribute")
+	}
+	if !strings.Contains(html, `data-slot="left"`) {
+		t.Error("two-col slide missing data-slot=\"left\"")
+	}
+	if !strings.Contains(html, `data-slot="right"`) {
+		t.Error("two-col slide missing data-slot=\"right\"")
+	}
+	if !strings.Contains(html, "layout-two-col") {
+		t.Error("two-col slide missing layout-two-col CSS class")
+	}
+}
+
+// TestInsertWithLayoutTitle verifies that the title layout produces a slide
+// with data-layout="title" and the title-slide CSS class for backward compat.
+func TestInsertWithLayoutTitle(t *testing.T) {
+	root, cleanup := setupTestPresentation(t)
+	defer cleanup()
+
+	err := runInsert(root, 1, "intro", "title", "Welcome")
+	if err != nil {
+		t.Fatalf("insert with layout title failed: %v", err)
+	}
+
+	content, err := os.ReadFile(filepath.Join(root, "slides", "01-intro.html"))
+	if err != nil {
+		t.Fatalf("failed to read inserted slide: %v", err)
+	}
+	html := string(content)
+
+	if !strings.Contains(html, `data-layout="title"`) {
+		t.Error("title slide missing data-layout=\"title\"")
+	}
+	if !strings.Contains(html, "title-slide") {
+		t.Error("title slide missing title-slide CSS class")
+	}
+	if !strings.Contains(html, "Welcome") {
+		t.Error("title slide missing custom title text")
+	}
+}
+
+// TestInsertDefaultLayout verifies that runInsert with the default layout name
+// "content" produces a slide with data-layout="content" and a body slot.
+func TestInsertDefaultLayout(t *testing.T) {
+	root, cleanup := setupTestPresentation(t)
+	defer cleanup()
+
+	err := runInsert(root, 2, "details", "content", "")
+	if err != nil {
+		t.Fatalf("insert with default layout failed: %v", err)
+	}
+
+	content, err := os.ReadFile(filepath.Join(root, "slides", "02-details.html"))
+	if err != nil {
+		t.Fatalf("failed to read inserted slide: %v", err)
+	}
+	html := string(content)
+
+	if !strings.Contains(html, `data-layout="content"`) {
+		t.Error("content slide missing data-layout=\"content\"")
+	}
+	if !strings.Contains(html, `data-slot="body"`) {
+		t.Error("content slide missing data-slot=\"body\"")
+	}
+}
+
+// TestInsertWithDeprecatedType verifies that the legacy --type flag still works
+// by mapping to the equivalent layout name. The "section" type maps to the
+// "section" layout, and the slide should have data-layout="section".
+func TestInsertWithDeprecatedType(t *testing.T) {
+	root, cleanup := setupTestPresentation(t)
+	defer cleanup()
+
+	// Simulate --type flag: resolveLayoutFlag("content", "section") → "section"
+	layoutName := resolveLayoutFlag("content", "section")
+	err := runInsert(root, 2, "break", layoutName, "")
+	if err != nil {
+		t.Fatalf("insert with deprecated type failed: %v", err)
+	}
+
+	content, err := os.ReadFile(filepath.Join(root, "slides", "02-break.html"))
+	if err != nil {
+		t.Fatalf("failed to read inserted slide: %v", err)
+	}
+	html := string(content)
+
+	if !strings.Contains(html, `data-layout="section"`) {
+		t.Error("section slide missing data-layout=\"section\" — deprecated --type mapping failed")
+	}
+}
+
+// TestInsertWithDeprecatedTypeTwoColumn verifies that the legacy --type
+// "two-column" maps to the new layout name "two-col" (the rename).
+func TestInsertWithDeprecatedTypeTwoColumn(t *testing.T) {
+	root, cleanup := setupTestPresentation(t)
+	defer cleanup()
+
+	layoutName := resolveLayoutFlag("content", "two-column")
+	if layoutName != "two-col" {
+		t.Fatalf("resolveLayoutFlag(content, two-column) = %q, want %q", layoutName, "two-col")
+	}
+
+	err := runInsert(root, 2, "versus", layoutName, "")
+	if err != nil {
+		t.Fatalf("insert with deprecated two-column type failed: %v", err)
+	}
+
+	content, err := os.ReadFile(filepath.Join(root, "slides", "02-versus.html"))
+	if err != nil {
+		t.Fatalf("failed to read inserted slide: %v", err)
+	}
+	if !strings.Contains(string(content), `data-layout="two-col"`) {
+		t.Error("two-column type did not map to two-col layout")
+	}
+}
+
+// TestInsertUnknownLayout verifies that inserting with an unknown layout name
+// returns a descriptive error listing the available layouts.
+func TestInsertUnknownLayout(t *testing.T) {
+	root, cleanup := setupTestPresentation(t)
+	defer cleanup()
+
+	err := runInsert(root, 2, "bad", "nonexistent", "")
+	if err == nil {
+		t.Fatal("expected error for unknown layout, got nil")
+	}
+	if !strings.Contains(err.Error(), "not found") {
+		t.Errorf("expected 'not found' in error, got: %v", err)
+	}
+}
+
+// TestLsDetectsLayout verifies that detectSlideLayout correctly identifies
+// the layout of slides in a scaffolded presentation, both from data-layout
+// attributes (new slides) and CSS class heuristics (legacy slides).
+func TestLsDetectsLayout(t *testing.T) {
+	root, cleanup := setupTestPresentation(t)
+	defer cleanup()
+
+	// Title slide should be detected as "title"
+	detected := detectSlideLayout(filepath.Join(root, "slides", "01-title.html"))
+	if detected != "title" {
+		t.Errorf("detectSlideLayout(01-title.html) = %q, want %q", detected, "title")
+	}
+
+	// Closing slide should be detected as "closing"
+	slides, _ := listSlidesFromIndex(root)
+	lastSlide := slides[len(slides)-1]
+	detected = detectSlideLayout(filepath.Join(root, "slides", lastSlide))
+	if detected != "closing" {
+		t.Errorf("detectSlideLayout(%s) = %q, want %q", lastSlide, detected, "closing")
+	}
+}
+
+// TestCheckMissingDataLayout verifies that slyds check warns about slides
+// that lack a data-layout attribute (legacy slides from before Phase 2).
+func TestCheckMissingDataLayout(t *testing.T) {
+	root, cleanup := setupTestPresentation(t)
+	defer cleanup()
+
+	// Create a legacy slide without data-layout
+	legacySlide := `<div class="slide"><h1>Legacy</h1></div>`
+	os.WriteFile(filepath.Join(root, "slides", "02-slide.html"), []byte(legacySlide), 0644)
+
+	result, err := checkDeck(root)
+	if err != nil {
+		t.Fatalf("checkDeck failed: %v", err)
+	}
+
+	found := false
+	for _, w := range result.Warnings {
+		if strings.Contains(w, "no data-layout") {
+			found = true
+			break
+		}
+	}
+	if !found {
+		t.Error("expected warning about missing data-layout attribute on legacy slide")
+	}
+}
+
+// TestCheckUnknownLayout verifies that slyds check warns about slides with
+// an unrecognized data-layout value.
+func TestCheckUnknownLayout(t *testing.T) {
+	root, cleanup := setupTestPresentation(t)
+	defer cleanup()
+
+	// Create a slide with an unknown layout
+	badSlide := `<div class="slide" data-layout="nonexistent"><h1>Bad</h1></div>`
+	os.WriteFile(filepath.Join(root, "slides", "02-slide.html"), []byte(badSlide), 0644)
+
+	result, err := checkDeck(root)
+	if err != nil {
+		t.Fatalf("checkDeck failed: %v", err)
+	}
+
+	found := false
+	for _, w := range result.Warnings {
+		if strings.Contains(w, "unknown layout") {
+			found = true
+			break
+		}
+	}
+	if !found {
+		t.Error("expected warning about unknown layout \"nonexistent\"")
+	}
+}

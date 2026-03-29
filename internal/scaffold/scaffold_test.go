@@ -422,3 +422,98 @@ func TestUpdateInvalidTheme(t *testing.T) {
 		t.Error("expected error for invalid theme, got nil")
 	}
 }
+
+// TestCreateTitleSlideHasDataLayout verifies that a scaffolded presentation's
+// title slide (first slide) has the data-layout="title" attribute, confirming
+// that generateSlides uses the layout template system.
+func TestCreateTitleSlideHasDataLayout(t *testing.T) {
+	tmp := t.TempDir()
+	origDir, _ := os.Getwd()
+	os.Chdir(tmp)
+	defer os.Chdir(origDir)
+
+	slug, err := Create("Layout Test", 3)
+	if err != nil {
+		t.Fatalf("Create failed: %v", err)
+	}
+
+	content, err := os.ReadFile(filepath.Join(tmp, slug, "slides", "01-title.html"))
+	if err != nil {
+		t.Fatalf("failed to read title slide: %v", err)
+	}
+	if !strings.Contains(string(content), `data-layout="title"`) {
+		t.Error("title slide missing data-layout=\"title\" attribute")
+	}
+	if !strings.Contains(string(content), `data-slot="title"`) {
+		t.Error("title slide missing data-slot=\"title\" attribute")
+	}
+}
+
+// TestCreateContentSlideHasDataLayout verifies that scaffolded content slides
+// (middle slides) have the data-layout="content" attribute.
+func TestCreateContentSlideHasDataLayout(t *testing.T) {
+	tmp := t.TempDir()
+	origDir, _ := os.Getwd()
+	os.Chdir(tmp)
+	defer os.Chdir(origDir)
+
+	slug, err := Create("Layout Test", 4)
+	if err != nil {
+		t.Fatalf("Create failed: %v", err)
+	}
+
+	content, err := os.ReadFile(filepath.Join(tmp, slug, "slides", "02-slide.html"))
+	if err != nil {
+		t.Fatalf("failed to read content slide: %v", err)
+	}
+	if !strings.Contains(string(content), `data-layout="content"`) {
+		t.Error("content slide missing data-layout=\"content\" attribute")
+	}
+	if !strings.Contains(string(content), `data-slot="body"`) {
+		t.Error("content slide missing data-slot=\"body\" attribute")
+	}
+}
+
+// TestCreateClosingSlideHasDataLayout verifies that the scaffolded closing slide
+// (last slide) has the data-layout="closing" attribute.
+func TestCreateClosingSlideHasDataLayout(t *testing.T) {
+	tmp := t.TempDir()
+	origDir, _ := os.Getwd()
+	os.Chdir(tmp)
+	defer os.Chdir(origDir)
+
+	slug, err := Create("Layout Test", 3)
+	if err != nil {
+		t.Fatalf("Create failed: %v", err)
+	}
+
+	content, err := os.ReadFile(filepath.Join(tmp, slug, "slides", "03-closing.html"))
+	if err != nil {
+		t.Fatalf("failed to read closing slide: %v", err)
+	}
+	if !strings.Contains(string(content), `data-layout="closing"`) {
+		t.Error("closing slide missing data-layout=\"closing\" attribute")
+	}
+}
+
+// TestCreateHasThemesDirectory verifies that a scaffolded presentation contains
+// a themes/ subdirectory with the base CSS and all theme override files.
+func TestCreateHasThemesDirectory(t *testing.T) {
+	tmp := t.TempDir()
+	origDir, _ := os.Getwd()
+	os.Chdir(tmp)
+	defer os.Chdir(origDir)
+
+	slug, err := Create("Themes Test", 3)
+	if err != nil {
+		t.Fatalf("Create failed: %v", err)
+	}
+
+	dir := filepath.Join(tmp, slug)
+	required := []string{"themes/_base.css", "themes/dark.css", "themes/default.css"}
+	for _, f := range required {
+		if _, err := os.Stat(filepath.Join(dir, f)); os.IsNotExist(err) {
+			t.Errorf("missing theme file: %s", f)
+		}
+	}
+}
