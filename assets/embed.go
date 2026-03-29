@@ -22,24 +22,31 @@ var TemplatesFS embed.FS
 //go:embed all:themes
 var themesFS embed.FS
 
-// ThemesCSS returns the concatenated CSS for all theme variable definitions.
-// It loads _base.css first (the contract defaults), then all named theme
-// override files in alphabetical order.
-func ThemesCSS() string {
-	var buf strings.Builder
-
-	// _base.css first — defines the full variable contract
-	if base, err := fs.ReadFile(themesFS, "themes/_base.css"); err == nil {
-		buf.Write(base)
-		buf.WriteByte('\n')
-	}
-
-	// Read all other .css files in sorted order
+// ThemeFiles returns all theme CSS files as a map of filename → content.
+// The map includes _base.css and all named theme override files.
+func ThemeFiles() map[string]string {
+	files := make(map[string]string)
 	entries, err := fs.ReadDir(themesFS, "themes")
 	if err != nil {
-		return buf.String()
+		return files
 	}
+	for _, e := range entries {
+		if !e.IsDir() && strings.HasSuffix(e.Name(), ".css") {
+			if data, err := fs.ReadFile(themesFS, "themes/"+e.Name()); err == nil {
+				files[e.Name()] = string(data)
+			}
+		}
+	}
+	return files
+}
 
+// ThemeFileNames returns theme CSS file names in load order:
+// _base.css first, then all named themes alphabetically.
+func ThemeFileNames() []string {
+	entries, err := fs.ReadDir(themesFS, "themes")
+	if err != nil {
+		return nil
+	}
 	var names []string
 	for _, e := range entries {
 		if !e.IsDir() && strings.HasSuffix(e.Name(), ".css") && e.Name() != "_base.css" {
@@ -47,14 +54,6 @@ func ThemesCSS() string {
 		}
 	}
 	sort.Strings(names)
-
-	for _, name := range names {
-		if data, err := fs.ReadFile(themesFS, "themes/"+name); err == nil {
-			buf.WriteByte('\n')
-			buf.Write(data)
-			buf.WriteByte('\n')
-		}
-	}
-
-	return buf.String()
+	// _base.css must load first
+	return append([]string{"_base.css"}, names...)
 }
