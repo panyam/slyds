@@ -289,6 +289,143 @@ immediately knows how to work with the deck.
 Generates a self-contained LLM-ready prompt with deck manifest, relevant slide
 contents, available layouts/themes, and the exact `slyds` commands to run.
 
+## CSS Framework Integration (Tailwind, etc.)
+
+### The Fundamental Rule
+
+Theme switching requires **indirection**. This is true regardless of CSS approach:
+
+- `var(--slyds-bg)` → theme-switchable (variable swaps, style follows)
+- `bg-bg` (Tailwind semantic) → theme-switchable (if mapped to variable)
+- `bg-slate-900` (Tailwind literal) → hardcoded forever (no indirection)
+- `background: #1a1a1a` (raw CSS) → hardcoded forever
+
+This isn't a limitation of our design — it's the physics of CSS. If a value is
+literal, no mechanism can swap it. **slyds makes indirection the path of least
+resistance but doesn't block literal values.**
+
+### Layouts Are Orthogonal to Styling System
+
+Layout templates (title, two-col, comparison) define **structure** — where the
+slots are, how the grid is arranged. They work regardless of whether the user
+styles with slyds variables, Tailwind, or raw CSS:
+
+```html
+<!-- Layout provides structure; user fills slots with any styling approach -->
+<section class="slide" data-layout="two-col">
+  <div data-slot="left">
+    <!-- slyds variables: -->
+    <h2 class="slide-title">Left</h2>
+    <!-- or Tailwind: -->
+    <h2 class="text-3xl font-bold text-accent">Left</h2>
+    <!-- or raw CSS: -->
+    <h2 style="font-size: 2rem">Left</h2>
+  </div>
+  <div data-slot="right">...</div>
+</section>
+```
+
+Layouts are valuable to ALL users. They are the structural skeleton that every
+CSS approach benefits from.
+
+### Design Tokens as Source of Truth
+
+Third-party theme packages can ship a `tokens.yaml` as the canonical palette
+definition, with derived outputs for each styling system:
+
+```yaml
+# tokens.yaml — canonical, system-agnostic
+name: nord
+colors:
+  bg: "#2e3440"
+  fg: "#eceff4"
+  accent1: "#88c0d0"
+  accent2: "#81a1c1"
+  code-bg: "#3b4252"
+fonts:
+  heading: "Inter"
+  body: "Inter"
+  code: "Fira Code"
+```
+
+From `tokens.yaml`, slyds (or a build tool) generates:
+
+**For variable-system users:**
+```css
+[data-theme="nord"] {
+  --slyds-bg: #2e3440;
+  --slyds-fg: #eceff4;
+  --slyds-accent1: #88c0d0;
+}
+```
+
+**For Tailwind users (semantic bridge):**
+```js
+// tailwind.preset.js — maps semantic Tailwind names to slyds variables
+module.exports = {
+  theme: {
+    extend: {
+      colors: {
+        bg: 'var(--slyds-bg)',
+        fg: 'var(--slyds-fg)',
+        accent: 'var(--slyds-accent1)',
+      }
+    }
+  }
+}
+```
+
+With this bridge, Tailwind classes use semantic names that follow theme switches:
+```html
+<!-- bg-bg resolves to var(--slyds-bg) — theme-switchable! -->
+<section class="slide bg-bg text-fg">
+  <h1 class="text-4xl font-bold text-accent">Title</h1>
+</section>
+```
+
+### Three CSS Modes
+
+`.slyds.yaml` declares the styling approach:
+```yaml
+css: default     # full slyds variable system (default)
+css: tailwind    # Tailwind with semantic bridge to slyds variables
+css: none        # no opinions — bring your own CSS
+```
+
+`slyds init --css tailwind` scaffolds with a Tailwind config pre-wired to the
+semantic bridge. LLMs generate Tailwind utilities using semantic names, theme
+switching works, everyone's happy.
+
+### 3P Theme Package Structure
+
+A complete theme package can serve all CSS modes:
+
+```
+slyds-theme-nord/
+├── tokens.yaml            # canonical source of truth
+├── variables.css          # [data-theme="nord"] block (generated or hand-written)
+├── tailwind.preset.js     # Tailwind semantic bridge (generated or hand-written)
+├── theme.yaml             # metadata: name, contract-version
+└── README.md
+```
+
+Token-only packages (just `tokens.yaml` + `theme.yaml`) are also valid — slyds
+generates the CSS/Tailwind outputs at `slyds update` time.
+
+### What Theme Switching Can and Cannot Do
+
+| Slide HTML | Theme switchable? | Why |
+|---|---|---|
+| `class="slide"` + slyds layout CSS | Yes | Layout CSS references `--slyds-*` variables |
+| `class="bg-bg text-accent"` (Tailwind semantic) | Yes | Semantic names mapped to `--slyds-*` variables |
+| `style="background: var(--slyds-bg)"` | Yes | Direct variable reference |
+| `class="bg-slate-900"` (Tailwind literal) | **No** | Literal value, no indirection |
+| `style="background: #1a1a1a"` | **No** | Literal value, no indirection |
+
+slyds makes indirection the default and documents it in auto-generated
+`CLAUDE.md` files so LLM agents use semantic names. But literal values are
+never blocked — the user has full control.
+
 ## Implementation Phases
 
 | Phase | Summary | Depends On |
