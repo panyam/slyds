@@ -59,10 +59,10 @@ func TestInitWithThemeFlag(t *testing.T) {
 	themeCSS, _ := os.ReadFile(filepath.Join(dir, "theme.css"))
 	themeCSSStr := string(themeCSS)
 
-	// Dark theme should reference dark-specific colors
-	if !strings.Contains(themeCSSStr, "#1a1a2e") && !strings.Contains(themeCSSStr, "#16213e") &&
-		!strings.Contains(themeCSSStr, "dark") {
-		t.Error("dark theme.css doesn't contain dark-specific styling")
+	// Dark theme should contain structural overrides (color-mix progress, nth-child alternation)
+	if !strings.Contains(themeCSSStr, "color-mix") && !strings.Contains(themeCSSStr, "nth-child") &&
+		!strings.Contains(themeCSSStr, "text-shadow") {
+		t.Error("dark theme.css doesn't contain dark-specific structural styling")
 	}
 }
 
