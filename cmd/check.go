@@ -171,7 +171,7 @@ func checkDeck(root string) (*CheckResult, error) {
 	if err == nil && manifest.HasSources() {
 		modulesDir := manifest.ResolveModulesDir(root)
 		if _, err := os.Stat(modulesDir); os.IsNotExist(err) {
-			result.Errors = append(result.Errors, "sources configured in .slyds.yaml but .slyds-modules/ not found — run 'slyds update' to fetch dependencies")
+			result.Warnings = append(result.Warnings, "sources configured in .slyds.yaml but .slyds-modules/ not found — run 'slyds update' to fetch dependencies")
 		}
 		lockPath := scaffold.LockPath(root)
 		if _, err := os.Stat(lockPath); os.IsNotExist(err) {
