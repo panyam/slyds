@@ -112,6 +112,11 @@ func CreateInDir(title string, slideCount int, theme string, outDir string) (str
 		return "", fmt.Errorf("failed to write manifest: %w", err)
 	}
 
+	// Generate CLAUDE.md for LLM agents
+	if err := WriteAgentMD(dir, manifest); err != nil {
+		return "", fmt.Errorf("failed to write CLAUDE.md: %w", err)
+	}
+
 	return outDir, nil
 }
 
@@ -481,6 +486,11 @@ func Update(dir, theme, title string) error {
 	}
 	if err := WriteManifest(dir, manifest); err != nil {
 		return fmt.Errorf("failed to write manifest: %w", err)
+	}
+
+	// Regenerate AGENT.md
+	if err := WriteAgentMD(dir, manifest); err != nil {
+		return fmt.Errorf("failed to write AGENT.md: %w", err)
 	}
 
 	return nil

@@ -21,6 +21,7 @@
 - [x] ~~Layout/theme separation — `--layout` flag, data-layout attribute, 6 built-in layouts (issue #30)~~
 - [x] ~~Runtime theme switching — theme switcher in toolbar, CSS variable-based theming (issue #29)~~
 - [x] ~~Templar module system integration — SourceLoader, .slyds.lock, slyds install (issue #31)~~
+- [x] ~~LLM friendliness — slyds describe, AGENT.md per deck (issue #33)~~
 - [ ] Slide navigation hooks — drive demos from slide transitions (issue #1)
 - [ ] Interactive slides with TypeScript/esbuild support (issue #3)
 - [x] ~~Theme static asset copying (images, fonts) during scaffold~~
