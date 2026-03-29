@@ -53,8 +53,11 @@ func CreateInDir(title string, slideCount int, theme string, outDir string) (str
 		return "", err
 	}
 
-	// Write slyds.css and slyds.js from embedded assets
+	// Write slyds.css, themes.css, and slyds.js from embedded assets
 	if err := os.WriteFile(filepath.Join(dir, "slyds.css"), []byte(assets.SlydsCSS), 0644); err != nil {
+		return "", err
+	}
+	if err := os.WriteFile(filepath.Join(dir, "themes.css"), []byte(assets.ThemesCSS()), 0644); err != nil {
 		return "", err
 	}
 	if err := os.WriteFile(filepath.Join(dir, "slyds.js"), []byte(assets.SlydsJS), 0644); err != nil {
@@ -84,6 +87,7 @@ func CreateInDir(title string, slideCount int, theme string, outDir string) (str
 	}
 	indexData := map[string]any{
 		"Title":    title,
+		"Theme":    theme,
 		"Includes": includes.String(),
 	}
 	if err := renderEmbeddedTemplate(theme, "index.html.tmpl", indexData, filepath.Join(dir, "index.html")); err != nil {
@@ -186,6 +190,9 @@ func CreateFromDir(outDir, title string, slideCount int, themeDir string) error 
 	}
 
 	if err := os.WriteFile(filepath.Join(outDir, "slyds.css"), []byte(assets.SlydsCSS), 0644); err != nil {
+		return err
+	}
+	if err := os.WriteFile(filepath.Join(outDir, "themes.css"), []byte(assets.ThemesCSS()), 0644); err != nil {
 		return err
 	}
 	if err := os.WriteFile(filepath.Join(outDir, "slyds.js"), []byte(assets.SlydsJS), 0644); err != nil {
