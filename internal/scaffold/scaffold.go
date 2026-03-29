@@ -102,8 +102,18 @@ func CreateInDir(title string, slideCount int, theme string, outDir string) (str
 		return "", fmt.Errorf("failed to copy theme assets: %w", err)
 	}
 
-	// Write .slyds.yaml manifest
-	if err := WriteManifest(dir, Manifest{Theme: theme, Title: title}); err != nil {
+	// Write .slyds.yaml manifest with default core source
+	manifest := Manifest{
+		Theme: theme,
+		Title: title,
+		Sources: map[string]SourceConfig{
+			"core": {
+				URL:  DefaultCoreURL,
+				Path: DefaultCorePath,
+			},
+		},
+	}
+	if err := WriteManifest(dir, manifest); err != nil {
 		return "", fmt.Errorf("failed to write manifest: %w", err)
 	}
 
@@ -455,8 +465,22 @@ func Update(dir, theme, title string) error {
 		return fmt.Errorf("failed to copy theme assets: %w", err)
 	}
 
-	// Write/update manifest
-	if err := WriteManifest(dir, Manifest{Theme: theme, Title: title}); err != nil {
+	// Write/update manifest — add core source if missing (migration)
+	manifest := Manifest{Theme: theme, Title: title}
+	existing, err := ReadManifest(dir)
+	if err == nil && existing.HasSources() {
+		manifest.Sources = existing.Sources
+		manifest.ModulesDir = existing.ModulesDir
+	}
+	if manifest.Sources == nil {
+		manifest.Sources = map[string]SourceConfig{
+			"core": {
+				URL:  DefaultCoreURL,
+				Path: DefaultCorePath,
+			},
+		}
+	}
+	if err := WriteManifest(dir, manifest); err != nil {
 		return fmt.Errorf("failed to write manifest: %w", err)
 	}
 

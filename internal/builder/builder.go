@@ -7,6 +7,7 @@ import (
 	"path/filepath"
 	"strings"
 
+	"github.com/panyam/slyds/internal/modules"
 	"github.com/panyam/templar"
 )
 
@@ -19,9 +20,10 @@ type Result struct {
 // Build reads index.html from root, resolves all templar includes,
 // inlines CSS/JS/images, and returns a self-contained HTML string.
 func Build(root string) (*Result, error) {
-	// Use templar to resolve includes
+	// Use templar to resolve includes.
+	// Uses SourceLoader if .slyds.yaml declares sources, otherwise FileSystemLoader.
 	group := templar.NewTemplateGroup()
-	group.Loader = (&templar.LoaderList{}).AddLoader(templar.NewFileSystemLoader(root))
+	group.Loader = modules.NewLoaderForDeck(root)
 
 	templates, err := group.Loader.Load("index.html", "")
 	if err != nil {

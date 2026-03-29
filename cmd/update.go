@@ -7,8 +7,9 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/spf13/cobra"
+	"github.com/panyam/slyds/internal/modules"
 	"github.com/panyam/slyds/internal/scaffold"
+	"github.com/spf13/cobra"
 )
 
 var updateCmd = &cobra.Command{
@@ -48,6 +49,14 @@ you will be prompted to enter the theme and title.`,
 
 		if err := scaffold.Update(root, manifest.Theme, manifest.Title); err != nil {
 			return fmt.Errorf("update failed: %w", err)
+		}
+
+		// Fetch module dependencies if configured
+		if manifest.HasSources() {
+			fmt.Println("Fetching module dependencies...")
+			if err := modules.FetchAll(manifest, root); err != nil {
+				return fmt.Errorf("module fetch failed: %w", err)
+			}
 		}
 
 		fmt.Printf("Updated %q (theme: %s).\n", dir, manifest.Theme)

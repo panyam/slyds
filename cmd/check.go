@@ -7,6 +7,7 @@ import (
 	"regexp"
 	"strings"
 
+	"github.com/panyam/slyds/internal/scaffold"
 	"github.com/spf13/cobra"
 )
 
@@ -163,6 +164,19 @@ func checkDeck(root string) (*CheckResult, error) {
 	// Estimate talk time: ~150 words per minute
 	if totalWords > 0 {
 		result.EstimatedMinutes = float64(totalWords) / 150.0
+	}
+
+	// Check module state if sources are configured
+	manifest, err := scaffold.ReadManifest(root)
+	if err == nil && manifest.HasSources() {
+		modulesDir := manifest.ResolveModulesDir(root)
+		if _, err := os.Stat(modulesDir); os.IsNotExist(err) {
+			result.Errors = append(result.Errors, "sources configured in .slyds.yaml but .slyds-modules/ not found — run 'slyds update' to fetch dependencies")
+		}
+		lockPath := scaffold.LockPath(root)
+		if _, err := os.Stat(lockPath); os.IsNotExist(err) {
+			result.Warnings = append(result.Warnings, "no .slyds.lock found — run 'slyds update' to generate lock file")
+		}
 	}
 
 	return result, nil
