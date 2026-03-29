@@ -7,6 +7,7 @@ import (
 	"regexp"
 	"strings"
 
+	"github.com/panyam/slyds/internal/layout"
 	"github.com/panyam/slyds/internal/scaffold"
 	"github.com/spf13/cobra"
 )
@@ -137,6 +138,14 @@ func checkDeck(root string) (*CheckResult, error) {
 			text := tagRe.ReplaceAllString(notesSection, " ")
 			words := strings.Fields(text)
 			totalWords += len(words)
+		}
+
+		// Check layout attribute
+		detectedLayout := layout.DetectLayout(content)
+		if !strings.Contains(content, "data-layout=") {
+			result.Warnings = append(result.Warnings, fmt.Sprintf("%s: no data-layout attribute (detected as %q from CSS classes)", s, detectedLayout))
+		} else if !layout.LayoutExists(detectedLayout) {
+			result.Warnings = append(result.Warnings, fmt.Sprintf("%s: unknown layout %q", s, detectedLayout))
 		}
 
 		// Check local asset references

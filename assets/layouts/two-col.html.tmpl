@@ -1,0 +1,22 @@
+<div class="slide" data-layout="two-col">
+  <h1 data-slot="title">{{.Title}}</h1>
+  <div class="layout-two-col">
+    <div class="col" data-slot="left">
+      <h2>Left Column</h2>
+      <ul>
+        <li>Point one</li>
+        <li>Point two</li>
+      </ul>
+    </div>
+    <div class="col" data-slot="right">
+      <h2>Right Column</h2>
+      <ul>
+        <li>Point one</li>
+        <li>Point two</li>
+      </ul>
+    </div>
+  </div>
+  <div class="speaker-notes">
+    <p>Notes for slide {{.Number}}.</p>
+  </div>
+</div>

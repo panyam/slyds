@@ -22,6 +22,9 @@ var TemplatesFS embed.FS
 //go:embed all:themes
 var themesFS embed.FS
 
+//go:embed all:layouts
+var LayoutsFS embed.FS
+
 // ThemeFiles returns all theme CSS files as a map of filename → content.
 // The map includes _base.css and all named theme override files.
 func ThemeFiles() map[string]string {

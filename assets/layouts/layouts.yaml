@@ -1,0 +1,25 @@
+layouts:
+  title:
+    template: title.html.tmpl
+    description: "Full-screen title slide with subtitle"
+    slots: [title, subtitle]
+  content:
+    template: content.html.tmpl
+    description: "Standard content slide with heading and body"
+    slots: [title, body]
+  two-col:
+    template: two-col.html.tmpl
+    description: "Two-column side-by-side layout"
+    slots: [title, left, right]
+  section:
+    template: section.html.tmpl
+    description: "Section divider slide"
+    slots: [title, subtitle]
+  blank:
+    template: blank.html.tmpl
+    description: "Empty slide with no predefined structure"
+    slots: [body]
+  closing:
+    template: closing.html.tmpl
+    description: "Closing/thank-you slide"
+    slots: [title, body]

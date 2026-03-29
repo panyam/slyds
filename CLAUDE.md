@@ -24,8 +24,8 @@ slyds init "Title" [-n count] [--theme dark]      # Scaffold presentation
 slyds update [dir]                               # Refresh engine/theme files, preserve slides
 slyds serve [dir] [-p port]                      # Dev server with live include resolution
 slyds build [dir]                                # Flatten to dist/index.html
-slyds add "name" [--after N] [--type content]    # Add slide (append or after position)
-slyds insert <pos> "name" [--type T] [--title T] # Insert slide at position
+slyds add "name" [--after N] [--layout content]   # Add slide (append or after position)
+slyds insert <pos> "name" [--layout T] [--title T] # Insert slide at position
 slyds rm <name-or-number>                        # Remove slide
 slyds mv <from> <to>                             # Reorder slides
 slyds ls [dir]                                   # List slides (index.html order)
@@ -38,7 +38,8 @@ slyds query <slide> <sel> [--set|--append|...]   # CSS selector read/write on sl
 
 - **No hardcoded HTML in Go code** — use embedded `.tmpl` files under `assets/templates/`. New themes = new template dirs, not Go changes.
 - **Shared template fallback** — `renderEmbeddedTemplate` tries `templates/<theme>/<name>` first, falls back to `templates/<name>`. Common templates like `index.html.tmpl` live at the shared level; themes override only when they need different HTML structure (e.g., hacker theme).
-- **Slide types are config-driven** — each theme has a `theme.yaml` that maps type names to template files. Add a custom type by adding a `.tmpl` file and registering it in `theme.yaml`.
+- **Layouts are theme-independent** — structural layout templates live in `assets/layouts/` (title, content, two-col, section, blank, closing). Themes are pure CSS variable overrides. Layouts use `data-layout` attribute and `data-slot` for named content regions.
+- **Slide types are config-driven** — each theme has a `theme.yaml` that maps type names to template files (legacy — layouts in `assets/layouts/` are preferred).
 - **Configure templar programmatically** — don't generate `.templar.yaml` files. Use `TemplateGroup`, `FileSystemLoader`, etc. directly.
 - **Local deps via locallinks/** — `go.mod` uses `replace => ./locallinks/newstack/templar/main`. Run `make resymlink` to create the symlink. The replace must be **commented out** before pushing (pre-push hook enforces this).
 - **Slide files are pure HTML** — only `index.html` uses templar `{{# include #}}` syntax.

@@ -47,16 +47,33 @@ you will be prompted to enter the theme and title.`,
 			return fmt.Errorf("failed to read .slyds.yaml: %w", err)
 		}
 
+		// Refresh engine files from go:embed
+		fmt.Printf("Refreshing engine files from built-in assets...\n")
 		if err := scaffold.Update(root, manifest.Theme, manifest.Title); err != nil {
 			return fmt.Errorf("update failed: %w", err)
 		}
 
-		// Fetch module dependencies if configured
-		if manifest.HasSources() {
-			fmt.Println("Fetching module dependencies...")
-			if err := modules.FetchAll(manifest, root); err != nil {
-				return fmt.Errorf("module fetch failed: %w", err)
+		// Add default core source if no sources configured yet
+		if !manifest.HasSources() {
+			fmt.Printf("Adding default core engine source...\n")
+			manifest.Sources = map[string]scaffold.SourceConfig{
+				"core": {
+					URL:  scaffold.DefaultCoreURL,
+					Path: scaffold.DefaultCorePath,
+				},
 			}
+			if err := scaffold.WriteManifest(root, *manifest); err != nil {
+				return fmt.Errorf("failed to update manifest: %w", err)
+			}
+		}
+
+		// Fetch module dependencies
+		fmt.Printf("Fetching module dependencies...\n")
+		if err := modules.FetchAll(manifest, root); err != nil {
+			fmt.Fprintf(os.Stderr, "Warning: module fetch failed: %v\n", err)
+			fmt.Fprintf(os.Stderr, "Engine files updated from built-in assets. Run 'slyds update' again when network is available.\n")
+		} else {
+			fmt.Printf("Modules fetched into %s/\n", scaffold.DefaultModulesDir)
 		}
 
 		fmt.Printf("Updated %q (theme: %s).\n", dir, manifest.Theme)

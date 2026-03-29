@@ -18,6 +18,9 @@
 - [x] ~~Shared `index.html.tmpl` with theme-specific override support — reduces cross-theme duplication~~
 - [x] ~~Example presentations — 3 demo decks (intro, rich-content, hacker) with GitHub Pages deployment~~
 - [x] ~~Presenter timer + reading time in speaker notes window (issue #22 phase 1)~~
+- [x] ~~Layout/theme separation — `--layout` flag, data-layout attribute, 6 built-in layouts (issue #30)~~
+- [x] ~~Runtime theme switching — theme switcher in toolbar, CSS variable-based theming (issue #29)~~
+- [x] ~~Templar module system integration — SourceLoader, .slyds.lock, slyds install (issue #31)~~
 - [ ] Slide navigation hooks — drive demos from slide transitions (issue #1)
 - [ ] Interactive slides with TypeScript/esbuild support (issue #3)
 - [x] ~~Theme static asset copying (images, fonts) during scaffold~~

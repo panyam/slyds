@@ -37,9 +37,11 @@ var initCmd = &cobra.Command{
 			return err
 		}
 		fmt.Printf("\nCreated %q with %d slides (theme: %s).\n", dir, initSlideCount, initTheme)
+		fmt.Println("Scaffolded from built-in engine assets.")
 		fmt.Println("\nNext steps:")
-		fmt.Printf("  slyds serve %s\n", dir)
-		fmt.Printf("  slyds build %s\n\n", dir)
+		fmt.Printf("  slyds serve %s          # preview locally\n", dir)
+		fmt.Printf("  slyds build %s          # build self-contained HTML\n", dir)
+		fmt.Printf("  cd %s && slyds update   # fetch latest engine from git\n\n", dir)
 		return nil
 	},
 }
