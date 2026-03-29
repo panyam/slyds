@@ -1,5 +1,6 @@
 /* slyds — Base presentation styles
-   Convention: .slide elements inside .slideshow-container */
+   Convention: .slide elements inside .slideshow-container
+   All colors/fonts reference --slyds-* variables from themes.css */
 
 * {
     margin: 0;
@@ -8,8 +9,8 @@
 }
 
 body {
-    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    font-family: var(--slyds-body-font);
+    background: var(--slyds-bg);
     min-height: 100vh;
     display: flex;
     justify-content: center;
@@ -23,9 +24,9 @@ body {
     max-width: none;
     margin: 20px;
     position: relative;
-    background: white;
-    border-radius: 20px;
-    box-shadow: 0 20px 40px rgba(0,0,0,0.1);
+    background: var(--slyds-bg);
+    border-radius: var(--slyds-radius);
+    box-shadow: var(--slyds-shadow);
     overflow: hidden;
     display: flex;
     flex-direction: column;
@@ -51,22 +52,25 @@ body {
 
 /* ── Typography ── */
 .slide h1 {
-    color: #2c3e50;
+    color: var(--slyds-accent1);
+    font-family: var(--slyds-heading-font);
     font-size: 2.5em;
     margin-bottom: 30px;
-    border-bottom: 4px solid #3498db;
+    border-bottom: 4px solid var(--slyds-accent1);
     padding-bottom: 15px;
 }
 
 .slide h2 {
-    color: #34495e;
+    color: var(--slyds-fg);
+    font-family: var(--slyds-heading-font);
     font-size: 2em;
     margin-bottom: 25px;
     margin-top: 30px;
 }
 
 .slide h3 {
-    color: #2980b9;
+    color: var(--slyds-accent1);
+    font-family: var(--slyds-heading-font);
     font-size: 1.4em;
     margin-bottom: 15px;
     margin-top: 25px;
@@ -74,9 +78,9 @@ body {
 
 .slide p, .slide li {
     font-size: 1.2em;
-    line-height: 1.6;
+    line-height: var(--slyds-line-height);
     margin-bottom: 15px;
-    color: #2c3e50;
+    color: var(--slyds-fg);
 }
 
 .slide ul {
@@ -88,13 +92,38 @@ body {
     margin-bottom: 10px;
 }
 
+/* ── Code blocks ── */
+.slide pre {
+    background: var(--slyds-code-bg);
+    border: 1px solid var(--slyds-code-border);
+    border-radius: var(--slyds-radius);
+    padding: 16px;
+    overflow-x: auto;
+    margin: 20px 0;
+}
+
+.slide code {
+    font-family: var(--slyds-code-font);
+    color: var(--slyds-code-fg);
+    background: var(--slyds-code-bg);
+    padding: 2px 6px;
+    border-radius: 4px;
+    font-size: 0.9em;
+}
+
+.slide pre code {
+    background: none;
+    padding: 0;
+    border-radius: 0;
+}
+
 /* ── Components ── */
 .highlight {
-    background: linear-gradient(120deg, #a8edea 0%, #fed6e3 100%);
+    background: var(--slyds-bg-highlight);
     padding: 20px;
     border-radius: 10px;
     margin: 20px 0;
-    border-left: 5px solid #3498db;
+    border-left: 5px solid var(--slyds-accent1);
 }
 
 .stats-grid {
@@ -105,23 +134,23 @@ body {
 }
 
 .stat-box {
-    background: #f8f9fa;
+    background: var(--slyds-bg-secondary);
     padding: 20px;
     border-radius: 10px;
     text-align: center;
-    border: 2px solid #e9ecef;
+    border: 2px solid var(--slyds-divider);
 }
 
 .stat-number {
     font-size: 2.5em;
     font-weight: bold;
-    color: #e74c3c;
+    color: var(--slyds-accent1);
     display: block;
 }
 
 .stat-label {
     font-size: 1em;
-    color: #6c757d;
+    color: var(--slyds-fg-muted);
     margin-top: 5px;
 }
 
@@ -129,26 +158,26 @@ body {
     width: 100%;
     border-collapse: collapse;
     margin: 20px 0;
-    background: white;
+    background: var(--slyds-bg);
     border-radius: 10px;
     overflow: hidden;
-    box-shadow: 0 5px 15px rgba(0,0,0,0.1);
+    box-shadow: var(--slyds-shadow);
 }
 
 .tier-table th, .tier-table td {
     padding: 15px;
     text-align: left;
-    border-bottom: 1px solid #dee2e6;
+    border-bottom: 1px solid var(--slyds-divider);
 }
 
 .tier-table th {
-    background: #3498db;
-    color: white;
+    background: var(--slyds-accent1);
+    color: var(--slyds-nav-fg);
     font-weight: 600;
 }
 
 .tier-table tr:nth-child(even) {
-    background: #f8f9fa;
+    background: var(--slyds-bg-secondary);
 }
 
 /* ── Navigation (south panel, always at bottom) ── */
@@ -159,13 +188,14 @@ body {
     justify-content: center;
     gap: 16px;
     padding: 12px 30px;
-    border-top: 1px solid rgba(0,0,0,0.06);
+    border-top: 1px solid var(--slyds-chrome-border);
+    background: var(--slyds-chrome-bg);
     position: relative;
 }
 
 .nav-button {
-    background: #3498db;
-    color: white;
+    background: var(--slyds-nav-bg);
+    color: var(--slyds-nav-fg);
     border: none;
     padding: 10px 22px;
     border-radius: 25px;
@@ -175,81 +205,82 @@ body {
 }
 
 .nav-button:hover {
-    background: #2980b9;
+    background: var(--slyds-nav-hover);
     transform: translateY(-2px);
 }
 
 .nav-button:disabled {
-    background: #bdc3c7;
+    background: var(--slyds-divider);
     cursor: not-allowed;
     transform: none;
+    opacity: 0.5;
 }
 
 /* ── Slide counter (inline in nav) ── */
 .slide-counter {
-    color: #6c757d;
+    color: var(--slyds-fg-muted);
     font-size: 0.9em;
     white-space: nowrap;
     user-select: none;
 }
 
-/* ── Notes icon button ── */
+/* ── Icon buttons (notes, export, theme) ── */
+.notes-btn,
+.export-btn,
+.theme-btn {
+    background: none;
+    border: 1px solid var(--slyds-chrome-border);
+    color: var(--slyds-fg-muted);
+    width: 36px;
+    height: 36px;
+    border-radius: 50%;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.3s ease;
+    padding: 0;
+}
+
+.notes-btn:hover,
+.export-btn:hover,
+.theme-btn:hover {
+    background: var(--slyds-bg-secondary);
+    color: var(--slyds-fg);
+    border-color: var(--slyds-divider);
+}
+
 .notes-btn {
     position: absolute;
     right: 30px;
-    background: none;
-    border: 1px solid rgba(0,0,0,0.15);
-    color: #6c757d;
-    width: 36px;
-    height: 36px;
-    border-radius: 50%;
-    cursor: pointer;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    transition: all 0.3s ease;
-    padding: 0;
 }
 
-.notes-btn:hover {
-    background: rgba(0,0,0,0.06);
-    color: #2c3e50;
-    border-color: rgba(0,0,0,0.25);
-}
-
-/* ── Export icon button ── */
 .export-btn {
     position: absolute;
     right: 80px;
-    background: none;
-    border: 1px solid rgba(0,0,0,0.15);
-    color: #6c757d;
-    width: 36px;
-    height: 36px;
-    border-radius: 50%;
-    cursor: pointer;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    transition: all 0.3s ease;
-    padding: 0;
 }
 
-.export-btn:hover {
-    background: rgba(0,0,0,0.06);
-    color: #2c3e50;
-    border-color: rgba(0,0,0,0.25);
+.theme-btn {
+    position: absolute;
+    right: 130px;
 }
 
 /* ── Title slide ── */
 .title-slide {
     text-align: center;
-    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-    color: white;
+    background: var(--slyds-title-bg);
+    color: var(--slyds-title-fg);
+}
+
+.title-slide h1,
+.title-slide h2,
+.title-slide h3,
+.title-slide p,
+.title-slide li {
+    color: var(--slyds-title-fg);
 }
 
 .title-slide h1 {
-    color: white;
     font-size: 3em;
     border-bottom: none;
     margin-bottom: 20px;
@@ -301,37 +332,42 @@ body {
 .author-name {
     font-size: 1.2em;
     font-weight: bold;
-    color: white;
+    color: var(--slyds-title-fg);
     margin-bottom: 8px;
 }
 
 .author-title {
     font-size: 0.9em;
-    color: rgba(255, 255, 255, 0.8);
+    color: var(--slyds-title-fg);
+    opacity: 0.8;
     line-height: 1.3;
 }
 
 /* ── Conclusion slide ── */
 .conclusion-slide {
-    background: linear-gradient(135deg, #2c3e50 0%, #34495e 100%);
-    color: white;
+    background: var(--slyds-title-bg);
+    color: var(--slyds-title-fg);
 }
 
-.conclusion-slide h1, .conclusion-slide h2 {
-    color: white;
+.conclusion-slide h1,
+.conclusion-slide h2,
+.conclusion-slide h3,
+.conclusion-slide p,
+.conclusion-slide li {
+    color: var(--slyds-title-fg);
 }
 
 /* ── Phase box ── */
 .phase-box {
-    background: #ecf0f1;
+    background: var(--slyds-bg-secondary);
     padding: 25px;
     border-radius: 10px;
     margin: 15px 0;
-    border-left: 5px solid #3498db;
+    border-left: 5px solid var(--slyds-accent1);
 }
 
 .phase-box h3 {
-    color: #2c3e50;
+    color: var(--slyds-fg);
     margin-top: 0;
 }
 
@@ -354,7 +390,7 @@ body {
 }
 
 .layout-two-column .col-left {
-    border-right: 2px solid rgba(0,0,0,0.08);
+    border-right: 2px solid var(--slyds-divider);
     padding-right: 40px;
 }
 
@@ -362,6 +398,8 @@ body {
 .section-slide {
     text-align: center;
     display: none;
+    background: var(--slyds-title-bg);
+    color: var(--slyds-title-fg);
 }
 
 .section-slide.active {
@@ -369,6 +407,14 @@ body {
     flex-direction: column;
     justify-content: center;
     align-items: center;
+}
+
+.section-slide h1,
+.section-slide h2,
+.section-slide h3,
+.section-slide p,
+.section-slide li {
+    color: var(--slyds-title-fg);
 }
 
 .section-slide h1 {

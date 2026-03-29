@@ -53,7 +53,7 @@ func CreateInDir(title string, slideCount int, theme string, outDir string) (str
 		return "", err
 	}
 
-	// Write slyds.css and slyds.js from embedded assets
+	// Write engine files from embedded assets
 	if err := os.WriteFile(filepath.Join(dir, "slyds.css"), []byte(assets.SlydsCSS), 0644); err != nil {
 		return "", err
 	}
@@ -61,6 +61,11 @@ func CreateInDir(title string, slideCount int, theme string, outDir string) (str
 		return "", err
 	}
 	if err := os.WriteFile(filepath.Join(dir, "slyds-export.js"), []byte(assets.SlydsExportJS), 0644); err != nil {
+		return "", err
+	}
+
+	// Write theme CSS files into themes/ subdirectory
+	if err := writeThemeFiles(dir); err != nil {
 		return "", err
 	}
 
@@ -83,8 +88,10 @@ func CreateInDir(title string, slideCount int, theme string, outDir string) (str
 		fmt.Fprintf(&includes, "    {{# include \"slides/%s\" #}}\n", name)
 	}
 	indexData := map[string]any{
-		"Title":    title,
-		"Includes": includes.String(),
+		"Title":      title,
+		"Theme":      theme,
+		"ThemeLinks": themeLinksHTML(),
+		"Includes":   includes.String(),
 	}
 	if err := renderEmbeddedTemplate(theme, "index.html.tmpl", indexData, filepath.Join(dir, "index.html")); err != nil {
 		return "", fmt.Errorf("failed to render index.html: %w", err)
@@ -195,6 +202,11 @@ func CreateFromDir(outDir, title string, slideCount int, themeDir string) error 
 		return err
 	}
 
+	// Write theme CSS files into themes/ subdirectory
+	if err := writeThemeFiles(outDir); err != nil {
+		return err
+	}
+
 	readTmpl := func(name string) ([]byte, error) {
 		return os.ReadFile(filepath.Join(themeDir, name))
 	}
@@ -215,8 +227,10 @@ func CreateFromDir(outDir, title string, slideCount int, themeDir string) error 
 		fmt.Fprintf(&includes, "    {{# include \"slides/%s\" #}}\n", name)
 	}
 	indexData := map[string]any{
-		"Title":    title,
-		"Includes": includes.String(),
+		"Title":      title,
+		"Theme":      filepath.Base(themeDir),
+		"ThemeLinks": themeLinksHTML(),
+		"Includes":   includes.String(),
 	}
 	if err := renderTemplateFrom(readTmpl, "index.html.tmpl", indexData, filepath.Join(outDir, "index.html")); err != nil {
 		return fmt.Errorf("failed to render index.html: %w", err)
@@ -395,7 +409,7 @@ func Update(dir, theme, title string) error {
 		return fmt.Errorf("theme %q not found (available: %s)", theme, strings.Join(available, ", "))
 	}
 
-	// Overwrite slyds.css and slyds.js
+	// Overwrite engine files
 	if err := os.WriteFile(filepath.Join(dir, "slyds.css"), []byte(assets.SlydsCSS), 0644); err != nil {
 		return fmt.Errorf("failed to write slyds.css: %w", err)
 	}
@@ -404,6 +418,11 @@ func Update(dir, theme, title string) error {
 	}
 	if err := os.WriteFile(filepath.Join(dir, "slyds-export.js"), []byte(assets.SlydsExportJS), 0644); err != nil {
 		return fmt.Errorf("failed to write slyds-export.js: %w", err)
+	}
+
+	// Update theme CSS files
+	if err := writeThemeFiles(dir); err != nil {
+		return fmt.Errorf("failed to write theme files: %w", err)
 	}
 
 	// Re-render theme.css
@@ -422,8 +441,10 @@ func Update(dir, theme, title string) error {
 
 	// Re-render index.html with preserved includes
 	indexData := map[string]any{
-		"Title":    title,
-		"Includes": includes,
+		"Title":      title,
+		"Theme":      theme,
+		"ThemeLinks": themeLinksHTML(),
+		"Includes":   includes,
 	}
 	if err := renderEmbeddedTemplate(theme, "index.html.tmpl", indexData, indexPath); err != nil {
 		return fmt.Errorf("failed to render index.html: %w", err)
@@ -440,6 +461,29 @@ func Update(dir, theme, title string) error {
 	}
 
 	return nil
+}
+
+// writeThemeFiles writes all theme CSS files into a themes/ subdirectory.
+func writeThemeFiles(dir string) error {
+	themesDir := filepath.Join(dir, "themes")
+	if err := os.MkdirAll(themesDir, 0755); err != nil {
+		return fmt.Errorf("failed to create themes dir: %w", err)
+	}
+	for name, content := range assets.ThemeFiles() {
+		if err := os.WriteFile(filepath.Join(themesDir, name), []byte(content), 0644); err != nil {
+			return fmt.Errorf("failed to write themes/%s: %w", name, err)
+		}
+	}
+	return nil
+}
+
+// themeLinksHTML generates <link> tags for all theme CSS files in load order.
+func themeLinksHTML() string {
+	var buf strings.Builder
+	for _, name := range assets.ThemeFileNames() {
+		fmt.Fprintf(&buf, "  <link rel=\"stylesheet\" href=\"themes/%s\">\n", name)
+	}
+	return buf.String()
 }
 
 // Slugify converts a title to a directory-safe slug.

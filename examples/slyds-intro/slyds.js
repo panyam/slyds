@@ -317,10 +317,63 @@
         });
     })();
 
+    // ── Theme switcher ──
+
+    // Discover available themes from loaded [data-theme="..."] CSS rules
+    function getAvailableThemes() {
+        var themes = [];
+        var seen = {};
+        try {
+            var sheets = document.styleSheets;
+            for (var i = 0; i < sheets.length; i++) {
+                var rules;
+                try { rules = sheets[i].cssRules || sheets[i].rules; } catch (e) { continue; }
+                if (!rules) continue;
+                for (var j = 0; j < rules.length; j++) {
+                    var sel = rules[j].selectorText || '';
+                    var match = sel.match(/\[data-theme="(\w[\w-]*)"\]/);
+                    if (match && !seen[match[1]]) {
+                        seen[match[1]] = true;
+                        themes.push(match[1]);
+                    }
+                }
+            }
+        } catch (e) { /* cross-origin stylesheet, ignore */ }
+        return themes.length > 0 ? themes : ['default'];
+    }
+
+    function getCurrentTheme() {
+        return document.documentElement.getAttribute('data-theme') || 'default';
+    }
+
+    function setTheme(name) {
+        document.documentElement.setAttribute('data-theme', name);
+        try { localStorage.setItem('slyds-theme', name); } catch (e) { /* ignore */ }
+    }
+
+    function cycleTheme() {
+        var themes = getAvailableThemes();
+        var current = getCurrentTheme();
+        var idx = themes.indexOf(current);
+        var next = themes[(idx + 1) % themes.length];
+        setTheme(next);
+    }
+
+    // Restore theme from localStorage if saved
+    (function restoreTheme() {
+        try {
+            var saved = localStorage.getItem('slyds-theme');
+            if (saved) {
+                document.documentElement.setAttribute('data-theme', saved);
+            }
+        } catch (e) { /* ignore */ }
+    })();
+
     // Expose to onclick handlers in HTML
     window.changeSlide = changeSlide;
     window.openNotesWindow = openNotesWindow;
     window.toggleTimer = toggleTimer;
+    window.cycleTheme = cycleTheme;
 
     // Initialize
     computeReadingTimes();
