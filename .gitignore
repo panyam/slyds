@@ -6,3 +6,4 @@ locallinks/
 examples/*/dist/
 examples/dist/
 _site/
+.slyds-modules/
