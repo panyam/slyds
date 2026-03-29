@@ -34,6 +34,13 @@ type Manifest struct {
 // DefaultModulesDir is the default directory name for vendored modules.
 const DefaultModulesDir = ".slyds-modules"
 
+// DefaultCoreURL is the default GitHub URL for the slyds-core engine package.
+// Currently lives in the slyds repo itself; will move to a separate repo later.
+const DefaultCoreURL = "github.com/panyam/slyds"
+
+// DefaultCorePath is the subdirectory within the core URL that contains engine assets.
+const DefaultCorePath = "core"
+
 // ResolveModulesDir returns the modules directory path, using the default if not set.
 func (m *Manifest) ResolveModulesDir(root string) string {
 	dir := m.ModulesDir
