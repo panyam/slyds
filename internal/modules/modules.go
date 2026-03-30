@@ -15,6 +15,18 @@ import (
 	"github.com/panyam/templar"
 )
 
+// SlydsToolInfo provides slyds-specific branding for templar-generated content
+// (lock file headers, vendor README). This ensures generated artifacts reference
+// slyds commands and file names rather than templar's defaults.
+var SlydsToolInfo = templar.ToolInfo{
+	Name:        "slyds",
+	ConfigNames: []string{".slyds.yaml"},
+	VendorDir:   "./.slyds-modules",
+	LockFile:    ".slyds.lock",
+	FetchCmd:    "slyds update",
+	ProjectURL:  "https://github.com/panyam/slyds",
+}
+
 // ToVendorConfig converts a slyds Manifest's sources into a templar VendorConfig.
 // The returned config uses slyds-specific directory names (.slyds-modules/).
 func ToVendorConfig(manifest *scaffold.Manifest, root string) *templar.VendorConfig {
@@ -79,12 +91,12 @@ func FetchAll(manifest *scaffold.Manifest, root string) error {
 
 	// Write lock file
 	lockPath := scaffold.LockPath(root)
-	if err := templar.WriteLockFile(lockPath, lock); err != nil {
+	if err := templar.WriteLockFileFor(lockPath, lock, SlydsToolInfo); err != nil {
 		return fmt.Errorf("failed to write lock file: %w", err)
 	}
 
 	// Write vendor readme
-	if err := templar.WriteVendorReadme(config.VendorDir); err != nil {
+	if err := templar.WriteVendorReadmeFor(config.VendorDir, SlydsToolInfo); err != nil {
 		// Non-fatal
 	}
 
