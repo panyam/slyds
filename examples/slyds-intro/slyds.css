@@ -372,27 +372,7 @@ body {
 }
 
 
-/* ── Layout: Two-column ── */
-.layout-two-column {
-    display: none;
-}
-
-.layout-two-column.active {
-    display: flex;
-    flex-direction: row;
-    gap: 40px;
-}
-
-.layout-two-column .col-left,
-.layout-two-column .col-right {
-    flex: 1;
-    min-width: 0;
-}
-
-.layout-two-column .col-left {
-    border-right: 2px solid var(--slyds-divider);
-    padding-right: 40px;
-}
+/* ── Layout: Two-column (legacy class — use .layout-two-col instead) ── */
 
 /* ── Layout: Section divider ── */
 .section-slide {
@@ -421,6 +401,21 @@ body {
     font-size: 2.8em;
     border-bottom: none;
     margin-bottom: 20px;
+}
+
+/* ── Layout system (data-layout attribute) ── */
+
+/* Two-column grid layout */
+.layout-two-col {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 40px;
+    margin-top: 30px;
+    width: 100%;
+}
+
+.layout-two-col .col {
+    min-width: 0;
 }
 
 /* ── Speaker notes (hidden in DOM, read by JS) ── */

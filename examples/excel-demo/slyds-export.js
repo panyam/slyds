@@ -138,79 +138,24 @@
             .replace(/-{2,}/g, '-');
     }
 
-    // ── Asset inlining helpers ────────────────────────────────────────
-    function fetchText(url) {
-        return new Promise(function (resolve) {
-            var xhr = new XMLHttpRequest();
-            xhr.open('GET', url, true);
-            xhr.onload = function () {
-                resolve(xhr.status === 200 ? xhr.responseText : null);
-            };
-            xhr.onerror = function () { resolve(null); };
-            xhr.send();
-        });
-    }
-
-    // Inline all external stylesheets and script references into the DOM
-    // so the exported HTML is self-contained. Returns a cloned document element.
-    function inlineExternalAssets() {
-        var root = document.documentElement.cloneNode(true);
-        var fetches = [];
-
-        // Collect external stylesheets
-        var links = root.querySelectorAll('link[rel="stylesheet"]');
-        for (var i = 0; i < links.length; i++) {
-            (function (link) {
-                var href = link.getAttribute('href');
-                if (!href) return;
-                fetches.push(fetchText(href).then(function (css) {
-                    if (css !== null) {
-                        var style = document.createElement('style');
-                        style.textContent = css;
-                        link.parentNode.replaceChild(style, link);
-                    }
-                }));
-            })(links[i]);
-        }
-
-        // Collect external scripts
-        var scripts = root.querySelectorAll('script[src]');
-        for (var j = 0; j < scripts.length; j++) {
-            (function (script) {
-                var src = script.getAttribute('src');
-                if (!src) return;
-                fetches.push(fetchText(src).then(function (js) {
-                    if (js !== null) {
-                        var inline = document.createElement('script');
-                        inline.textContent = js;
-                        script.parentNode.replaceChild(inline, script);
-                    }
-                }));
-            })(scripts[j]);
-        }
-
-        return Promise.all(fetches).then(function () { return root; });
-    }
-
     // ── Export logic ────────────────────────────────────────────────────
     function exportPresentation() {
-        inlineExternalAssets().then(function (inlinedRoot) {
         var zip = new MiniZip();
 
         // Collect all <style> blocks for standalone slide wrapping
         var styles = [];
-        var styleEls = inlinedRoot.querySelectorAll('style');
+        var styleEls = document.querySelectorAll('style');
         for (var s = 0; s < styleEls.length; s++) {
             styles.push(styleEls[s].outerHTML);
         }
         var styleBlock = styles.join('\n');
 
         // Add the full deck as index.html
-        var fullHTML = '<!DOCTYPE html>\n' + inlinedRoot.outerHTML;
+        var fullHTML = '<!DOCTYPE html>\n' + document.documentElement.outerHTML;
         zip.addFile('index.html', fullHTML);
 
         // Extract individual slides
-        var slides = inlinedRoot.querySelectorAll('.slide');
+        var slides = document.querySelectorAll('.slide');
         for (var i = 0; i < slides.length; i++) {
             var slide = slides[i];
             var num = String(i + 1);
@@ -255,7 +200,6 @@
         a.click();
         document.body.removeChild(a);
         URL.revokeObjectURL(url);
-        }); // end inlineExternalAssets().then
     }
 
     // Expose to onclick handler in HTML

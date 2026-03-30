@@ -1,0 +1,13 @@
+/* slyds theme: default (teal/gold)
+   Matches the existing default theme.css.tmpl */
+
+[data-theme="default"] {
+  --slyds-accent1: #0d4f4f;
+  --slyds-accent2: #1a3a4a;
+  --slyds-accent3: #f0a500;
+  --slyds-bg-highlight: rgba(13, 79, 79, 0.08);
+  --slyds-shadow: 0 20px 40px rgba(0, 0, 0, 0.1);
+  --slyds-title-bg: linear-gradient(135deg, #0d4f4f, #1a3a4a);
+  --slyds-nav-hover: #1a3a4a;
+  --slyds-radius: 20px;
+}

@@ -1,0 +1,19 @@
+/* slyds theme: corporate */
+
+[data-theme="corporate"] {
+  --slyds-fg: #1a1a1a;
+  --slyds-accent1: #0066cc;
+  --slyds-accent2: #004488;
+  --slyds-accent3: #003366;
+  --slyds-bg-secondary: #f8f9fb;
+  --slyds-bg-highlight: #f0f6ff;
+  --slyds-divider: #dee2e6;
+  --slyds-code-fg: #333333;
+  --slyds-code-border: #dee2e6;
+  --slyds-heading-font: 'Segoe UI', 'Helvetica Neue', Arial, sans-serif;
+  --slyds-body-font: 'Segoe UI', 'Helvetica Neue', Arial, sans-serif;
+  --slyds-title-bg: linear-gradient(135deg, #003366, #004488, #0066cc);
+  --slyds-chrome-bg: rgba(0, 51, 102, 0.15);
+  --slyds-chrome-border: rgba(0, 51, 102, 0.1);
+  --slyds-line-height: 1.7;
+}
