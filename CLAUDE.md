@@ -38,7 +38,8 @@ slyds query <slide> <sel> [--set|--append|...]   # CSS selector read/write on sl
 ## Conventions
 
 - **No hardcoded HTML in Go code** — use embedded `.tmpl` files under `core/templates/`. New themes = new template dirs, not Go changes.
-- **Shared template fallback** — `renderEmbeddedTemplate` tries `templates/<theme>/<name>` first, falls back to `templates/<name>`. Common templates like `index.html.tmpl` live at the shared level; themes override only when they need different HTML structure (e.g., hacker theme).
+- **Shared template fallback** — `renderEmbeddedTemplate` tries `templates/<theme>/<name>` first, falls back to `templates/<name>`. Common templates like `index.html.tmpl` live at the shared level; themes override only when they need different HTML structure. Avoid per-theme overrides of shared templates — they go stale and silently break features (see Gotchas).
+- **AGENT.md is template-rendered** — generated from `core/templates/agent.md.tmpl` via `WriteAgentMD()`. Do not hardcode AGENT.md content in Go strings.
 - **Layouts are theme-independent** — structural layout templates live in `core/layouts/` (title, content, two-col, section, blank, closing). Themes are pure CSS variable overrides. Layouts use `data-layout` attribute and `data-slot` for named content regions.
 - **Slide types are config-driven** — each theme has a `theme.yaml` that maps type names to template files (legacy — layouts in `core/layouts/` are preferred).
 - **Configure templar programmatically** — don't generate `.templar.yaml` files. Use `TemplateGroup`, `FileSystemLoader`, etc. directly.
@@ -60,6 +61,7 @@ internal/builder/           # Include flattening + CSS/JS/image inlining
 core/                       # go:embed package — slyds.css, slyds.js, slyds-export.js, theme templates
 core/templates/           # Shared templates (index.html.tmpl) + per-theme overrides
 core/templates/<theme>/   # Theme template files (.tmpl) — default, minimal, dark, corporate, hacker
+core/layouts/             # Layout templates (title, content, two-col, section, blank, closing)
 .github/workflows/          # CI (test.yml) and release (release.yml via goreleaser)
 .goreleaser.yaml            # Cross-platform binary release config
 ```
@@ -68,6 +70,9 @@ core/templates/<theme>/   # Theme template files (.tmpl) — default, minimal, d
 - **macOS /private symlinks**: `filepath.Abs` on temp dirs returns `/var/...` but the actual path is `/private/var/...`. Don't compare paths directly in tests; check file existence instead.
 - **templar BasicServer `/` routing**: It maps `/` to template name `""` which fails. slyds uses a custom HTTP handler that maps `/` → `index.html` instead.
 - **`go:embed` paths are relative to the Go file** — can't use `../` paths. The `core/embed.go` file must live alongside the files it embeds.
+- **`core/` is the single source of truth** for all embedded files (CSS, JS, templates, themes, layouts). There is no separate `assets/` directory — it was consolidated into `core/`. All Go code imports `github.com/panyam/slyds/core`.
+- **Theme-specific template overrides go stale** — if a theme has its own `index.html.tmpl`, it won't pick up new nav buttons, theme links, or other shared features. Only override shared templates when the theme genuinely needs different HTML structure. Prefer the shared template.
+- **`changeSlide()` mutates `currentSlide` before calling `showSlide()`** — any code in `showSlide` that needs the *previous* slide must use the `from` parameter, not read `currentSlide` directly.
 
 ## Memories
 

@@ -49,8 +49,9 @@ core/templates/
     slides/closing.html.tmpl
     images/                        # Optional — copied verbatim during scaffold
   hacker/
-    index.html.tmpl                # Theme-specific override (optional — falls back to shared)
     theme.css.tmpl
+    slides/                        # Theme-specific slide templates
+    images/                        # Theme static assets
     ...
 ```
 
@@ -121,6 +122,17 @@ No `.templar.yaml` config files are generated or needed.
 `slyds query` provides CSS selector-based read/write access to slide HTML content using `PuerkitoBio/goquery`. Slide files are HTML fragments, not full documents — the query layer wraps them in a sentinel div for parsing and extracts the fragment on write-back (no `<html><body>` wrappers leak).
 
 This is the approved path for all programmatic slide content access. Regex-based HTML mutation is prohibited (see CONSTRAINTS.md).
+
+## Slide Lifecycle Hooks
+
+`slyds.js` dispatches `slideEnter` and `slideLeave` CustomEvents during navigation. These fire on the slide element itself and bubble to `document`.
+
+- `slideLeave` fires on the outgoing slide **before** `.active` is removed (slide still has dimensions)
+- `slideEnter` fires on the incoming slide **after** `.active` is added (slide has dimensions)
+- Event `detail` includes: `index`, `slideNum`, `title`, `layout`, `total`, `direction`, `data` (all `data-*` attrs)
+- `window.slydsContext` provides persistent state: `totalSlides`, `currentSlide`, `direction`, and a `state` bag for user/agent code
+
+The hooks are documented in AGENT.md (auto-generated per deck) so that coding agents use them correctly for Chart.js, D3, and other libraries that need real canvas dimensions.
 
 ## Client-Side Export
 
