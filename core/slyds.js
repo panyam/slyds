@@ -18,6 +18,16 @@
     var slideReadingTimes = [];
     var WPM = 200;
 
+    // ── Presentation context ──
+    // Persistent context for hook consumers. The `state` bag survives slide
+    // transitions — use it to cache chart instances, track first-visit flags, etc.
+    window.slydsContext = {
+        totalSlides: totalSlides,
+        currentSlide: 1,
+        direction: 'init',
+        state: {}
+    };
+
     // Write total into counter (if element exists)
     var totalEl = document.getElementById('totalSlides');
     if (totalEl) totalEl.textContent = totalSlides;
@@ -162,14 +172,71 @@
         return h1 ? h1.textContent : 'Slide ' + n;
     }
 
-    function showSlide(n) {
+    // Build the detail payload for slideEnter/slideLeave events.
+    function buildEventDetail(slideEl, slideIndex, direction) {
+        var h1 = slideEl.querySelector('h1');
+        var title = h1 ? h1.textContent : 'Slide ' + (slideIndex + 1);
+        var layout = slideEl.getAttribute('data-layout') || null;
+
+        var dataset = {};
+        if (slideEl.dataset) {
+            for (var key in slideEl.dataset) {
+                if (slideEl.dataset.hasOwnProperty(key)) {
+                    dataset[key] = slideEl.dataset[key];
+                }
+            }
+        }
+
+        return {
+            index: slideIndex,
+            slideNum: slideIndex + 1,
+            title: title,
+            layout: layout,
+            total: totalSlides,
+            direction: direction,
+            data: dataset
+        };
+    }
+
+    function showSlide(n, from) {
         var slides = document.querySelectorAll('.slide');
+        // from is the slide we're leaving; undefined on initial load and hash nav
+        var previousSlide = (from !== undefined) ? from : currentSlide;
 
         if (n > totalSlides) currentSlide = 1;
         if (n < 1) currentSlide = totalSlides;
 
+        // Compute direction: use raw n (before clamping) so wrap-around is correct
+        var direction;
+        if (previousSlide === currentSlide) {
+            direction = 'init';
+        } else if (n > previousSlide) {
+            direction = 'forward';
+        } else {
+            direction = 'backward';
+        }
+
+        // Dispatch slideLeave on outgoing slide (still .active, has dimensions)
+        var outgoing = slides[previousSlide - 1];
+        if (outgoing && outgoing.classList.contains('active')) {
+            outgoing.dispatchEvent(new CustomEvent('slideLeave', {
+                bubbles: true,
+                detail: buildEventDetail(outgoing, previousSlide - 1, direction)
+            }));
+        }
+
         slides.forEach(function (slide) { slide.classList.remove('active'); });
         slides[currentSlide - 1].classList.add('active');
+
+        // Dispatch slideEnter on incoming slide (now .active, has dimensions)
+        slides[currentSlide - 1].dispatchEvent(new CustomEvent('slideEnter', {
+            bubbles: true,
+            detail: buildEventDetail(slides[currentSlide - 1], currentSlide - 1, direction)
+        }));
+
+        // Update presentation context
+        window.slydsContext.currentSlide = currentSlide;
+        window.slydsContext.direction = direction;
 
         var slideNumEl = document.getElementById('slideNum');
         if (slideNumEl) slideNumEl.textContent = currentSlide;
@@ -188,8 +255,9 @@
     }
 
     function changeSlide(n) {
+        var from = currentSlide;
         currentSlide += n;
-        showSlide(currentSlide);
+        showSlide(currentSlide, from);
     }
 
     function openNotesWindow() {
@@ -297,8 +365,9 @@
     window.addEventListener('hashchange', function () {
         var slideNum = getSlideFromHash();
         if (slideNum !== currentSlide) {
+            var from = currentSlide;
             currentSlide = slideNum;
-            showSlide(currentSlide);
+            showSlide(currentSlide, from);
         }
     });
 

@@ -1,7 +1,7 @@
 # slyds
 
 ## Version
-v0.0.6
+v0.0.10
 
 ## Provides
 - **slide-cli**: Go CLI for multi-file HTML presentations (one file per slide, composed via templar includes)
@@ -11,7 +11,10 @@ v0.0.6
 - **slide-management**: Add, remove, reorder, insert slides via CLI commands
 - **slide-query**: CSS selector-based read/write access to slide HTML content (goquery)
 - **slide-export**: Client-side ZIP export/download of built presentations
-- **theme-system**: Config-driven theme templates with shared fallback
+- **theme-system**: Config-driven theme templates with shared fallback, runtime theme switching
+- **slide-hooks**: Client-side `slideEnter`/`slideLeave` lifecycle events + `window.slydsContext` persistent state
+- **layout-system**: Six built-in layouts (title, content, two-col, section, blank, closing) independent of themes
+- **agent-onboarding**: AGENT.md auto-generated per deck with commands, layouts, hooks, and conventions
 
 ## Module
 github.com/panyam/slyds
@@ -28,7 +31,7 @@ github.com/panyam/slyds
 ### Go Module
 ```go
 // go.mod
-require github.com/panyam/slyds v0.0.6
+require github.com/panyam/slyds v0.0.10
 
 // Local development
 replace github.com/panyam/templar => ./locallinks/newstack/templar/main
@@ -44,7 +47,7 @@ replace github.com/panyam/templar => ./locallinks/newstack/templar/main
 Active
 
 ## Conventions
-- No hardcoded HTML in Go code — use embedded `.tmpl` files under `assets/templates/`
+- No hardcoded HTML in Go code — use embedded `.tmpl` files under `core/templates/`
 - Configure templar programmatically — no `.templar.yaml` files
 - Slide files are pure HTML — only `index.html` uses templar include syntax
 - No regex-based HTML mutation — use `slyds query` (goquery/CSS selectors)

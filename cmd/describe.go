@@ -8,7 +8,7 @@ import (
 	"regexp"
 	"strings"
 
-	"github.com/panyam/slyds/assets"
+	"github.com/panyam/slyds/core"
 	"github.com/panyam/slyds/internal/layout"
 	"github.com/panyam/slyds/internal/scaffold"
 	"github.com/spf13/cobra"
@@ -167,7 +167,7 @@ func describeDeck(root string) (*DeckDescription, error) {
 
 // availableThemeNames returns theme names from the embedded themes directory.
 func availableThemeNames() []string {
-	files := assets.ThemeFileNames()
+	files := core.ThemeFileNames()
 	var names []string
 	for _, f := range files {
 		if f == "_base.css" {

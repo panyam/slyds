@@ -18,11 +18,11 @@ slyds is a Go CLI for creating, serving, and building self-contained HTML presen
 
 ## Current State
 
-The Go rewrite is complete with all core commands working, 80+ tests passing, CI/CD via GitHub Actions, and cross-platform binary releases via goreleaser. Five built-in themes. Legacy Node.js code removed. Published as `github.com/panyam/slyds` at v0.0.6.
+The Go rewrite is complete with all core commands working, 130+ tests passing, CI/CD via GitHub Actions, and cross-platform binary releases via goreleaser. Five built-in themes, six built-in layouts, slide lifecycle hooks (`slideEnter`/`slideLeave`), and runtime theme switching. Published as `github.com/panyam/slyds` at v0.0.10.
 
 ## Key Patterns
 
-- Theme templates embedded via `go:embed` under `assets/templates/` (shared) and `assets/templates/<theme>/` (overrides)
+- Theme templates embedded via `go:embed` under `core/templates/` (shared) and `core/templates/<theme>/` (overrides)
 - Templar used as a Go library (programmatic config, no YAML files)
 - Slide files are pure HTML fragments — no template syntax
 - Only `index.html` uses templar's `{{# include #}}` directives

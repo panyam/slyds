@@ -10,7 +10,7 @@ import (
 	"strings"
 	"text/template"
 
-	"github.com/panyam/slyds/assets"
+	"github.com/panyam/slyds/core"
 	"github.com/panyam/slyds/internal/layout"
 	"github.com/panyam/slyds/internal/scaffold"
 	"github.com/spf13/cobra"
@@ -538,7 +538,7 @@ func renderSlideFromTheme(root, name, slideType string, number int, titleOverrid
 	}
 
 	tmplPath := fmt.Sprintf("templates/%s/%s", theme, tmplFile)
-	content, err := assets.TemplatesFS.ReadFile(tmplPath)
+	content, err := core.TemplatesFS.ReadFile(tmplPath)
 	if err != nil {
 		return "", fmt.Errorf("slide template %q not found: %w", tmplFile, err)
 	}

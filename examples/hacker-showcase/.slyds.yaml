@@ -1,2 +1,6 @@
 theme: hacker
 title: Hacker Theme Showcase
+sources:
+    core:
+        url: github.com/panyam/slyds
+        path: core

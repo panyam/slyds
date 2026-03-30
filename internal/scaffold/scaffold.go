@@ -9,7 +9,7 @@ import (
 	"strings"
 	"text/template"
 
-	"github.com/panyam/slyds/assets"
+	"github.com/panyam/slyds/core"
 	"github.com/panyam/slyds/internal/layout"
 )
 
@@ -55,13 +55,13 @@ func CreateInDir(title string, slideCount int, theme string, outDir string) (str
 	}
 
 	// Write engine files from embedded assets
-	if err := os.WriteFile(filepath.Join(dir, "slyds.css"), []byte(assets.SlydsCSS), 0644); err != nil {
+	if err := os.WriteFile(filepath.Join(dir, "slyds.css"), []byte(core.SlydsCSS), 0644); err != nil {
 		return "", err
 	}
-	if err := os.WriteFile(filepath.Join(dir, "slyds.js"), []byte(assets.SlydsJS), 0644); err != nil {
+	if err := os.WriteFile(filepath.Join(dir, "slyds.js"), []byte(core.SlydsJS), 0644); err != nil {
 		return "", err
 	}
-	if err := os.WriteFile(filepath.Join(dir, "slyds-export.js"), []byte(assets.SlydsExportJS), 0644); err != nil {
+	if err := os.WriteFile(filepath.Join(dir, "slyds-export.js"), []byte(core.SlydsExportJS), 0644); err != nil {
 		return "", err
 	}
 
@@ -127,7 +127,7 @@ func copyEmbeddedAssets(theme, outDir string) error {
 }
 
 func copyEmbeddedDir(base, dir, outDir string) error {
-	entries, err := assets.TemplatesFS.ReadDir(dir)
+	entries, err := core.TemplatesFS.ReadDir(dir)
 	if err != nil {
 		return err
 	}
@@ -147,7 +147,7 @@ func copyEmbeddedDir(base, dir, outDir string) error {
 		if strings.HasSuffix(e.Name(), ".tmpl") || e.Name() == "theme.yaml" {
 			continue
 		}
-		data, err := assets.TemplatesFS.ReadFile(entryPath)
+		data, err := core.TemplatesFS.ReadFile(entryPath)
 		if err != nil {
 			return err
 		}
@@ -214,13 +214,13 @@ func CreateFromDir(outDir, title string, slideCount int, themeDir string) error 
 		return err
 	}
 
-	if err := os.WriteFile(filepath.Join(outDir, "slyds.css"), []byte(assets.SlydsCSS), 0644); err != nil {
+	if err := os.WriteFile(filepath.Join(outDir, "slyds.css"), []byte(core.SlydsCSS), 0644); err != nil {
 		return err
 	}
-	if err := os.WriteFile(filepath.Join(outDir, "slyds.js"), []byte(assets.SlydsJS), 0644); err != nil {
+	if err := os.WriteFile(filepath.Join(outDir, "slyds.js"), []byte(core.SlydsJS), 0644); err != nil {
 		return err
 	}
-	if err := os.WriteFile(filepath.Join(outDir, "slyds-export.js"), []byte(assets.SlydsExportJS), 0644); err != nil {
+	if err := os.WriteFile(filepath.Join(outDir, "slyds-export.js"), []byte(core.SlydsExportJS), 0644); err != nil {
 		return err
 	}
 
@@ -358,11 +358,11 @@ func renderTemplateFrom(readTmpl func(string) ([]byte, error), tmplName string, 
 func renderEmbeddedTemplate(theme, tmplName string, data any, outPath string) error {
 	// Try theme-specific first
 	tmplPath := fmt.Sprintf("templates/%s/%s", theme, tmplName)
-	content, err := assets.TemplatesFS.ReadFile(tmplPath)
+	content, err := core.TemplatesFS.ReadFile(tmplPath)
 	if err != nil {
 		// Fall back to shared template
 		tmplPath = fmt.Sprintf("templates/%s", tmplName)
-		content, err = assets.TemplatesFS.ReadFile(tmplPath)
+		content, err = core.TemplatesFS.ReadFile(tmplPath)
 		if err != nil {
 			return fmt.Errorf("template %q not found in theme %q or shared templates", tmplName, theme)
 		}
@@ -384,7 +384,7 @@ func renderEmbeddedTemplate(theme, tmplName string, data any, outPath string) er
 
 // ListThemes returns the names of all available themes from the embedded filesystem.
 func ListThemes() ([]string, error) {
-	entries, err := assets.TemplatesFS.ReadDir("templates")
+	entries, err := core.TemplatesFS.ReadDir("templates")
 	if err != nil {
 		return nil, fmt.Errorf("failed to read templates dir: %w", err)
 	}
@@ -432,13 +432,13 @@ func Update(dir, theme, title string) error {
 	}
 
 	// Overwrite engine files
-	if err := os.WriteFile(filepath.Join(dir, "slyds.css"), []byte(assets.SlydsCSS), 0644); err != nil {
+	if err := os.WriteFile(filepath.Join(dir, "slyds.css"), []byte(core.SlydsCSS), 0644); err != nil {
 		return fmt.Errorf("failed to write slyds.css: %w", err)
 	}
-	if err := os.WriteFile(filepath.Join(dir, "slyds.js"), []byte(assets.SlydsJS), 0644); err != nil {
+	if err := os.WriteFile(filepath.Join(dir, "slyds.js"), []byte(core.SlydsJS), 0644); err != nil {
 		return fmt.Errorf("failed to write slyds.js: %w", err)
 	}
-	if err := os.WriteFile(filepath.Join(dir, "slyds-export.js"), []byte(assets.SlydsExportJS), 0644); err != nil {
+	if err := os.WriteFile(filepath.Join(dir, "slyds-export.js"), []byte(core.SlydsExportJS), 0644); err != nil {
 		return fmt.Errorf("failed to write slyds-export.js: %w", err)
 	}
 
@@ -507,7 +507,7 @@ func writeThemeFiles(dir string) error {
 	if err := os.MkdirAll(themesDir, 0755); err != nil {
 		return fmt.Errorf("failed to create themes dir: %w", err)
 	}
-	for name, content := range assets.ThemeFiles() {
+	for name, content := range core.ThemeFiles() {
 		if err := os.WriteFile(filepath.Join(themesDir, name), []byte(content), 0644); err != nil {
 			return fmt.Errorf("failed to write themes/%s: %w", name, err)
 		}
@@ -518,7 +518,7 @@ func writeThemeFiles(dir string) error {
 // themeLinksHTML generates <link> tags for all theme CSS files in load order.
 func themeLinksHTML() string {
 	var buf strings.Builder
-	for _, name := range assets.ThemeFileNames() {
+	for _, name := range core.ThemeFileNames() {
 		fmt.Fprintf(&buf, "  <link rel=\"stylesheet\" href=\"themes/%s\">\n", name)
 	}
 	return buf.String()

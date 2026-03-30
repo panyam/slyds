@@ -1,172 +1,64 @@
 /* Hacker Theme Showcase — Hacker theme
-   Technical, nerdy but fun. Indigo/purple palette with terminal aesthetics.
-   For backend engineers presenting to peers. */
+   Structural overrides that can't be expressed as CSS variables.
+   Colors/fonts come from themes/hacker.css variables. */
 
 @import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;700&family=Inter:wght@400;600;700;900&display=swap');
 
-body {
-    background: #0a0d14;
-    font-family: 'Inter', system-ui, sans-serif;
-}
-
-.slideshow-container {
-    background: #0f1219;
-    box-shadow: 0 20px 60px rgba(0,0,0,0.6);
-}
-
-.slide {
-    color: #e2e4f0;
-}
-
+/* Typography structural tweaks */
 .slide h1 {
-    color: #e2e4f0;
     font-weight: 900;
     letter-spacing: -0.02em;
-    border-bottom: 3px solid #7b93ff;
-}
-
-.slide h2 {
-    color: #c5c5d9;
-    font-weight: 700;
 }
 
 .slide h3 {
-    color: #7b93ff;
-    font-family: 'JetBrains Mono', monospace;
-    font-size: 0.85em;
     text-transform: uppercase;
     letter-spacing: 0.1em;
+    font-size: 0.85em;
 }
 
-.slide p, .slide li {
-    color: #c5c5d9;
-    line-height: 1.7;
+.slide em {
+    font-style: normal;
+    font-size: 0.9em;
 }
 
 .slide li {
     margin-bottom: 0.5em;
 }
 
-.slide strong {
-    color: #7b93ff;
-}
-
-.slide em {
-    color: #73d1ff;
-    font-style: normal;
-    font-family: 'JetBrains Mono', monospace;
-    font-size: 0.9em;
-}
-
 /* Title slide — connected nodes background */
 .title-slide {
     background: linear-gradient(135deg, rgba(15,18,25,0.85) 0%, rgba(30,35,48,0.85) 100%),
                 url('images/connected-nodes-blue.jpg') center/cover no-repeat;
-    color: #e2e4f0;
 }
 
 .title-slide h1 {
-    color: #ffffff;
-    border-bottom: none;
     font-size: 2.8em;
     text-shadow: 0 2px 20px rgba(123, 147, 255, 0.4);
-}
-
-.title-slide p {
-    color: #c5c5d9;
-    font-size: 1.2em;
 }
 
 /* Section dividers — circuit board background */
 .section-slide {
     background: linear-gradient(135deg, rgba(15,18,25,0.88) 0%, rgba(10,13,20,0.92) 100%),
                 url('images/circuit-board-dark.jpg') center/cover no-repeat;
-    color: #e2e4f0;
-}
-
-.section-slide h1 {
-    color: #7b93ff;
-    border-bottom: 3px solid #4f6eff;
-    font-size: 2.2em;
 }
 
 /* Closing — earth from space */
 .conclusion-slide {
     background: linear-gradient(135deg, rgba(15,18,25,0.8) 0%, rgba(10,13,20,0.85) 100%),
                 url('images/earth-network-blue.jpg') center/cover no-repeat;
-    color: #e2e4f0;
 }
 
-.conclusion-slide h1, .conclusion-slide h2 {
-    color: #e2e4f0;
-    border-bottom: none;
-}
-
-/* Navigation */
-.nav-button {
-    background: #4f6eff;
-    color: #ffffff;
-    font-family: 'Inter', sans-serif;
-    font-weight: 600;
-}
-
-.nav-button:hover {
-    background: #7b93ff;
-}
-
-.nav-button:disabled {
-    background: #1c2133;
-    color: #3a3c4e;
-}
-
-/* Controls bar */
+/* Controls bar — backdrop blur */
 .controls-bar {
-    background: rgba(10, 13, 20, 0.7);
     backdrop-filter: blur(10px);
 }
 
-.controls-bar .presenter-mode-btn {
-    background: #4f6eff;
-    color: #ffffff;
-    font-weight: 600;
-}
-
-.controls-bar .presenter-mode-btn:hover {
-    background: #7b93ff;
-}
-
-/* Highlights — callout boxes */
-.highlight {
-    background: rgba(123, 147, 255, 0.08);
-    border-left: 4px solid #7b93ff;
-    border-radius: 0 8px 8px 0;
-    padding: 16px 20px;
-}
-
-.stat-number {
-    color: #7b93ff;
-    font-family: 'JetBrains Mono', monospace;
-}
-
-/* Code blocks — terminal aesthetic */
-code, pre {
-    background: #0a0d14;
-    color: #73d1ff;
-    padding: 2px 8px;
-    border-radius: 4px;
-    font-family: 'JetBrains Mono', monospace;
-    font-size: 0.85em;
-}
-
+/* Code blocks — inset shadow for terminal aesthetic */
 pre {
-    padding: 20px;
-    border-radius: 8px;
-    overflow-x: auto;
-    border: 1px solid #1c2133;
     box-shadow: inset 0 2px 8px rgba(0,0,0,0.3);
 }
 
-/* Tables */
+/* Tables — structural styling */
 .slide table {
     width: 100%;
     border-collapse: collapse;
@@ -174,21 +66,19 @@ pre {
 }
 
 .slide th {
-    background: #1c2133;
-    color: #7b93ff;
-    font-family: 'JetBrains Mono', monospace;
+    background: var(--slyds-divider);
+    color: var(--slyds-accent1);
     font-size: 0.8em;
     text-transform: uppercase;
     letter-spacing: 0.05em;
     padding: 10px 16px;
     text-align: left;
-    border-bottom: 2px solid #4f6eff;
+    border-bottom: 2px solid var(--slyds-accent2);
 }
 
 .slide td {
     padding: 8px 16px;
-    border-bottom: 1px solid #1c2133;
-    color: #c5c5d9;
+    border-bottom: 1px solid var(--slyds-divider);
 }
 
 .slide tr:hover td {
@@ -197,7 +87,7 @@ pre {
 
 /* Alternating content slide tints */
 .slide:nth-child(odd):not(.title-slide):not(.conclusion-slide):not(.section-slide) {
-    background-color: rgba(123, 147, 255, 0.02);
+    background-color: var(--slyds-bg-secondary);
 }
 
 .slide:nth-child(even):not(.title-slide):not(.conclusion-slide):not(.section-slide) {
@@ -218,7 +108,7 @@ pre {
 
 /* Progress-aware accent shift */
 .slide h1 {
-    border-bottom-color: color-mix(in srgb, #7b93ff calc(100% - var(--slide-progress, 0%)), #73d1ff var(--slide-progress, 0%));
+    border-bottom-color: color-mix(in srgb, var(--slyds-accent1) calc(100% - var(--slide-progress, 0%)), var(--slyds-accent3) var(--slide-progress, 0%));
 }
 
 /* Emoji sizing for slide content */

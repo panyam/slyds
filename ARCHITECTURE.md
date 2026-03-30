@@ -36,10 +36,10 @@ Only `index.html` uses templar's `{{# include "slides/01-title.html" #}}` syntax
 
 ## Theme System
 
-Themes are sets of `.tmpl` files under `assets/templates/<theme>/`, plus optional static assets (images, fonts, etc.):
+Themes are sets of `.tmpl` files under `core/templates/<theme>/`, plus optional static assets (images, fonts, etc.):
 
 ```
-assets/templates/
+core/templates/
   index.html.tmpl                  # Shared Go text/template for index.html (used by all themes unless overridden)
   default/
     theme.css.tmpl                 # Go text/template for theme.css
@@ -49,8 +49,9 @@ assets/templates/
     slides/closing.html.tmpl
     images/                        # Optional — copied verbatim during scaffold
   hacker/
-    index.html.tmpl                # Theme-specific override (optional — falls back to shared)
     theme.css.tmpl
+    slides/                        # Theme-specific slide templates
+    images/                        # Theme static assets
     ...
 ```
 
@@ -58,7 +59,7 @@ Templates receive `{{.Title}}`, `{{.Number}}`, `{{.Includes}}` etc. Adding a new
 
 ## Layout System
 
-Layouts define the structural arrangement of slide content, independent of visual themes. Six built-in layouts live in `assets/layouts/`:
+Layouts define the structural arrangement of slide content, independent of visual themes. Six built-in layouts live in `core/layouts/`:
 
 | Layout | Description | Slots |
 |--------|-------------|-------|
@@ -71,7 +72,7 @@ Layouts define the structural arrangement of slide content, independent of visua
 
 Each layout template sets a `data-layout` attribute on the slide div and uses `data-slot` attributes for named content regions. `slyds add --layout two-col "Name"` scaffolds a slide from the layout template. `slyds ls` shows the layout per slide.
 
-Layouts use CSS classes (`.layout-two-col`, `.title-slide`, etc.) for structural styling, referencing `--slyds-*` variables so any theme can skin any layout. The layout registry lives in `assets/layouts/layouts.yaml`.
+Layouts use CSS classes (`.layout-two-col`, `.title-slide`, etc.) for structural styling, referencing `--slyds-*` variables so any theme can skin any layout. The layout registry lives in `core/layouts/layouts.yaml`.
 
 ### Presentation Layout
 
@@ -121,6 +122,17 @@ No `.templar.yaml` config files are generated or needed.
 `slyds query` provides CSS selector-based read/write access to slide HTML content using `PuerkitoBio/goquery`. Slide files are HTML fragments, not full documents — the query layer wraps them in a sentinel div for parsing and extracts the fragment on write-back (no `<html><body>` wrappers leak).
 
 This is the approved path for all programmatic slide content access. Regex-based HTML mutation is prohibited (see CONSTRAINTS.md).
+
+## Slide Lifecycle Hooks
+
+`slyds.js` dispatches `slideEnter` and `slideLeave` CustomEvents during navigation. These fire on the slide element itself and bubble to `document`.
+
+- `slideLeave` fires on the outgoing slide **before** `.active` is removed (slide still has dimensions)
+- `slideEnter` fires on the incoming slide **after** `.active` is added (slide has dimensions)
+- Event `detail` includes: `index`, `slideNum`, `title`, `layout`, `total`, `direction`, `data` (all `data-*` attrs)
+- `window.slydsContext` provides persistent state: `totalSlides`, `currentSlide`, `direction`, and a `state` bag for user/agent code
+
+The hooks are documented in AGENT.md (auto-generated per deck) so that coding agents use them correctly for Chart.js, D3, and other libraries that need real canvas dimensions.
 
 ## Client-Side Export
 

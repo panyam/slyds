@@ -12,7 +12,7 @@ import (
 	"strings"
 	"text/template"
 
-	"github.com/panyam/slyds/assets"
+	"github.com/panyam/slyds/core"
 	"gopkg.in/yaml.v3"
 )
 
@@ -45,7 +45,7 @@ var typeToLayoutMap = map[string]string{
 
 // LoadRegistry reads and parses layouts.yaml from the embedded filesystem.
 func LoadRegistry() (*LayoutRegistry, error) {
-	data, err := fs.ReadFile(assets.LayoutsFS, "layouts/layouts.yaml")
+	data, err := fs.ReadFile(core.LayoutsFS, "layouts/layouts.yaml")
 	if err != nil {
 		return nil, fmt.Errorf("failed to read layouts.yaml: %w", err)
 	}
@@ -94,7 +94,7 @@ func Render(name string, data map[string]any) (string, error) {
 	}
 
 	tmplPath := "layouts/" + entry.Template
-	content, err := fs.ReadFile(assets.LayoutsFS, tmplPath)
+	content, err := fs.ReadFile(core.LayoutsFS, tmplPath)
 	if err != nil {
 		return "", fmt.Errorf("layout template %q not found: %w", entry.Template, err)
 	}

@@ -1,0 +1,24 @@
+/* slyds theme: hacker */
+
+[data-theme="hacker"] {
+  --slyds-bg: #0f1219;
+  --slyds-fg: #e2e4f0;
+  --slyds-accent1: #7b93ff;
+  --slyds-accent2: #4f6eff;
+  --slyds-accent3: #73d1ff;
+  --slyds-fg-muted: #3a3c4e;
+  --slyds-bg-secondary: rgba(123, 147, 255, 0.02);
+  --slyds-bg-highlight: rgba(123, 147, 255, 0.08);
+  --slyds-divider: #1c2133;
+  --slyds-shadow: 0 20px 60px rgba(0, 0, 0, 0.6);
+  --slyds-code-bg: #0a0d14;
+  --slyds-code-fg: #73d1ff;
+  --slyds-code-border: #1c2133;
+  --slyds-heading-font: 'Inter', system-ui, sans-serif;
+  --slyds-body-font: 'Inter', system-ui, sans-serif;
+  --slyds-code-font: 'JetBrains Mono', monospace;
+  --slyds-title-bg: linear-gradient(135deg, rgba(15, 18, 25, 0.85), rgba(30, 35, 48, 0.85));
+  --slyds-nav-hover: #7b93ff;
+  --slyds-chrome-bg: rgba(10, 13, 20, 0.7);
+  --slyds-chrome-border: rgba(123, 147, 255, 0.1);
+}
