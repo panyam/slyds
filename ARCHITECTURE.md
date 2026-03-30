@@ -36,10 +36,10 @@ Only `index.html` uses templar's `{{# include "slides/01-title.html" #}}` syntax
 
 ## Theme System
 
-Themes are sets of `.tmpl` files under `assets/templates/<theme>/`, plus optional static assets (images, fonts, etc.):
+Themes are sets of `.tmpl` files under `core/templates/<theme>/`, plus optional static assets (images, fonts, etc.):
 
 ```
-assets/templates/
+core/templates/
   index.html.tmpl                  # Shared Go text/template for index.html (used by all themes unless overridden)
   default/
     theme.css.tmpl                 # Go text/template for theme.css
@@ -58,7 +58,7 @@ Templates receive `{{.Title}}`, `{{.Number}}`, `{{.Includes}}` etc. Adding a new
 
 ## Layout System
 
-Layouts define the structural arrangement of slide content, independent of visual themes. Six built-in layouts live in `assets/layouts/`:
+Layouts define the structural arrangement of slide content, independent of visual themes. Six built-in layouts live in `core/layouts/`:
 
 | Layout | Description | Slots |
 |--------|-------------|-------|
@@ -71,7 +71,7 @@ Layouts define the structural arrangement of slide content, independent of visua
 
 Each layout template sets a `data-layout` attribute on the slide div and uses `data-slot` attributes for named content regions. `slyds add --layout two-col "Name"` scaffolds a slide from the layout template. `slyds ls` shows the layout per slide.
 
-Layouts use CSS classes (`.layout-two-col`, `.title-slide`, etc.) for structural styling, referencing `--slyds-*` variables so any theme can skin any layout. The layout registry lives in `assets/layouts/layouts.yaml`.
+Layouts use CSS classes (`.layout-two-col`, `.title-slide`, etc.) for structural styling, referencing `--slyds-*` variables so any theme can skin any layout. The layout registry lives in `core/layouts/layouts.yaml`.
 
 ### Presentation Layout
 

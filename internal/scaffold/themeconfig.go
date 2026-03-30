@@ -5,7 +5,7 @@ import (
 	"os"
 	"path/filepath"
 
-	"github.com/panyam/slyds/assets"
+	"github.com/panyam/slyds/core"
 	"gopkg.in/yaml.v3"
 )
 
@@ -21,7 +21,7 @@ type ThemeConfig struct {
 // from the embedded filesystem.
 func LoadThemeConfig(theme string) (*ThemeConfig, error) {
 	path := fmt.Sprintf("templates/%s/theme.yaml", theme)
-	data, err := assets.TemplatesFS.ReadFile(path)
+	data, err := core.TemplatesFS.ReadFile(path)
 	if err != nil {
 		return nil, fmt.Errorf("theme config not found for %q: %w", theme, err)
 	}

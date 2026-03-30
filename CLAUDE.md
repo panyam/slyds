@@ -37,10 +37,10 @@ slyds query <slide> <sel> [--set|--append|...]   # CSS selector read/write on sl
 
 ## Conventions
 
-- **No hardcoded HTML in Go code** — use embedded `.tmpl` files under `assets/templates/`. New themes = new template dirs, not Go changes.
+- **No hardcoded HTML in Go code** — use embedded `.tmpl` files under `core/templates/`. New themes = new template dirs, not Go changes.
 - **Shared template fallback** — `renderEmbeddedTemplate` tries `templates/<theme>/<name>` first, falls back to `templates/<name>`. Common templates like `index.html.tmpl` live at the shared level; themes override only when they need different HTML structure (e.g., hacker theme).
-- **Layouts are theme-independent** — structural layout templates live in `assets/layouts/` (title, content, two-col, section, blank, closing). Themes are pure CSS variable overrides. Layouts use `data-layout` attribute and `data-slot` for named content regions.
-- **Slide types are config-driven** — each theme has a `theme.yaml` that maps type names to template files (legacy — layouts in `assets/layouts/` are preferred).
+- **Layouts are theme-independent** — structural layout templates live in `core/layouts/` (title, content, two-col, section, blank, closing). Themes are pure CSS variable overrides. Layouts use `data-layout` attribute and `data-slot` for named content regions.
+- **Slide types are config-driven** — each theme has a `theme.yaml` that maps type names to template files (legacy — layouts in `core/layouts/` are preferred).
 - **Configure templar programmatically** — don't generate `.templar.yaml` files. Use `TemplateGroup`, `FileSystemLoader`, etc. directly.
 - **Local deps via locallinks/** — `go.mod` uses `replace => ./locallinks/newstack/templar/main`. Run `make resymlink` to create the symlink. The replace must be **commented out** before pushing (pre-push hook enforces this).
 - **Slide files are pure HTML** — only `index.html` uses templar `{{# include #}}` syntax.
@@ -57,9 +57,9 @@ main.go                     # Entry point
 cmd/                        # Cobra commands (init, update, serve, build, add/rm/mv/ls, insert, slugify, check, query)
 internal/scaffold/          # Presentation scaffolding, update, and manifest management
 internal/builder/           # Include flattening + CSS/JS/image inlining
-assets/                     # go:embed package — slyds.css, slyds.js, slyds-export.js, theme templates
-assets/templates/           # Shared templates (index.html.tmpl) + per-theme overrides
-assets/templates/<theme>/   # Theme template files (.tmpl) — default, minimal, dark, corporate, hacker
+core/                       # go:embed package — slyds.css, slyds.js, slyds-export.js, theme templates
+core/templates/           # Shared templates (index.html.tmpl) + per-theme overrides
+core/templates/<theme>/   # Theme template files (.tmpl) — default, minimal, dark, corporate, hacker
 .github/workflows/          # CI (test.yml) and release (release.yml via goreleaser)
 .goreleaser.yaml            # Cross-platform binary release config
 ```
@@ -67,7 +67,7 @@ assets/templates/<theme>/   # Theme template files (.tmpl) — default, minimal,
 
 - **macOS /private symlinks**: `filepath.Abs` on temp dirs returns `/var/...` but the actual path is `/private/var/...`. Don't compare paths directly in tests; check file existence instead.
 - **templar BasicServer `/` routing**: It maps `/` to template name `""` which fails. slyds uses a custom HTTP handler that maps `/` → `index.html` instead.
-- **`go:embed` paths are relative to the Go file** — can't use `../` paths. The `assets/embed.go` file must live alongside the files it embeds.
+- **`go:embed` paths are relative to the Go file** — can't use `../` paths. The `core/embed.go` file must live alongside the files it embeds.
 
 ## Memories
 

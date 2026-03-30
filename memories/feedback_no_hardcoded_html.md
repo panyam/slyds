@@ -5,8 +5,8 @@ type: feedback
 ---
 
 Don't hardcode HTML strings in Go source files for scaffold/template generation.
-Use embedded template files under assets/templates/<theme>/ instead.
+Use embedded template files under core/templates/<theme>/ instead.
 
 **Why:** The user wants themes to be extensible — adding a new theme should be adding template files, not modifying Go code. Hardcoded HTML prevents this.
 
-**How to apply:** When generating HTML output (slide scaffolding, index.html, etc.), always render from embedded `.tmpl` files loaded via the assets package. New slide types or themes = new template files, not new Go code.
+**How to apply:** When generating HTML output (slide scaffolding, index.html, etc.), always render from embedded `.tmpl` files loaded via the core package. New slide types or themes = new template files, not new Go code.

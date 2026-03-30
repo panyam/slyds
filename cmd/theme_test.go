@@ -71,7 +71,7 @@ func TestInitWithThemeFlag(t *testing.T) {
 // the JS source contains the property-setting code.
 func TestPositionAwareCSS(t *testing.T) {
 	// Read slyds.js and verify it sets position custom properties
-	jsPath := filepath.Join("..", "assets", "slyds.js")
+	jsPath := filepath.Join("..", "core", "slyds.js")
 	js, err := os.ReadFile(jsPath)
 	if err != nil {
 		t.Fatalf("failed to read slyds.js: %v", err)

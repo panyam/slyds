@@ -6,7 +6,7 @@ import (
 	"strings"
 	"text/template"
 
-	"github.com/panyam/slyds/assets"
+	"github.com/panyam/slyds/core"
 	"github.com/panyam/slyds/internal/layout"
 )
 
@@ -54,7 +54,7 @@ func WriteAgentMD(dir string, manifest Manifest) error {
 	}
 
 	// Load and render the template
-	content, err := assets.TemplatesFS.ReadFile("templates/agent.md.tmpl")
+	content, err := core.TemplatesFS.ReadFile("templates/agent.md.tmpl")
 	if err != nil {
 		return err
 	}

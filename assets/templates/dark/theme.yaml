@@ -1,8 +1,0 @@
-name: dark
-description: Dark backgrounds with cyan accents — code talks, demos
-slide_types:
-  title: slides/title.html.tmpl
-  content: slides/content.html.tmpl
-  closing: slides/closing.html.tmpl
-  two-column: slides/two-column.html.tmpl
-  section: slides/section.html.tmpl

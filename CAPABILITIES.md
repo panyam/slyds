@@ -44,7 +44,7 @@ replace github.com/panyam/templar => ./locallinks/newstack/templar/main
 Active
 
 ## Conventions
-- No hardcoded HTML in Go code — use embedded `.tmpl` files under `assets/templates/`
+- No hardcoded HTML in Go code — use embedded `.tmpl` files under `core/templates/`
 - Configure templar programmatically — no `.templar.yaml` files
 - Slide files are pure HTML — only `index.html` uses templar include syntax
 - No regex-based HTML mutation — use `slyds query` (goquery/CSS selectors)

@@ -22,7 +22,7 @@ The Go rewrite is complete with all core commands working, 80+ tests passing, CI
 
 ## Key Patterns
 
-- Theme templates embedded via `go:embed` under `assets/templates/` (shared) and `assets/templates/<theme>/` (overrides)
+- Theme templates embedded via `go:embed` under `core/templates/` (shared) and `core/templates/<theme>/` (overrides)
 - Templar used as a Go library (programmatic config, no YAML files)
 - Slide files are pure HTML fragments — no template syntax
 - Only `index.html` uses templar's `{{# include #}}` directives
