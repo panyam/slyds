@@ -41,6 +41,8 @@ body {
     animation: fadeIn 0.5s;
     position: relative;
     flex-direction: column;
+    color: var(--slyds-fg);
+    background: var(--slyds-bg);
 }
 
 /* Content slots scroll; slide itself doesn't (so floaters stay pinned) */
