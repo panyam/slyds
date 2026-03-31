@@ -15,6 +15,11 @@ import (
 
 var includeRe = regexp.MustCompile(`\{\{#\s*include\s+"(slides/[^"]+)"\s*#\}\}`)
 
+// IncludeRe returns the compiled regexp for matching templar include directives.
+func IncludeRe() *regexp.Regexp {
+	return includeRe
+}
+
 // Create scaffolds a new presentation directory using the default theme.
 // The output directory is derived from the slugified title.
 func Create(title string, slideCount int) (string, error) {
