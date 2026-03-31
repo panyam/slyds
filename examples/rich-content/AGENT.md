@@ -36,11 +36,11 @@ slyds query 3 '[data-slot="body"]' --append "<li>…</li>"
 | Layout | Use for | Slots |
 |--------|---------|-------|
 | `blank` | Empty slide with no predefined structure | body |
-| `closing` | Closing/thank-you slide | title, body |
-| `content` | Standard content slide with heading and body | title, body |
+| `closing` | Closing/thank-you slide | title, body, floater |
+| `content` | Standard content slide with heading and body | title, body, floater |
 | `section` | Section divider slide | title, subtitle |
 | `title` | Full-screen title slide with subtitle | title, subtitle |
-| `two-col` | Two-column side-by-side layout | title, left, right |
+| `two-col` | Two-column side-by-side layout | title, left, right, floater |
 
 ## Available Themes
 
@@ -111,3 +111,20 @@ Persistent object available throughout the presentation:
 - `slydsContext.currentSlide` — current 1-based slide number
 - `slydsContext.direction` — last navigation direction
 - `slydsContext.state` — user/agent state bag (survives transitions)
+
+## Floating Overlays
+
+Layouts with a `floater` slot support pinned overlays (footers, watermarks, logos).
+The element is `position: absolute` within the slide — it stays fixed while content flows.
+
+```
+slyds query 3 '[data-slot="floater"]' --set '<span style="bottom:0;left:0;right:0;padding:8px 24px;font-size:0.7em;opacity:0.5;">Confidential</span>'
+```
+
+Common patterns:
+- **Footer**: `style="bottom:0; left:0; right:0; padding:8px 24px; font-size:0.7em; opacity:0.5;"`
+- **Watermark**: `style="top:50%; left:50%; transform:translate(-50%,-50%) rotate(-30deg); opacity:0.08; font-size:4em;"`
+- **Logo**: `style="top:12px; right:12px;"` with an `<img>` inside
+
+The floater slot is empty by default. Not all layouts have it — title and section slides omit it.
+Existing slides without a floater slot are unaffected.
