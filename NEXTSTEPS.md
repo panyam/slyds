@@ -29,6 +29,7 @@
 - [x] ~~`slyds update` command — refresh engine/theme files without touching slides~~
 - [x] ~~`.slyds.yaml` manifest for tracking theme and title~~
 - [x] ~~Bottom navigation bar with border layout (Prev | counter | Next + Notes icon)~~
+- [x] ~~Floating overlays — generic floater slot for footers, watermarks, logos (issue #46)~~
 - [ ] Slide folders with co-located assets (e.g., `slides/03-architecture/slide.html` + `diagram.png`)
 - [ ] Live reload on file changes during `slyds serve`
 - [ ] Theme composability via templar `extend`/`namespace` directives

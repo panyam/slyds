@@ -30,6 +30,9 @@ Layouts (structural templates) separated from themes (visual skins). `--layout` 
 ## Phase 8 — Slide Lifecycle Hooks (done)
 Client-side `slideEnter`/`slideLeave` CustomEvents dispatched during navigation. `window.slydsContext` persistent presentation state with a `state` bag for caching chart instances and cross-slide data. AGENT.md documents the recommended cache-friendly hook pattern for charts and dynamic content. AGENT.md generation refactored from hardcoded Go strings to an embedded `.tmpl` template.
 
+## Phase 8a — Floating Overlays (done)
+Generic `data-slot="floater"` with `.slide-floater` CSS for pinned overlays (footers, watermarks, logos, badges). Available in content, two-col, and closing layouts. Empty by default — populated via `slyds query`. Documented in AGENT.md with common patterns.
+
 ## Phase 9 — Slide Folders
 Support `slides/03-name/slide.html` with co-located assets (images, per-slide CSS). Auto-detect folder vs file slides.
 
