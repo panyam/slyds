@@ -39,6 +39,14 @@ body {
     flex: 1;
     overflow-y: auto;
     animation: fadeIn 0.5s;
+    position: relative;
+}
+
+/* ── Floating slot — pinned overlays (footers, watermarks, logos) ── */
+.slide-floater {
+    position: absolute;
+    pointer-events: none;
+    z-index: 10;
 }
 
 .slide.active {

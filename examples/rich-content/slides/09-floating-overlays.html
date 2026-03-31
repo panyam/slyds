@@ -1,0 +1,55 @@
+<div class="slide" data-layout="content">
+  <h1>Floating Overlays</h1>
+  <div data-slot="body">
+    <p>The <code>floater</code> slot supports pinned overlays that stay fixed within the slide. Use it for footers, watermarks, logos, or any persistent element.</p>
+    <h3>Three patterns shown on this slide:</h3>
+    <table>
+      <thead>
+        <tr>
+          <th>Pattern</th>
+          <th>Position</th>
+          <th>Use case</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td>Footer</td>
+          <td>Bottom, full width</td>
+          <td>Confidentiality notices, copyright</td>
+        </tr>
+        <tr>
+          <td>Watermark</td>
+          <td>Center, rotated</td>
+          <td>Draft stamps, status labels</td>
+        </tr>
+        <tr>
+          <td>Badge</td>
+          <td>Top-right corner</td>
+          <td>Logos, slide tags, status indicators</td>
+        </tr>
+      </tbody>
+    </table>
+    <p>All three are <code>position: absolute</code> within the slide via <code>.slide-floater</code>. Populate with <code>slyds query</code>:</p>
+    <pre><code>slyds query 9 '[data-slot="floater"]' --set '&lt;span style="..."&gt;Content&lt;/span&gt;'</code></pre>
+  </div>
+
+  <!-- Footer pattern -->
+  <div data-slot="floater" class="slide-floater" style="bottom: 0; left: 0; right: 0; padding: 8px 24px; font-size: 0.7em; opacity: 0.5; text-align: center; border-top: 1px solid currentColor;">
+    Acme Corp Confidential &nbsp;&bull;&nbsp; Internal Use Only &nbsp;&bull;&nbsp; 2026
+  </div>
+
+  <!-- Watermark pattern -->
+  <div class="slide-floater" style="top: 50%; left: 50%; transform: translate(-50%, -50%) rotate(-25deg); opacity: 0.06; font-size: 5em; font-weight: bold; letter-spacing: 0.1em; white-space: nowrap;">
+    DRAFT
+  </div>
+
+  <!-- Badge pattern -->
+  <div class="slide-floater" style="top: 16px; right: 16px; background: var(--slyds-accent1); color: white; padding: 4px 12px; border-radius: var(--slyds-radius); font-size: 0.75em; font-weight: 600; pointer-events: auto;">
+    NEW
+  </div>
+
+  <div class="speaker-notes">
+    <h3>Floating Overlays</h3>
+    <p>This slide demonstrates three floating overlay patterns. The floater slot uses position:absolute within the slide. Multiple floaters can coexist — the footer, watermark, and badge are all visible simultaneously. The floater slot in the layout template is the primary one addressed by data-slot="floater"; additional floaters use the .slide-floater class directly.</p>
+  </div>
+</div>

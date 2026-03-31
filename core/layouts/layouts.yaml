@@ -6,11 +6,11 @@ layouts:
   content:
     template: content.html.tmpl
     description: "Standard content slide with heading and body"
-    slots: [title, body]
+    slots: [title, body, floater]
   two-col:
     template: two-col.html.tmpl
     description: "Two-column side-by-side layout"
-    slots: [title, left, right]
+    slots: [title, left, right, floater]
   section:
     template: section.html.tmpl
     description: "Section divider slide"
@@ -22,4 +22,4 @@ layouts:
   closing:
     template: closing.html.tmpl
     description: "Closing/thank-you slide"
-    slots: [title, body]
+    slots: [title, body, floater]

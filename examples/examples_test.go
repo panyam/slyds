@@ -22,7 +22,7 @@ type exampleDeck struct {
 
 var decks = []exampleDeck{
 	{"slyds-intro", "default", "slyds - Multi-File HTML Presentations", 8, "slyds"},
-	{"rich-content", "dark", "Rich Content Showcase", 8, "Rich Content Showcase"},
+	{"rich-content", "dark", "Rich Content Showcase", 9, "Rich Content Showcase"},
 	{"hacker-showcase", "hacker", "Hacker Theme Showcase", 8, "Hacker Theme Showcase"},
 }
 
