@@ -1,7 +1,9 @@
 package cmd
 
 import (
+	"encoding/json"
 	"fmt"
+	"io"
 	"os"
 	"path/filepath"
 	"strconv"
@@ -38,7 +40,25 @@ var (
 	qSetAttr string
 	qRemove bool
 	qAll    bool
+
+	queryBatchPath     string
+	queryBatchAtomic   bool
+	queryBatchContinue bool
 )
+
+// BatchFile is the JSON envelope for `slyds query --batch`.
+type BatchFile struct {
+	Operations []BatchOperation `json:"operations"`
+}
+
+// BatchOperation is one write operation applied in order to a slide.
+type BatchOperation struct {
+	Slide    string `json:"slide"`
+	Selector string `json:"selector"`
+	Op       string `json:"op"`
+	Value    string `json:"value,omitempty"`
+	All      bool   `json:"all,omitempty"`
+}
 
 var queryCmd = &cobra.Command{
 	Use:   "query <slide> <selector> [dir]",
@@ -49,9 +69,47 @@ Read operations return matching content to stdout. Write operations modify
 the slide file in place. Writes apply to the first match only by default;
 use --all to apply to every match.
 
-Slide can be a number (position) or a name substring.`,
-	Args: cobra.RangeArgs(2, 3),
+Slide can be a number (position) or a name substring.
+
+Use --batch FILE (or - for stdin) to apply multiple write operations from JSON.
+With --atomic (default), all operations are applied in memory and all files are
+written only if every step succeeds; otherwise no files change.`,
+	Args: cobra.RangeArgs(0, 3),
 	RunE: func(cmd *cobra.Command, args []string) error {
+		if queryBatchPath != "" {
+			dir := "."
+			switch len(args) {
+			case 0:
+			case 1:
+				dir = args[0]
+			default:
+				return fmt.Errorf("with --batch, use at most one argument: [dir]")
+			}
+			root, err := findRootIn(dir)
+			if err != nil {
+				return err
+			}
+			var r io.Reader
+			if queryBatchPath == "-" {
+				r = os.Stdin
+			} else {
+				f, err := os.Open(queryBatchPath)
+				if err != nil {
+					return err
+				}
+				defer f.Close()
+				r = f
+			}
+			data, err := io.ReadAll(r)
+			if err != nil {
+				return err
+			}
+			return runBatchQuery(root, data, queryBatchAtomic, queryBatchContinue)
+		}
+
+		if len(args) < 2 {
+			return fmt.Errorf("requires args: <slide> <selector> [dir], or use --batch")
+		}
 		slideRef := args[0]
 		selector := args[1]
 		dir := "."
@@ -181,10 +239,8 @@ func runQuery(root, slideRef, selector string, opts QueryOpts) ([]string, error)
 	return results, nil
 }
 
-// applyWrite applies a write operation to the matched selection and writes
-// the modified HTML back to disk.
-func applyWrite(doc *goquery.Document, sel *goquery.Selection, opts QueryOpts, slidePath string) error {
-	// Determine which elements to modify
+// applyMutation applies a write operation to the matched selection in memory.
+func applyMutation(doc *goquery.Document, sel *goquery.Selection, opts QueryOpts) error {
 	var targets *goquery.Selection
 	if opts.All {
 		targets = sel
@@ -228,13 +284,143 @@ func applyWrite(doc *goquery.Document, sel *goquery.Selection, opts QueryOpts, s
 		}
 	}
 
-	// Write back
+	return nil
+}
+
+// applyWrite applies a write operation to the matched selection and writes
+// the modified HTML back to disk.
+func applyWrite(doc *goquery.Document, sel *goquery.Selection, opts QueryOpts, slidePath string) error {
+	if err := applyMutation(doc, sel, opts); err != nil {
+		return err
+	}
 	html, err := extractFragment(doc)
 	if err != nil {
 		return fmt.Errorf("failed to serialize HTML: %w", err)
 	}
 
 	return os.WriteFile(slidePath, []byte(html), 0644)
+}
+
+// runBatchQuery applies write operations from JSON. Atomic mode rolls back all disk changes on any error.
+func runBatchQuery(root string, data []byte, atomic, continueOnError bool) error {
+	var batch BatchFile
+	if err := json.Unmarshal(data, &batch); err != nil {
+		return fmt.Errorf("batch JSON: %w", err)
+	}
+	if len(batch.Operations) == 0 {
+		return fmt.Errorf("batch JSON: no operations")
+	}
+
+	type fileState struct {
+		doc *goquery.Document
+	}
+	files := make(map[string]*fileState)
+
+	loadDoc := func(slideRef string) (*goquery.Document, string, error) {
+		slideFile, err := resolveSlide(root, slideRef)
+		if err != nil {
+			return nil, "", err
+		}
+		slidePath := filepath.Join(root, "slides", slideFile)
+		if st, ok := files[slidePath]; ok {
+			return st.doc, slidePath, nil
+		}
+		raw, err := os.ReadFile(slidePath)
+		if err != nil {
+			return nil, "", err
+		}
+		doc, err := parseFragment(string(raw))
+		if err != nil {
+			return nil, "", err
+		}
+		files[slidePath] = &fileState{doc: doc}
+		return doc, slidePath, nil
+	}
+
+	applyOne := func(op BatchOperation) error {
+		opts, err := batchOpToQueryOpts(op)
+		if err != nil {
+			return err
+		}
+		if !opts.isWrite() {
+			return fmt.Errorf("batch op %q: only write ops are supported (set, set-html, append, set-attr, remove)", op.Op)
+		}
+		doc, _, err := loadDoc(op.Slide)
+		if err != nil {
+			return err
+		}
+		sel := doc.Find(op.Selector)
+		if sel.Length() == 0 {
+			return fmt.Errorf("no match for selector %q on slide %q", op.Selector, op.Slide)
+		}
+		return applyMutation(doc, sel, opts)
+	}
+
+	if atomic {
+		for i, op := range batch.Operations {
+			if err := applyOne(op); err != nil {
+				return fmt.Errorf("operation %d: %w", i, err)
+			}
+		}
+		for path, st := range files {
+			html, err := extractFragment(st.doc)
+			if err != nil {
+				return fmt.Errorf("serialize %s: %w", path, err)
+			}
+			if err := os.WriteFile(path, []byte(html), 0644); err != nil {
+				return err
+			}
+		}
+		return nil
+	}
+
+	// Non-atomic: apply and flush each op immediately (re-reads file each time via runQuery)
+	for i, op := range batch.Operations {
+		opts, err := batchOpToQueryOpts(op)
+		if err != nil {
+			if continueOnError {
+				fmt.Fprintf(os.Stderr, "skip op %d: %v\n", i, err)
+				continue
+			}
+			return fmt.Errorf("operation %d: %w", i, err)
+		}
+		if !opts.isWrite() {
+			err := fmt.Errorf("only write ops supported")
+			if continueOnError {
+				fmt.Fprintf(os.Stderr, "skip op %d: %v\n", i, err)
+				continue
+			}
+			return fmt.Errorf("operation %d: %w", i, err)
+		}
+		_, err = runQuery(root, op.Slide, op.Selector, opts)
+		if err != nil {
+			if continueOnError {
+				fmt.Fprintf(os.Stderr, "skip op %d: %v\n", i, err)
+				continue
+			}
+			return fmt.Errorf("operation %d: %w", i, err)
+		}
+	}
+	return nil
+}
+
+func batchOpToQueryOpts(op BatchOperation) (QueryOpts, error) {
+	opts := QueryOpts{All: op.All}
+	switch strings.ToLower(strings.TrimSpace(op.Op)) {
+	case "set":
+		opts.Set = &op.Value
+	case "set-html":
+		opts.SetHTML = &op.Value
+	case "append":
+		opts.Append = &op.Value
+	case "set-attr":
+		opts.SetAttr = &op.Value
+	case "remove":
+		opts.Remove = true
+	default:
+		return QueryOpts{}, fmt.Errorf("unknown op %q (use set, set-html, append, set-attr, remove)", op.Op)
+	}
+	return opts, nil
 }
 
 func init() {
@@ -247,5 +433,8 @@ func init() {
 	queryCmd.Flags().StringVar(&qSetAttr, "set-attr", "", "set attribute (NAME=VALUE)")
 	queryCmd.Flags().BoolVar(&qRemove, "remove", false, "remove matched elements")
 	queryCmd.Flags().BoolVar(&qAll, "all", false, "apply write to all matches")
+	queryCmd.Flags().StringVar(&queryBatchPath, "batch", "", "JSON batch file path (use - for stdin)")
+	queryCmd.Flags().BoolVar(&queryBatchAtomic, "atomic", true, "with --batch: apply all in memory then write (default true)")
+	queryCmd.Flags().BoolVar(&queryBatchContinue, "continue-on-error", false, "with --batch: skip failed ops (only when --atomic=false)")
 	rootCmd.AddCommand(queryCmd)
 }

@@ -1,6 +1,7 @@
 package cmd
 
 import (
+	"encoding/json"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -23,6 +24,8 @@ var (
 	insertType  string
 	insertLayout string
 	insertTitle string
+	slotsFileAdd string
+	slotsFileInsert string
 )
 
 var includeRe = regexp.MustCompile(`\{\{#\s*include\s+"(slides/[^"]+)"\s*#\}\}`)
@@ -56,6 +59,12 @@ var addCmd = &cobra.Command{
 		layoutName := resolveLayoutFlag(slideLayout, slideType)
 		if err := runInsert(root, position, name, layoutName, ""); err != nil {
 			return err
+		}
+
+		if slotsFileAdd != "" {
+			if err := applySlotsFile(root, position, slotsFileAdd); err != nil {
+				return err
+			}
 		}
 
 		slides, _ := listSlidesFromIndex(root)
@@ -225,6 +234,12 @@ after insertion to maintain consistent NN-name.html naming.`,
 		layoutName := resolveLayoutFlag(insertLayout, insertType)
 		if err := runInsert(root, pos, name, layoutName, insertTitle); err != nil {
 			return err
+		}
+
+		if slotsFileInsert != "" {
+			if err := applySlotsFile(root, pos, slotsFileInsert); err != nil {
+				return err
+			}
 		}
 
 		slides, _ := listSlidesFromIndex(root)
@@ -406,10 +421,12 @@ func renameToSlugs(root string) (int, error) {
 func init() {
 	addCmd.Flags().IntVar(&slideAfter, "after", 0, "insert after slide N")
 	addCmd.Flags().StringVar(&slideLayout, "layout", "content", "slide layout: title, content, two-col, section, blank, closing")
+	addCmd.Flags().StringVar(&slotsFileAdd, "slots-file", "", "JSON map of layout slot name to inner HTML fragment (after add)")
 	addCmd.Flags().StringVar(&slideType, "type", "", "deprecated: use --layout instead")
 	_ = addCmd.Flags().MarkHidden("type")
 
 	insertCmd.Flags().StringVar(&insertLayout, "layout", "content", "slide layout: title, content, two-col, section, blank, closing")
+	insertCmd.Flags().StringVar(&slotsFileInsert, "slots-file", "", "JSON map of layout slot name to inner HTML fragment (after insert)")
 	insertCmd.Flags().StringVar(&insertType, "type", "", "deprecated: use --layout instead")
 	_ = insertCmd.Flags().MarkHidden("type")
 	insertCmd.Flags().StringVar(&insertTitle, "title", "", "display title for the slide")
@@ -649,6 +666,27 @@ func renderSlideFromLayout(name, layoutName string, number int, titleOverride st
 		"Number": number,
 	}
 	return layout.Render(layoutName, data)
+}
+
+// applySlotsFile sets inner HTML for each [data-slot] from a JSON object { "slotName": "<html>..." }.
+func applySlotsFile(root string, slidePosition int, path string) error {
+	data, err := os.ReadFile(path)
+	if err != nil {
+		return fmt.Errorf("slots-file: %w", err)
+	}
+	var m map[string]string
+	if err := json.Unmarshal(data, &m); err != nil {
+		return fmt.Errorf("slots-file JSON: %w", err)
+	}
+	ref := strconv.Itoa(slidePosition)
+	for slot, html := range m {
+		h := html
+		sel := `[data-slot="` + strings.ReplaceAll(slot, `"`, `\"`) + `"]`
+		if _, err := runQuery(root, ref, sel, QueryOpts{SetHTML: &h}); err != nil {
+			return fmt.Errorf("slot %q: %w", slot, err)
+		}
+	}
+	return nil
 }
 
 // detectSlideLayout reads a slide file and detects its layout from the

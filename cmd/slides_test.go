@@ -1058,3 +1058,38 @@ func TestCheckUnknownLayout(t *testing.T) {
 		t.Error("expected warning about unknown layout \"nonexistent\"")
 	}
 }
+
+// TestApplySlotsFile verifies JSON slot maps fill [data-slot] regions after insert.
+func TestApplySlotsFile(t *testing.T) {
+	root, cleanup := setupTestPresentation(t)
+	defer cleanup()
+
+	slotsPath := filepath.Join(root, "slots.json")
+	js := `{"title":"<h1>Agent Title</h1>","body":"<p>Paragraph</p>"}`
+	if err := os.WriteFile(slotsPath, []byte(js), 0644); err != nil {
+		t.Fatal(err)
+	}
+
+	existing, err := listSlidesFromIndex(root)
+	if err != nil {
+		t.Fatal(err)
+	}
+	pos := len(existing) + 1
+	if err := runInsert(root, pos, "extra", "content", ""); err != nil {
+		t.Fatal(err)
+	}
+	if err := applySlotsFile(root, pos, slotsPath); err != nil {
+		t.Fatal(err)
+	}
+
+	slides, _ := listSlidesFromIndex(root)
+	last := slides[len(slides)-1]
+	data, err := os.ReadFile(filepath.Join(root, "slides", last))
+	if err != nil {
+		t.Fatal(err)
+	}
+	s := string(data)
+	if !strings.Contains(s, "Agent Title") || !strings.Contains(s, "Paragraph") {
+		t.Fatalf("expected slot HTML applied: %s", s)
+	}
+}

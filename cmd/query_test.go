@@ -1,6 +1,7 @@
 package cmd
 
 import (
+	"encoding/json"
 	"os"
 	"path/filepath"
 	"strings"
@@ -326,3 +327,52 @@ func TestQueryPreservesFormatting(t *testing.T) {
 
 // strPtr is a helper to create a *string for optional flag values in tests.
 func strPtr(s string) *string { return &s }
+
+func TestBatchQueryAtomicMultiSlide(t *testing.T) {
+	root, cleanup := setupTestPresentation(t)
+	defer cleanup()
+
+	batch := BatchFile{
+		Operations: []BatchOperation{
+			{Slide: "1", Selector: "h1", Op: "set", Value: "BatchTitle"},
+			{Slide: "2", Selector: "h1", Op: "set", Value: "SecondSlide"},
+		},
+	}
+	data, err := json.Marshal(batch)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := runBatchQuery(root, data, true, false); err != nil {
+		t.Fatal(err)
+	}
+	r1, _ := runQuery(root, "1", "h1", QueryOpts{})
+	if len(r1) != 1 || strings.TrimSpace(r1[0]) != "BatchTitle" {
+		t.Errorf("slide1 h1: %v", r1)
+	}
+	r2, _ := runQuery(root, "2", "h1", QueryOpts{})
+	if len(r2) != 1 || strings.TrimSpace(r2[0]) != "SecondSlide" {
+		t.Errorf("slide2 h1: %v", r2)
+	}
+}
+
+func TestBatchQueryAtomicRollback(t *testing.T) {
+	root, cleanup := setupTestPresentation(t)
+	defer cleanup()
+
+	before, _ := os.ReadFile(filepath.Join(root, "slides", "01-title.html"))
+
+	batch := BatchFile{
+		Operations: []BatchOperation{
+			{Slide: "1", Selector: "h1", Op: "set", Value: "OK"},
+			{Slide: "2", Selector: "nonexistent-zq", Op: "set", Value: "bad"},
+		},
+	}
+	data, _ := json.Marshal(batch)
+	if err := runBatchQuery(root, data, true, false); err == nil {
+		t.Fatal("expected error from bad selector")
+	}
+	after, _ := os.ReadFile(filepath.Join(root, "slides", "01-title.html"))
+	if string(after) != string(before) {
+		t.Error("atomic batch should not modify any file on failure")
+	}
+}
