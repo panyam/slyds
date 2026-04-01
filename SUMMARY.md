@@ -33,4 +33,5 @@ The Go rewrite is complete with all core commands working, 130+ tests passing, C
 - `.slyds.yaml` manifest tracks theme and title for `slyds update`
 - HTML content access via goquery/CSS selectors (`slyds query` and `query --batch`), not regex
 - Agent onboarding: `introspect`, `describe`, optional `--slots-file` on `add`/`insert`, and docs under `docs/AGENT-THEMES.md` and `docs/MCP.md`
+- MCP HTTP transport: integration tests in `cmd/mcp_http_test.go` (`go test ./cmd/... -run MCP`) exercise SSE `endpoint` → POST → `message` and auth/origin paths
 - Version injected from git tags via ldflags at build time

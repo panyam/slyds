@@ -134,6 +134,8 @@ The CLI exposes machine-readable **`slyds introspect`** (layouts from `core/layo
 - **stdio** (`slyds mcp`): Content-Length–framed JSON-RPC on stdin/stdout for editor-spawned clients.
 - **HTTP + SSE** (`slyds mcp serve`): MCP 2024-11-05 pattern — GET SSE stream, `endpoint` event with POST URL, responses as SSE `message` events. See [docs/MCP.md](docs/MCP.md).
 
+Integration tests (`cmd/mcp_http_test.go`) drive **`httptest.Server`** so responses flush like production (SSE depends on **`http.Flusher`**).
+
 Theme/manifest notes for remote agents: [docs/AGENT-THEMES.md](docs/AGENT-THEMES.md).
 
 ## Slide Lifecycle Hooks

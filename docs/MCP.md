@@ -53,3 +53,15 @@ slyds mcp serve --listen 127.0.0.1:8787 --public-url https://mcp.example.com/mcp
 ### Tool arguments
 
 Remote clients should pass **`cwd`** on each `tools/call` (same as stdio). Optionally set **`min_version`** to fail if the server binary is too old.
+
+## Tests (maintainers)
+
+Integration coverage lives in **`cmd/mcp_http_test.go`**:
+
+- **`TestMCPHTTPSSEFullFlow`** — `httptest.Server`, `GET /mcp/sse` → `endpoint` event → `POST` advertised URL → `message` SSE event (validates the client-visible HTTP contract).
+- Auth / **Origin**: unauthorized, forbidden origin, bearer token accepted.
+- **`TestMCPMessagePOSTPushesSSE`** — POST handler + hub without full HTTP stack.
+
+Run: `go test ./cmd/... -run MCP`
+
+**Gotcha:** SSE requires **`http.Flusher`**; use a real server or client against **`httptest.Server`**, not `httptest.ResponseRecorder` alone for end-to-end SSE.

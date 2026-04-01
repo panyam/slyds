@@ -11,7 +11,7 @@ v0.0.10
 - **slide-management**: Add, remove, reorder, insert slides via CLI commands
 - **slide-query**: CSS selector-based read/write access to slide HTML content (goquery), including atomic batch writes
 - **slide-introspect**: JSON discovery of layouts, `data-slot` names, themes, and CLI catalog — for agents and automation
-- **slide-mcp**: MCP server (stdio and HTTP+SSE) exposing the CLI as a single tool — see `docs/MCP.md`
+- **slide-mcp**: MCP server (stdio and HTTP+SSE) exposing the CLI as a single tool — see `docs/MCP.md`; HTTP+SSE contract covered by `cmd/mcp_http_test.go` (`go test ./cmd/... -run MCP`)
 - **slide-export**: Client-side ZIP export/download of built presentations
 - **theme-system**: Config-driven theme templates with shared fallback, runtime theme switching
 - **slide-hooks**: Client-side `slideEnter`/`slideLeave` lifecycle events + `window.slydsContext` persistent state

@@ -11,7 +11,8 @@ See [ARCHITECTURE.md](ARCHITECTURE.md) for design details.
 ```bash
 make resymlink   # Set up locallinks/ for local templar dependency (first time only)
 make build       # Build the slyds binary (injects version from git tags)
-make test        # Run all tests
+make test        # Run all tests (includes MCP HTTP+SSE integration tests in cmd/)
+go test ./cmd/... -run MCP   # MCP / HTTP transport tests only
 make install     # Install to $GOBIN (injects version from git tags)
 make version     # Print the version that would be injected
 make setup-tools # Install required Go tools (cobra-cli)
@@ -84,6 +85,7 @@ core/layouts/             # Layout templates (title, content, two-col, section, 
 - **Theme-specific template overrides go stale** — if a theme has its own `index.html.tmpl`, it won't pick up new nav buttons, theme links, or other shared features. Only override shared templates when the theme genuinely needs different HTML structure. Prefer the shared template.
 - **`changeSlide()` mutates `currentSlide` before calling `showSlide()`** — any code in `showSlide` that needs the *previous* slide must use the `from` parameter, not read `currentSlide` directly.
 - **MCP HTTP (`mcp serve`)** — default bind is loopback; set **`--public-url`** behind a reverse proxy so the SSE `endpoint` event advertises a client-reachable POST URL. Non-loopback **`Origin`** headers are rejected unless **`--dangerous-allow-any-origin`** (dev only). Use **`--token`** for bearer auth when exposing beyond localhost.
+- **MCP HTTP tests** — full SSE flows use **`httptest.Server`** (real TCP + **`http.Flusher`**). Do not assert SSE streaming with **`httptest.ResponseRecorder`** alone; it does not implement `Flusher`, so the SSE handler returns 500. See **`cmd/mcp_http_test.go`** (`TestMCPHTTPSSEFullFlow`, auth/origin cases).
 - **`slyds query --batch`** — still DOM-based (goquery); atomic mode rolls back all slide writes if any operation fails.
 
 ## Memories
