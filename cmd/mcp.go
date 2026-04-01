@@ -15,13 +15,17 @@ import (
 
 var mcpCmd = &cobra.Command{
 	Use:   "mcp",
-	Short: "Run the Model Context Protocol server (stdio, JSON-RPC)",
-	Long: `mcp runs a thin MCP server on stdin/stdout. It exposes one tool, "slyds",
-which executes the slyds binary with the given arguments in the given working
-directory. No presentation logic lives in the MCP layer — it is a transport
-wrapper for agents (e.g. Glean) that cannot shell out reliably.
+	Short: "Model Context Protocol server (stdio or HTTP+SSE)",
+	Long: `mcp exposes one tool, "slyds", which runs the slyds binary with the given
+arguments in the given working directory.
 
-Set MCP_MIN_VERSION in tool arguments to fail fast if the installed slyds is too old.`,
+  slyds mcp          Local stdio transport (Content-Length framed JSON-RPC). Used by
+                     editors that spawn a subprocess (e.g. Cursor).
+
+  slyds mcp serve    HTTP with Server-Sent Events per MCP 2024-11-05 — for remote
+                     clients (e.g. Glean) that connect to a URL instead of stdio.
+
+Set min_version in tool arguments to fail fast if the installed slyds is too old.`,
 	Args: cobra.NoArgs,
 	RunE: func(cmd *cobra.Command, args []string) error {
 		return runMCPServer()
@@ -29,6 +33,7 @@ Set MCP_MIN_VERSION in tool arguments to fail fast if the installed slyds is too
 }
 
 func init() {
+	mcpCmd.AddCommand(mcpServeCmd)
 	rootCmd.AddCommand(mcpCmd)
 }
 

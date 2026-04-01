@@ -12,7 +12,10 @@ slyds is a Go CLI for creating, serving, and building self-contained HTML presen
 - **`insert`**: Insert slide at any position with auto-renumber
 - **`slugify`**: Bulk rename slides to slug-based filenames from `<h1>` content
 - **`check`**: Validate deck — sync, missing notes, broken assets, talk time estimate
-- **`query`**: CSS selector interface for reading/writing slide HTML content (goquery)
+- **`query`**: CSS selector interface for reading/writing slide HTML content (goquery); optional **`--batch`** JSON for atomic multi-slide writes
+- **`introspect`**: Machine-readable JSON listing layouts (with `data-slot` names), built-in themes, and CLI catalog — for agents and MCP clients
+- **`describe`**: Per-deck structured summary (`--json` for tools)
+- **`mcp` / `mcp serve`**: Model Context Protocol — stdio (local) or HTTP+SSE (remote) thin wrapper around the CLI; see `docs/MCP.md`
 - **Export button**: Client-side download in built presentations — extracts slides from DOM, zips, triggers browser download (works from `file://`)
 - **`version`**: Print version (injected from git tags at build time)
 
@@ -28,5 +31,6 @@ The Go rewrite is complete with all core commands working, 130+ tests passing, C
 - Only `index.html` uses templar's `{{# include #}}` directives
 - `index.html` is the source of truth for slide ordering (not filesystem sort)
 - `.slyds.yaml` manifest tracks theme and title for `slyds update`
-- HTML content access via goquery/CSS selectors (`slyds query`), not regex
+- HTML content access via goquery/CSS selectors (`slyds query` and `query --batch`), not regex
+- Agent onboarding: `introspect`, `describe`, optional `--slots-file` on `add`/`insert`, and docs under `docs/AGENT-THEMES.md` and `docs/MCP.md`
 - Version injected from git tags via ldflags at build time

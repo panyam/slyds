@@ -8,3 +8,8 @@ Read this before making structural changes. These are enforceable architectural 
 **Verify**: `grep -rn 'regexp.*h1\|regexp.*slide\|regexp.*speaker' cmd/ | grep -v _test.go | grep -v check.go` — new HTML content parsing should use goquery, not regex. (check.go and extractFirstHeading are legacy, to be migrated incrementally.)
 **Scope**: All CLI commands that read or modify slide file content. Does not apply to renaming files, rewriting index.html includes, or scaffolding new slides from templates.
 
+### Batch query uses the same DOM path
+**Rule**: `slyds query --batch` must apply operations through the same goquery/fragment pipeline as single `query`; no string-level splicing of slide HTML.
+**Why**: Same correctness guarantees as single-query; atomic mode relies on consistent parse/serialize per slide.
+**Verify**: Batch implementation calls shared mutation helpers with `goquery` documents, not `strings.Replace` on file bodies.
+

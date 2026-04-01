@@ -7,8 +7,8 @@
 
 | Component | Module | Version | Updated |
 |-----------|--------|---------|---------|
-| templar | github.com/panyam/templar | v0.0.32 | 2026-03-27 |
-| goutils | github.com/panyam/goutils | v0.1.10 | 2026-03-21 |
+| templar | github.com/panyam/templar | v0.0.34 | 2026-04-01 |
+| goutils | github.com/panyam/goutils | v0.1.13 | 2026-04-01 |
 
 ## Third-Party Dependencies
 

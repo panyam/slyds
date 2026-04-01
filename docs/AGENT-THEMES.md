@@ -37,3 +37,5 @@ Prefer these over reading-only fragments of `AGENT.md` when building automation.
 4. Run `slyds check` before handing off.
 
 HTML content remains author/agent responsibility; slyds only places fragments into structural slots.
+
+See **[MCP.md](MCP.md)** to expose the same CLI to remote MCP clients (HTTP+SSE) or local stdio.

@@ -131,6 +131,10 @@ slyds mv 5 2        # move slide 5 to position 2
 
 Lists slides in order with filenames and first heading.
 
+### Agents & MCP
+
+For automation and hosted agents: **`slyds introspect`** (JSON capabilities), **`slyds describe --json`** (deck state), **`slyds query --batch`**, and **`slyds mcp`** / **`slyds mcp serve`** (Model Context Protocol — stdio or HTTP+SSE). See **[CLAUDE.md](CLAUDE.md)** and **[docs/MCP.md](docs/MCP.md)** for the quick setup table (local vs remote, `--public-url`, `--token`).
+
 ## Writing Slides
 
 Each slide is a plain HTML file with a `<div class="slide">`:

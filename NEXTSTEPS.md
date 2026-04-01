@@ -23,6 +23,7 @@
 - [x] ~~Templar module system integration — SourceLoader, .slyds.lock, slyds install (issue #31)~~
 - [x] ~~LLM friendliness — slyds describe, AGENT.md per deck (issue #33)~~
 - [x] ~~Slide navigation hooks — client-side lifecycle events (issue #1, step 1)~~
+- [x] ~~Agent-friendly CLI: `introspect`, `query --batch`, `--slots-file`, `mcp` + `mcp serve` (HTTP+SSE)~~
 - [ ] Slide navigation hooks — server-side execution + declarative config (issue #1, steps 2-5)
 - [ ] Interactive slides with TypeScript/esbuild support (issue #3)
 - [x] ~~Theme static asset copying (images, fonts) during scaffold~~

@@ -9,12 +9,14 @@ v0.0.10
 - **slide-build**: Flatten includes + inline CSS/JS/images into single self-contained HTML
 - **slide-serve**: Dev server with live include resolution
 - **slide-management**: Add, remove, reorder, insert slides via CLI commands
-- **slide-query**: CSS selector-based read/write access to slide HTML content (goquery)
+- **slide-query**: CSS selector-based read/write access to slide HTML content (goquery), including atomic batch writes
+- **slide-introspect**: JSON discovery of layouts, `data-slot` names, themes, and CLI catalog — for agents and automation
+- **slide-mcp**: MCP server (stdio and HTTP+SSE) exposing the CLI as a single tool — see `docs/MCP.md`
 - **slide-export**: Client-side ZIP export/download of built presentations
 - **theme-system**: Config-driven theme templates with shared fallback, runtime theme switching
 - **slide-hooks**: Client-side `slideEnter`/`slideLeave` lifecycle events + `window.slydsContext` persistent state
 - **layout-system**: Six built-in layouts (title, content, two-col, section, blank, closing) independent of themes
-- **agent-onboarding**: AGENT.md auto-generated per deck with commands, layouts, hooks, and conventions
+- **agent-onboarding**: AGENT.md auto-generated per deck with commands, layouts, hooks, and conventions; plus `docs/AGENT-THEMES.md` for manifest/theme packs
 
 ## Module
 github.com/panyam/slyds
@@ -25,6 +27,8 @@ github.com/panyam/slyds
 ## Stack Dependencies
 - templar (github.com/panyam/templar) — template composition, include resolution, serving
 - goutils (github.com/panyam/goutils) — indirect, via templar
+
+*(Align versions with `go.mod`; Stackfile.md lists pinned stack versions.)*
 
 ## Integration
 

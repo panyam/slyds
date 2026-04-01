@@ -123,6 +123,19 @@ No `.templar.yaml` config files are generated or needed.
 
 This is the approved path for all programmatic slide content access. Regex-based HTML mutation is prohibited (see CONSTRAINTS.md).
 
+**Batch writes** (`slyds query --batch`): same goquery path; JSON lists operations per slide. With default `--atomic`, all mutations apply in memory and all affected slide files are written only if every step succeeds.
+
+## MCP and agent-facing surfaces
+
+The CLI exposes machine-readable **`slyds introspect`** (layouts from `core/layouts/layouts.yaml`, built-in themes, command catalog) and per-deck **`slyds describe`**. These avoid agents scraping `AGENT.md` for structure.
+
+**Model Context Protocol** (`cmd/mcp.go`, `cmd/mcp_http.go`): a **thin transport** — one tool, `slyds`, runs `os.Executable()` with user-supplied `cwd` and args. No presentation logic in the MCP layer.
+
+- **stdio** (`slyds mcp`): Content-Length–framed JSON-RPC on stdin/stdout for editor-spawned clients.
+- **HTTP + SSE** (`slyds mcp serve`): MCP 2024-11-05 pattern — GET SSE stream, `endpoint` event with POST URL, responses as SSE `message` events. See [docs/MCP.md](docs/MCP.md).
+
+Theme/manifest notes for remote agents: [docs/AGENT-THEMES.md](docs/AGENT-THEMES.md).
+
 ## Slide Lifecycle Hooks
 
 `slyds.js` dispatches `slideEnter` and `slideLeave` CustomEvents during navigation. These fire on the slide element itself and bubble to `document`.

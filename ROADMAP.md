@@ -33,6 +33,9 @@ Client-side `slideEnter`/`slideLeave` CustomEvents dispatched during navigation.
 ## Phase 8a — Floating Overlays (done)
 Generic `data-slot="floater"` with `.slide-floater` CSS for pinned overlays (footers, watermarks, logos, badges). Available in content, two-col, and closing layouts. Empty by default — populated via `slyds query`. Documented in AGENT.md with common patterns.
 
+## Phase 8b — Agent tooling & MCP (done)
+`slyds introspect` emits JSON for layouts, slots, themes, and command catalog. `slyds query --batch` applies multiple writes atomically. `add`/`insert` accept `--slots-file` (slot name → HTML fragment). MCP: **`slyds mcp`** (stdio) and **`slyds mcp serve`** (HTTP+SSE per MCP 2024-11-05) as a thin CLI wrapper. See `docs/MCP.md` and `docs/AGENT-THEMES.md`.
+
 ## Phase 9 — Slide Folders
 Support `slides/03-name/slide.html` with co-located assets (images, per-slide CSS). Auto-detect folder vs file slides.
 
