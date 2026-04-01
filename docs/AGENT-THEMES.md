@@ -38,4 +38,4 @@ Prefer these over reading-only fragments of `AGENT.md` when building automation.
 
 HTML content remains author/agent responsibility; slyds only places fragments into structural slots.
 
-See **[MCP.md](MCP.md)** to expose the same CLI to remote MCP clients (HTTP+SSE) or local stdio.
+See **[MCP.md](MCP.md)** in this folder to expose the same CLI to remote MCP clients (HTTP+SSE) or local stdio.

@@ -159,7 +159,7 @@ func TestCreateInDir(t *testing.T) {
 	defer os.Chdir(origDir)
 
 	outDir := filepath.Join(tmp, "custom", "path")
-	result, err := CreateInDir("My Talk", 3, "default", outDir)
+	result, err := CreateInDir("My Talk", 3, "default", outDir, true)
 	if err != nil {
 		t.Fatalf("CreateInDir failed: %v", err)
 	}
@@ -186,7 +186,7 @@ func TestCreateInDirNonEmpty(t *testing.T) {
 	os.MkdirAll(targetDir, 0755)
 	os.WriteFile(filepath.Join(targetDir, "file.txt"), []byte("existing"), 0644)
 
-	_, err := CreateInDir("My Talk", 3, "default", targetDir)
+	_, err := CreateInDir("My Talk", 3, "default", targetDir, true)
 	if err == nil {
 		t.Error("expected error for non-empty directory, got nil")
 	}
@@ -203,13 +203,78 @@ func TestCreateInDirEmpty(t *testing.T) {
 	targetDir := filepath.Join(tmp, "empty-dir")
 	os.MkdirAll(targetDir, 0755)
 
-	_, err := CreateInDir("My Talk", 3, "default", targetDir)
+	_, err := CreateInDir("My Talk", 3, "default", targetDir, true)
 	if err != nil {
 		t.Fatalf("CreateInDir into empty dir failed: %v", err)
 	}
 
 	if _, err := os.Stat(filepath.Join(targetDir, "index.html")); os.IsNotExist(err) {
 		t.Error("index.html not found")
+	}
+}
+
+func TestCreateInDirAgentMCPInAgentMD(t *testing.T) {
+	tmp := t.TempDir()
+	origDir, _ := os.Getwd()
+	os.Chdir(tmp)
+	defer os.Chdir(origDir)
+
+	dir := filepath.Join(tmp, "mcp-on")
+	if _, err := CreateInDir("MCP On", 3, "default", dir, true); err != nil {
+		t.Fatalf("CreateInDir mcp on: %v", err)
+	}
+	agentOn, _ := os.ReadFile(filepath.Join(dir, "AGENT.md"))
+	if !strings.Contains(string(agentOn), "## MCP (Model Context Protocol)") {
+		t.Error("AGENT.md should include MCP section when includeMCPInAgent is true")
+	}
+	manOn, err := ReadManifest(dir)
+	if err != nil {
+		t.Fatalf("ReadManifest: %v", err)
+	}
+	if manOn.AgentIncludeMCP != nil {
+		t.Errorf("manifest agent_include_mcp = %v, want nil (default include)", manOn.AgentIncludeMCP)
+	}
+
+	dirOff := filepath.Join(tmp, "mcp-off")
+	if _, err := CreateInDir("MCP Off", 3, "default", dirOff, false); err != nil {
+		t.Fatalf("CreateInDir mcp off: %v", err)
+	}
+	agentOff, _ := os.ReadFile(filepath.Join(dirOff, "AGENT.md"))
+	if strings.Contains(string(agentOff), "## MCP (Model Context Protocol)") {
+		t.Error("AGENT.md should omit MCP section when includeMCPInAgent is false")
+	}
+	manOff, err := ReadManifest(dirOff)
+	if err != nil {
+		t.Fatalf("ReadManifest: %v", err)
+	}
+	if manOff.AgentIncludeMCP == nil || *manOff.AgentIncludeMCP {
+		t.Errorf("manifest agent_include_mcp = %v, want false", manOff.AgentIncludeMCP)
+	}
+}
+
+func TestUpdatePreservesAgentIncludeMCPFalse(t *testing.T) {
+	tmp := t.TempDir()
+	origDir, _ := os.Getwd()
+	os.Chdir(tmp)
+	defer os.Chdir(origDir)
+
+	dir := filepath.Join(tmp, "preserve-mcp-flag")
+	if _, err := CreateInDir("Preserve", 3, "default", dir, false); err != nil {
+		t.Fatalf("CreateInDir: %v", err)
+	}
+	if err := Update(dir, "default", "Preserve"); err != nil {
+		t.Fatalf("Update: %v", err)
+	}
+	m, err := ReadManifest(dir)
+	if err != nil {
+		t.Fatalf("ReadManifest: %v", err)
+	}
+	if m.AgentIncludeMCP == nil || *m.AgentIncludeMCP {
+		t.Errorf("agent_include_mcp after update = %v, want false", m.AgentIncludeMCP)
+	}
+	agent, _ := os.ReadFile(filepath.Join(dir, "AGENT.md"))
+	if strings.Contains(string(agent), "## MCP (Model Context Protocol)") {
+		t.Error("AGENT.md should still omit MCP after update when agent_include_mcp is false")
 	}
 }
 
@@ -284,7 +349,7 @@ func TestUpdate(t *testing.T) {
 
 	// Create initial presentation
 	dir := filepath.Join(tmp, "update-test")
-	_, err := CreateInDir("Update Test", 3, "default", dir)
+	_, err := CreateInDir("Update Test", 3, "default", dir, true)
 	if err != nil {
 		t.Fatalf("CreateInDir failed: %v", err)
 	}
@@ -359,7 +424,7 @@ func TestCreateHasExportButton(t *testing.T) {
 	os.Chdir(tmp)
 	defer os.Chdir(origDir)
 
-	_, err := CreateInDir("Export Button Test", 3, "default", filepath.Join(tmp, "export-btn"))
+	_, err := CreateInDir("Export Button Test", 3, "default", filepath.Join(tmp, "export-btn"), true)
 	if err != nil {
 		t.Fatalf("CreateInDir failed: %v", err)
 	}
@@ -390,7 +455,7 @@ func TestAllThemesHaveExportButton(t *testing.T) {
 	for _, theme := range themes {
 		t.Run(theme, func(t *testing.T) {
 			tmp := t.TempDir()
-			_, err := CreateInDir("Theme Test", 2, theme, filepath.Join(tmp, "deck"))
+			_, err := CreateInDir("Theme Test", 2, theme, filepath.Join(tmp, "deck"), true)
 			if err != nil {
 				t.Fatalf("CreateInDir(%s) failed: %v", theme, err)
 			}

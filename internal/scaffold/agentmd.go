@@ -19,10 +19,11 @@ type agentLayoutEntry struct {
 
 // agentMDData holds all data passed to the agent.md.tmpl template.
 type agentMDData struct {
-	Title     string
-	Theme     string
-	ThemeList string
-	Layouts   []agentLayoutEntry
+	Title        string
+	Theme        string
+	ThemeList    string
+	Layouts      []agentLayoutEntry
+	IncludeMCP   bool
 }
 
 // WriteAgentMD generates an AGENT.md file in the deck directory containing
@@ -47,10 +48,11 @@ func WriteAgentMD(dir string, manifest Manifest) error {
 	}
 
 	data := agentMDData{
-		Title:     manifest.Title,
-		Theme:     manifest.Theme,
-		ThemeList: strings.Join(themes, ", "),
-		Layouts:   layouts,
+		Title:      manifest.Title,
+		Theme:      manifest.Theme,
+		ThemeList:  strings.Join(themes, ", "),
+		Layouts:    layouts,
+		IncludeMCP: manifest.IncludeMCPInAgentDocs(),
 	}
 
 	// Load and render the template

@@ -25,10 +25,11 @@ type SourceConfig struct {
 
 // Manifest represents the .slyds.yaml file stored in a presentation directory.
 type Manifest struct {
-	Theme      string                  `yaml:"theme"`
-	Title      string                  `yaml:"title"`
-	Sources    map[string]SourceConfig `yaml:"sources,omitempty"`
-	ModulesDir string                  `yaml:"modules_dir,omitempty"`
+	Theme            string                  `yaml:"theme"`
+	Title            string                  `yaml:"title"`
+	Sources          map[string]SourceConfig `yaml:"sources,omitempty"`
+	ModulesDir       string                  `yaml:"modules_dir,omitempty"`
+	AgentIncludeMCP  *bool                   `yaml:"agent_include_mcp,omitempty"` // nil or true: include MCP section in AGENT.md; false: omit
 }
 
 // DefaultModulesDir is the default directory name for vendored modules.
@@ -56,6 +57,15 @@ func (m *Manifest) ResolveModulesDir(root string) string {
 // HasSources returns true if the manifest declares any external sources.
 func (m *Manifest) HasSources() bool {
 	return len(m.Sources) > 0
+}
+
+// IncludeMCPInAgentDocs returns whether AGENT.md should include the MCP setup section.
+// Absent or true in YAML means include; false omits the section for authors who do not use MCP.
+func (m *Manifest) IncludeMCPInAgentDocs() bool {
+	if m.AgentIncludeMCP == nil {
+		return true
+	}
+	return *m.AgentIncludeMCP
 }
 
 // ManifestPath returns the path to .slyds.yaml in the given directory.

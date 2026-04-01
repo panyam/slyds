@@ -65,9 +65,9 @@ scaling-at-the-edge/
 
 ## Commands
 
-### `slyds init "Title" [-n count] [--theme name]`
+### `slyds init "Title" [-n count] [--theme name] [--mcp]`
 
-Scaffolds a new presentation directory with the given number of slides (default 3, min 2).
+Scaffolds a new presentation directory with the given number of slides (default 3, min 2). By default, **`AGENT.md` includes a short MCP section** with a link to **[docs/MCP.md](docs/MCP.md#coding-agents-cursor)**. Use **`--mcp=false`** to omit it (stored in `.slyds.yaml` as `agent_include_mcp`).
 
 ```bash
 slyds init "Why Go is Secretly Fun"                  # 3 slides, default theme
@@ -75,6 +75,7 @@ slyds init "Distributed Systems 101" -n 8             # 8 slides
 slyds init "Zero to Production" --theme dark           # dark theme
 slyds init "The Art of Simplicity" --theme minimal     # clean, no gradients
 slyds init "Hacking the Mainframe" --theme hacker      # terminal vibes, nerdy fun
+slyds init "No MCP block" --mcp=false                 # AGENT.md without MCP section
 ```
 
 Available themes: `default`, `minimal`, `dark`, `corporate`, `hacker`.
@@ -133,7 +134,7 @@ Lists slides in order with filenames and first heading.
 
 ### Agents & MCP
 
-For automation and hosted agents: **`slyds introspect`** (JSON capabilities), **`slyds describe --json`** (deck state), **`slyds query --batch`**, and **`slyds mcp`** / **`slyds mcp serve`** (Model Context Protocol — stdio or HTTP+SSE). See **[CLAUDE.md](CLAUDE.md)** and **[docs/MCP.md](docs/MCP.md)** for the quick setup table (local vs remote, `--public-url`, `--token`).
+For automation and hosted agents: **`slyds introspect`**, **`slyds describe --json`**, **`slyds query --batch`**, and **`slyds mcp`** / **`slyds mcp serve`**. **MCP setup (Cursor, Claude, Copilot, protocol, security):** **[docs/MCP.md](docs/MCP.md)**. Contributor conventions: **[CLAUDE.md](CLAUDE.md)**.
 
 ## Writing Slides
 

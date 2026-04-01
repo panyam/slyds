@@ -65,7 +65,7 @@ func TestBuildIncludesExportJS(t *testing.T) {
 	tmp := t.TempDir()
 
 	// Scaffold a presentation
-	_, err := scaffold.CreateInDir("Build Export Test", 3, "default", filepath.Join(tmp, "deck"))
+	_, err := scaffold.CreateInDir("Build Export Test", 3, "default", filepath.Join(tmp, "deck"), true)
 	if err != nil {
 		t.Fatalf("CreateInDir failed: %v", err)
 	}

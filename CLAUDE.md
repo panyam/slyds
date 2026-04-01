@@ -43,7 +43,7 @@ slyds mcp serve [--listen :8787] [--public-url]  # MCP HTTP+SSE (remote clients,
 ### Agent integrations & MCP (quick)
 
 - **`slyds introspect`** — single JSON blob for layouts, `data-slot` names, themes, CLI catalog (no deck files to grep).
-- **`slyds mcp`** — stdio MCP; **`slyds mcp serve`** — HTTP+SSE per MCP 2024-11-05 for URLs. See **[docs/MCP.md](docs/MCP.md)** for the fastest way to expose either transport, proxy/TLS, and `--token` / `--public-url`.
+- **`slyds mcp`** — stdio MCP; **`slyds mcp serve`** — HTTP+SSE per MCP 2024-11-05 for URLs. **Editor/agent setup (Cursor, Claude, Copilot):** **[docs/MCP.md](docs/MCP.md)**.
 - **Themes / manifest for agents** — **[docs/AGENT-THEMES.md](docs/AGENT-THEMES.md)** (sources, custom themes, validation hooks).
 
 ## Conventions

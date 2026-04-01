@@ -18,18 +18,19 @@ var includeRe = regexp.MustCompile(`\{\{#\s*include\s+"(slides/[^"]+)"\s*#\}\}`)
 // Create scaffolds a new presentation directory using the default theme.
 // The output directory is derived from the slugified title.
 func Create(title string, slideCount int) (string, error) {
-	return CreateInDir(title, slideCount, "default", Slugify(title))
+	return CreateInDir(title, slideCount, "default", Slugify(title), true)
 }
 
 // CreateWithTheme scaffolds a new presentation using the given built-in theme name.
 // The output directory is derived from the slugified title.
 func CreateWithTheme(title string, slideCount int, theme string) (string, error) {
-	return CreateInDir(title, slideCount, theme, Slugify(title))
+	return CreateInDir(title, slideCount, theme, Slugify(title), true)
 }
 
 // CreateInDir scaffolds a new presentation in the specified output directory
 // using the given built-in theme. The outDir can be a relative or absolute path.
-func CreateInDir(title string, slideCount int, theme string, outDir string) (string, error) {
+// includeMCPInAgent controls whether AGENT.md includes the MCP section; it is stored in .slyds.yaml as agent_include_mcp.
+func CreateInDir(title string, slideCount int, theme string, outDir string, includeMCPInAgent bool) (string, error) {
 	if !ThemeExists(theme) {
 		available, _ := ListThemes()
 		return "", fmt.Errorf("theme %q not found (available: %s)", theme, strings.Join(available, ", "))
@@ -107,6 +108,10 @@ func CreateInDir(title string, slideCount int, theme string, outDir string) (str
 	manifest := Manifest{
 		Theme: theme,
 		Title: title,
+	}
+	if !includeMCPInAgent {
+		f := false
+		manifest.AgentIncludeMCP = &f
 	}
 	if err := WriteManifest(dir, manifest); err != nil {
 		return "", fmt.Errorf("failed to write manifest: %w", err)
@@ -483,6 +488,7 @@ func Update(dir, theme, title string) error {
 	if err == nil {
 		manifest.Sources = existing.Sources
 		manifest.ModulesDir = existing.ModulesDir
+		manifest.AgentIncludeMCP = existing.AgentIncludeMCP
 	}
 	if err := WriteManifest(dir, manifest); err != nil {
 		return fmt.Errorf("failed to write manifest: %w", err)

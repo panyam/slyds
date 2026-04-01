@@ -12,6 +12,7 @@ var (
 	initSlideCount int
 	initTheme      string
 	initDir        string
+	initMCPDocs    bool
 )
 
 var initCmd = &cobra.Command{
@@ -32,7 +33,7 @@ var initCmd = &cobra.Command{
 			outDir = scaffold.Slugify(title)
 		}
 
-		dir, err := scaffold.CreateInDir(title, initSlideCount, initTheme, outDir)
+		dir, err := scaffold.CreateInDir(title, initSlideCount, initTheme, outDir, initMCPDocs)
 		if err != nil {
 			return err
 		}
@@ -51,5 +52,6 @@ func init() {
 	themes, _ := scaffold.ListThemes()
 	initCmd.Flags().StringVar(&initTheme, "theme", "default", "theme to use ("+strings.Join(themes, ", ")+")")
 	initCmd.Flags().StringVar(&initDir, "dir", "", "output directory (default: slugified title)")
+	initCmd.Flags().BoolVar(&initMCPDocs, "mcp", true, "include MCP setup section in AGENT.md (stored in .slyds.yaml as agent_include_mcp)")
 	rootCmd.AddCommand(initCmd)
 }
