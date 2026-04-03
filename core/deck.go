@@ -286,6 +286,53 @@ func (d *Deck) SlugifySlides(slugFn func(string) string) (int, error) {
 	return renamed, d.RewriteSlideOrder(newNames)
 }
 
+// InsertSlide renders a new slide from the named layout template and inserts it
+// at the given position. This is the high-level "add a slide" operation that
+// combines layout rendering with slide insertion.
+// The name is used to generate the filename slug. Title overrides the display title.
+func (d *Deck) InsertSlide(position int, name, layoutName, title string) error {
+	displayName := slugToTitle(name)
+	if title != "" {
+		displayName = title
+	}
+
+	content, err := Render(layoutName, map[string]any{
+		"Title":  displayName,
+		"Number": position,
+	})
+	if err != nil {
+		return fmt.Errorf("layout %q: %w", layoutName, err)
+	}
+
+	filename := fmt.Sprintf("%02d-%s.html", position, name)
+	return d.AddSlide(position, filename, content)
+}
+
+// ApplySlots sets inner HTML for named layout slots on a slide.
+// Each key in slots is a slot name (matching data-slot="name"), value is the HTML.
+func (d *Deck) ApplySlots(position int, slots map[string]string) error {
+	ref := fmt.Sprintf("%d", position)
+	for slot, html := range slots {
+		h := html
+		sel := `[data-slot="` + strings.ReplaceAll(slot, `"`, `\"`) + `"]`
+		if _, err := d.Query(ref, sel, QueryOpts{SetHTML: &h}); err != nil {
+			return fmt.Errorf("slot %q: %w", slot, err)
+		}
+	}
+	return nil
+}
+
+// slugToTitle converts a slug like "my-demo" to a display title "My Demo".
+func slugToTitle(name string) string {
+	words := strings.Fields(strings.ReplaceAll(name, "-", " "))
+	for i, w := range words {
+		if len(w) > 0 {
+			words[i] = strings.ToUpper(w[:1]) + w[1:]
+		}
+	}
+	return strings.Join(words, " ")
+}
+
 // ExtractNamePart strips the numeric prefix (e.g., "01-") from a slide filename.
 func ExtractNamePart(filename string) string {
 	re := regexp.MustCompile(`^(\d+)-(.+)$`)

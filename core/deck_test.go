@@ -347,6 +347,101 @@ func TestSlugifySlidesIdempotent(t *testing.T) {
 	}
 }
 
+// TestInsertSlideWithLayout verifies that InsertSlide renders from a layout
+// template and inserts with the correct attributes and structure.
+func TestInsertSlideWithLayout(t *testing.T) {
+	mfs := templar.NewMemFS()
+	mfs.SetFile("index.html", []byte(`{{# include "slides/01-title.html" #}}`))
+	mfs.SetFile("slides/01-title.html", []byte(`<h1>Title</h1>`))
+
+	d, _ := OpenDeck(mfs)
+	if err := d.InsertSlide(2, "details", "content", ""); err != nil {
+		t.Fatal(err)
+	}
+
+	content, _ := d.GetSlideContent(2)
+	if !strings.Contains(content, `data-layout="content"`) {
+		t.Error("missing data-layout=\"content\"")
+	}
+	if !strings.Contains(content, `data-slot="body"`) {
+		t.Error("missing data-slot=\"body\"")
+	}
+}
+
+// TestInsertSlideWithTwoCol verifies two-column layout has left/right slots.
+func TestInsertSlideWithTwoCol(t *testing.T) {
+	mfs := templar.NewMemFS()
+	mfs.SetFile("index.html", []byte(`{{# include "slides/01-a.html" #}}`))
+	mfs.SetFile("slides/01-a.html", []byte(`A`))
+
+	d, _ := OpenDeck(mfs)
+	d.InsertSlide(2, "comparison", "two-col", "")
+
+	content, _ := d.GetSlideContent(2)
+	if !strings.Contains(content, `data-layout="two-col"`) {
+		t.Error("missing data-layout")
+	}
+	if !strings.Contains(content, `data-slot="left"`) {
+		t.Error("missing left slot")
+	}
+	if !strings.Contains(content, `data-slot="right"`) {
+		t.Error("missing right slot")
+	}
+}
+
+// TestInsertSlideWithTitle verifies title layout and custom title override.
+func TestInsertSlideWithTitle(t *testing.T) {
+	mfs := templar.NewMemFS()
+	mfs.SetFile("index.html", []byte(`{{# include "slides/01-a.html" #}}`))
+	mfs.SetFile("slides/01-a.html", []byte(`A`))
+
+	d, _ := OpenDeck(mfs)
+	d.InsertSlide(1, "intro", "title", "Welcome Everyone")
+
+	content, _ := d.GetSlideContent(1)
+	if !strings.Contains(content, "Welcome Everyone") {
+		t.Errorf("custom title not in content: %s", content)
+	}
+	if !strings.Contains(content, `data-layout="title"`) {
+		t.Error("missing data-layout=\"title\"")
+	}
+}
+
+// TestInsertSlideUnknownLayout verifies error for nonexistent layout.
+func TestInsertSlideUnknownLayout(t *testing.T) {
+	mfs := templar.NewMemFS()
+	mfs.SetFile("index.html", []byte(`{{# include "slides/01-a.html" #}}`))
+	mfs.SetFile("slides/01-a.html", []byte(`A`))
+
+	d, _ := OpenDeck(mfs)
+	err := d.InsertSlide(2, "bad", "nonexistent-layout", "")
+	if err == nil {
+		t.Fatal("expected error for unknown layout")
+	}
+}
+
+// TestApplySlots verifies that ApplySlots sets HTML in named data-slot elements.
+func TestApplySlots(t *testing.T) {
+	mfs := templar.NewMemFS()
+	mfs.SetFile("index.html", []byte(`{{# include "slides/01-a.html" #}}`))
+	mfs.SetFile("slides/01-a.html", []byte(`A`))
+
+	d, _ := OpenDeck(mfs)
+	d.InsertSlide(2, "details", "content", "")
+
+	err := d.ApplySlots(2, map[string]string{
+		"body": "<p>Custom body content</p>",
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	content, _ := d.GetSlideContent(2)
+	if !strings.Contains(content, "Custom body content") {
+		t.Errorf("slot content not applied: %s", content)
+	}
+}
+
 // TestExtractNamePart verifies stripping numeric prefixes from filenames.
 func TestExtractNamePart(t *testing.T) {
 	tests := []struct{ in, want string }{
