@@ -55,18 +55,16 @@ var addCmd = &cobra.Command{
 		}
 
 		layoutName := resolveLayoutFlag(slideLayout, slideType)
-		content, err := renderSlideContent(d, name, layoutName, position, "")
-		if err != nil {
-			return err
-		}
-
-		filename := fmt.Sprintf("%02d-%s.html", position, name)
-		if err := d.AddSlide(position, filename, content); err != nil {
+		if err := d.InsertSlide(position, name, layoutName, ""); err != nil {
 			return err
 		}
 
 		if slotsFileAdd != "" {
-			if err := applySlotsFile(d, position, slotsFileAdd); err != nil {
+			slots, err := readSlotsFile(slotsFileAdd)
+			if err != nil {
+				return err
+			}
+			if err := d.ApplySlots(position, slots); err != nil {
 				return err
 			}
 		}
@@ -200,18 +198,16 @@ after insertion to maintain consistent NN-name.html naming.`,
 		}
 
 		layoutName := resolveLayoutFlag(insertLayout, insertType)
-		content, err := renderSlideContent(d, name, layoutName, pos, insertTitle)
-		if err != nil {
-			return err
-		}
-
-		filename := fmt.Sprintf("%02d-%s.html", pos, name)
-		if err := d.AddSlide(pos, filename, content); err != nil {
+		if err := d.InsertSlide(pos, name, layoutName, insertTitle); err != nil {
 			return err
 		}
 
 		if slotsFileInsert != "" {
-			if err := applySlotsFile(d, pos, slotsFileInsert); err != nil {
+			slots, err := readSlotsFile(slotsFileInsert)
+			if err != nil {
+				return err
+			}
+			if err := d.ApplySlots(pos, slots); err != nil {
 				return err
 			}
 		}
@@ -580,25 +576,17 @@ func renderSlideFromLayout(name, layoutName string, number int, titleOverride st
 	return core.Render(layoutName, data)
 }
 
-// applySlotsFile sets inner HTML for each [data-slot] from a JSON object { "slotName": "<html>..." }.
-func applySlotsFile(d *core.Deck, slidePosition int, path string) error {
+// readSlotsFile reads a JSON slots file and returns the slot name → HTML map.
+func readSlotsFile(path string) (map[string]string, error) {
 	data, err := os.ReadFile(path)
 	if err != nil {
-		return fmt.Errorf("slots-file: %w", err)
+		return nil, fmt.Errorf("slots-file: %w", err)
 	}
 	var m map[string]string
 	if err := json.Unmarshal(data, &m); err != nil {
-		return fmt.Errorf("slots-file JSON: %w", err)
+		return nil, fmt.Errorf("slots-file JSON: %w", err)
 	}
-	ref := strconv.Itoa(slidePosition)
-	for slot, html := range m {
-		h := html
-		sel := `[data-slot="` + strings.ReplaceAll(slot, `"`, `\"`) + `"]`
-		if _, err := d.Query(ref, sel, core.QueryOpts{SetHTML: &h}); err != nil {
-			return fmt.Errorf("slot %q: %w", slot, err)
-		}
-	}
-	return nil
+	return m, nil
 }
 
 // detectSlideLayout reads a slide file and detects its layout from the
