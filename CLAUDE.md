@@ -2,7 +2,7 @@
 
 ## What is this?
 
-slyds is a Go CLI for multi-file HTML presentations. Each slide lives in its own file; `index.html` composes them via templar's `{{# include #}}` directives. `slyds build` flattens everything into a single self-contained HTML file.
+slyds is a Go CLI + library for multi-file HTML presentations. Each slide lives in its own file; `index.html` composes them via templar's `{{# include #}}` directives. `slyds build` flattens everything into a single self-contained HTML file.
 
 See [ARCHITECTURE.md](ARCHITECTURE.md) for design details.
 
@@ -11,94 +11,128 @@ See [ARCHITECTURE.md](ARCHITECTURE.md) for design details.
 ```bash
 make resymlink   # Set up locallinks/ for local templar dependency (first time only)
 make build       # Build the slyds binary (injects version from git tags)
-make test        # Run all tests (includes MCP HTTP+SSE integration tests in cmd/)
-go test ./cmd/... -run MCP   # MCP / HTTP transport tests only
-make install     # Install to $GOBIN (injects version from git tags)
-make version     # Print the version that would be injected
-make setup-tools # Install required Go tools (cobra-cli)
+make test        # Run all tests
+make install     # Install to $GOBIN
+make audit       # govulncheck + gosec + gitleaks
 ```
 
 ## Key Commands
 
 ```bash
 slyds init "Title" [-n count] [--theme dark]      # Scaffold presentation
-slyds update [dir]                               # Refresh engine/theme files, preserve slides
-slyds serve [dir] [-p port]                      # Dev server with live include resolution
+slyds serve [dir] [-p port]                       # Dev server with live include resolution
 slyds build [dir]                                # Flatten to dist/index.html
 slyds add "name" [--after N] [--layout content] [--slots-file map.json]
-slyds insert <pos> "name" [--layout T] [--title T] [--slots-file map.json]
+slyds insert <pos> "name" [--layout T] [--title T]
 slyds rm <name-or-number>                        # Remove slide
 slyds mv <from> <to>                             # Reorder slides
-slyds ls [dir]                                   # List slides (index.html order)
-slyds slugify [dir]                              # Rename all slides to slugs from <h1>
-slyds check [dir]                                # Validate deck (sync, notes, assets)
-slyds describe [dir] [--json]                    # Structured deck summary for LLM consumption
-slyds introspect [dir]                           # Machine JSON: layouts, slots, themes, commands
-slyds query <slide> <sel> [--set|--append|...]   # CSS selector read/write on slide HTML
-slyds query --batch ops.json [dir]               # Atomic multi-op writes (JSON); see CONSTRAINTS.md
-slyds mcp                                        # MCP stdio (Content-Length JSON-RPC) — local clients
-slyds mcp serve [--listen :8787] [--public-url]  # MCP HTTP+SSE (remote clients, e.g. Glean)
+slyds ls [dir]                                   # List slides
+slyds slugify [dir]                              # Rename slides from <h1>
+slyds check [dir]                                # Validate deck
+slyds describe [dir] [--json]                    # Structured summary
+slyds query <slide> <sel> [--set|--html|...]     # CSS selector read/write
+slyds mcp [--sse] [--listen :6274] [--token T]   # MCP server (Streamable HTTP default)
+slyds preview <theme-dir> [-p 3000]              # Preview a theme
 ```
 
-### Agent integrations & MCP (quick)
+### MCP Server
 
-- **`slyds introspect`** — single JSON blob for layouts, `data-slot` names, themes, CLI catalog (no deck files to grep).
-- **`slyds mcp`** — stdio MCP; **`slyds mcp serve`** — HTTP+SSE per MCP 2024-11-05 for URLs. **Editor/agent setup (Cursor, Claude, Copilot):** **[docs/MCP.md](docs/MCP.md)**.
-- **Themes / manifest for agents** — **[docs/AGENT-THEMES.md](docs/AGENT-THEMES.md)** (sources, custom themes, validation hooks).
+Uses **mcpkit** v0.0.6. Default: Streamable HTTP. Use `--sse` for legacy SSE transport.
+
+```bash
+slyds mcp                          # Streamable HTTP on :6274
+slyds mcp --sse                    # Legacy SSE transport
+STREAMABLE=1 slyds mcp             # Also Streamable HTTP
+```
+
+Setup docs: [docs/MCP.md](docs/MCP.md)
+
+## Architecture: Deck is the API
+
+All business logic lives in `core/` as methods on `*Deck`. CLI commands are thin wrappers.
+
+```
+core/                        ← THE library
+├── deck.go                  Deck type, WritableFS, slide CRUD, InsertSlide, ApplySlots
+├── theme.go                 Theme type backed by fs.FS, RenderSlide
+├── check.go                 Deck.Check() → Issues
+├── describe.go              Deck.Describe() → DeckDescription
+├── query.go                 Deck.Query(), BatchQuery(), ResolveSlide
+├── scaffold.go              Create, Update, Slugify
+├── manifest.go              .slyds.yaml read/write
+├── layout.go                Layout templates (title, content, two-col, etc.)
+├── builder.go               Build pipeline (include resolution + asset inlining)
+├── embed.go                 Embedded CSS, JS, themes, layouts
+├── theme.go                 Theme loading from any fs.FS
+└── 130+ tests via MemFS
+
+cmd/                         ← thin CLI wiring (~2100 lines)
+├── slides.go                add/rm/mv/ls/insert/slugify
+├── query.go                 CSS selector read/write
+├── check.go                 validate deck
+├── describe.go              structured summary
+├── mcp.go                   MCP server (mcpkit)
+└── tests (CLI-specific only)
+```
+
+### Key types
+
+```go
+d, _ := core.OpenDeckDir(".")       // Open from local path
+d, _ := core.OpenDeck(memFS)        // Open from any templar.WritableFS
+
+d.SlideFilenames()                   // List slides
+d.GetSlideContent(1)                 // Read slide HTML
+d.EditSlideContent(1, html)          // Write slide HTML
+d.InsertSlide(2, "name", "layout", "title")  // Render + insert
+d.RemoveSlide("02-name.html")       // Delete + renumber
+d.MoveSlide(3, 1)                   // Reorder + renumber
+d.ApplySlots(2, map[string]string{"body": "<p>...</p>"})
+d.Query("1", "h1", core.QueryOpts{})  // CSS selector query
+d.Check()                            // Validate → Issues
+d.Describe()                         // Structured summary
+d.SlugifySlides(core.Slugify)        // Rename from headings
+d.Build()                            // Self-contained HTML
+
+theme, _ := core.LoadTheme(fs)       // Load from any fs.FS
+theme, _ := core.LoadEmbeddedTheme("dark")
+theme.RenderSlide("content", data)   // Render slide template
+```
+
+### Filesystem abstraction
+
+All Deck I/O goes through `templar.WritableFS`. No `os.*` in core/.
+
+- `templar.LocalFS` — local disk (CLI)
+- `templar.MemFS` — in-memory (tests, WASM)
+- Future: S3, IndexedDB
 
 ## Conventions
 
-- **No hardcoded HTML in Go code** — use embedded `.tmpl` files under `core/templates/`. New themes = new template dirs, not Go changes.
-- **Shared template fallback** — `renderEmbeddedTemplate` tries `templates/<theme>/<name>` first, falls back to `templates/<name>`. Common templates like `index.html.tmpl` live at the shared level; themes override only when they need different HTML structure. Avoid per-theme overrides of shared templates — they go stale and silently break features (see Gotchas).
-- **AGENT.md is template-rendered** — generated from `core/templates/agent.md.tmpl` via `WriteAgentMD()`. Do not hardcode AGENT.md content in Go strings.
-- **Layouts are theme-independent** — structural layout templates live in `core/layouts/` (title, content, two-col, section, blank, closing). Themes are pure CSS variable overrides. Layouts use `data-layout` attribute and `data-slot` for named content regions.
-- **Slide types are config-driven** — each theme has a `theme.yaml` that maps type names to template files (legacy — layouts in `core/layouts/` are preferred).
-- **Configure templar programmatically** — don't generate `.templar.yaml` files. Use `TemplateGroup`, `FileSystemLoader`, etc. directly.
-- **Local deps via locallinks/** — `go.mod` uses `replace => ./locallinks/newstack/templar/main`. Run `make resymlink` to create the symlink. The replace must be **commented out** before pushing (pre-push hook enforces this).
-- **Slide files are pure HTML** — only `index.html` uses templar `{{# include #}}` syntax.
-- **`.slyds.yaml` manifest** — created by `init`, stores `theme` and `title`. Used by `update` to know how to re-render templates. If missing, `update` prompts interactively.
-- **`AGENT.md` per deck** — auto-generated by `init` and `update` with commands, layouts, themes, and conventions for LLM agents. In scaffolded decks, `CLAUDE.md` may symlink to `AGENT.md` for Claude Code. **This repository’s root `CLAUDE.md` is the slyds toolkit guide** (not a symlink).
-- **Index.html is source of truth** for slide ordering — not filesystem sort. All commands use `listSlidesFromIndex()`.
-- **No regex-based HTML mutation** — use `slyds query` (goquery/CSS selectors) for reading/writing slide content. See [CONSTRAINTS.md](CONSTRAINTS.md).
-- **Version from git tags** — `make build`/`make install` inject version via ldflags from `git describe --tags`. No manual version file.
+- **Deck is the single API** — cmd/ never touches DeckFS directly, only calls Deck methods
+- **No hardcoded HTML in Go** — use embedded `.tmpl` files under `core/templates/`
+- **Layouts are theme-independent** — `core/layouts/` (title, content, two-col, section, blank, closing)
+- **Themes are fs.FS** — `core.LoadTheme(fs)` works with local, embedded, or remote
+- **Index.html is source of truth** for slide ordering
+- **No regex HTML mutation** — use `d.Query()` (goquery/CSS selectors)
+- **Version from git tags** — `make build`/`make install` inject via ldflags
+- **Local deps via locallinks/** — `replace => ./locallinks/...` in go.mod; must be commented out before push
 
-## Project Layout
-
-```
-main.go                     # Entry point
-cmd/                        # Cobra commands (init, update, serve, build, add/rm/mv/ls, insert, slugify, check, describe, introspect, query, mcp)
-internal/scaffold/          # Presentation scaffolding, update, and manifest management
-internal/builder/           # Include flattening + CSS/JS/image inlining
-core/                       # go:embed package — slyds.css, slyds.js, slyds-export.js, theme templates
-core/templates/           # Shared templates (index.html.tmpl) + per-theme overrides
-core/templates/<theme>/   # Theme template files (.tmpl) — default, minimal, dark, corporate, hacker
-core/layouts/             # Layout templates (title, content, two-col, section, blank, closing)
-.github/workflows/          # CI (test.yml) and release (release.yml via goreleaser)
-.goreleaser.yaml            # Cross-platform binary release config
-```
 ## Gotchas
 
-- **macOS /private symlinks**: `filepath.Abs` on temp dirs returns `/var/...` but the actual path is `/private/var/...`. Don't compare paths directly in tests; check file existence instead.
-- **templar BasicServer `/` routing**: It maps `/` to template name `""` which fails. slyds uses a custom HTTP handler that maps `/` → `index.html` instead.
-- **`go:embed` paths are relative to the Go file** — can't use `../` paths. The `core/embed.go` file must live alongside the files it embeds.
-- **`core/` is the single source of truth** for all embedded files (CSS, JS, templates, themes, layouts). There is no separate `assets/` directory — it was consolidated into `core/`. All Go code imports `github.com/panyam/slyds/core`.
-- **Theme-specific template overrides go stale** — if a theme has its own `index.html.tmpl`, it won't pick up new nav buttons, theme links, or other shared features. Only override shared templates when the theme genuinely needs different HTML structure. Prefer the shared template.
-- **`changeSlide()` mutates `currentSlide` before calling `showSlide()`** — any code in `showSlide` that needs the *previous* slide must use the `from` parameter, not read `currentSlide` directly.
-- **MCP HTTP (`mcp serve`)** — default bind is loopback; set **`--public-url`** behind a reverse proxy so the SSE `endpoint` event advertises a client-reachable POST URL. Non-loopback **`Origin`** headers are rejected unless **`--dangerous-allow-any-origin`** (dev only). Use **`--token`** for bearer auth when exposing beyond localhost.
-- **MCP HTTP tests** — full SSE flows use **`httptest.Server`** (real TCP + **`http.Flusher`**). Do not assert SSE streaming with **`httptest.ResponseRecorder`** alone; it does not implement `Flusher`, so the SSE handler returns 500. See **`cmd/mcp_http_test.go`** (`TestMCPHTTPSSEFullFlow`, auth/origin cases).
-- **MCP known issues (pre-mcpkit migration)** — the current hand-rolled MCP has known enterprise gaps: (1) SSE write race — `mcpHub.push()` releases mutex before `s.send()`, so concurrent POSTs to the same session race on the ResponseWriter; (2) bearer token uses `==` not `subtle.ConstantTimeCompare`; (3) no HTTP server timeouts (`ReadTimeout`, `WriteTimeout`, `IdleTimeout` all zero); (4) no subprocess timeout on `cmd.CombinedOutput()`; (5) no request body size limit. All addressed by migration to mcpkit (mcpkit#9).
-- **`slyds query --batch`** — still DOM-based (goquery); atomic mode rolls back all slide writes if any operation fails.
+- **macOS /private symlinks**: `filepath.Abs` on temp dirs returns `/var/...` but actual path is `/private/var/...`. Don't compare paths in tests.
+- **`go:embed` paths relative to Go file** — `core/embed.go` must live alongside embedded files.
+- **MCP uses mcpkit** — no more hand-rolled protocol code. Bearer token uses constant-time comparison. Graceful shutdown via servicekit.
+- **Theme render fallback** — `InsertSlide` uses layout system first; falls back to theme templates for backward compat.
 
 ## Memories
 
-Memories are stored in-repo under `memories/` (not in the global `~/.claude/` config) so they're tracked in version control. See [memories/MEMORY.md](memories/MEMORY.md) for the index. When saving new memories, write them to `memories/` in this repo.
+Stored in-repo under `memories/`. See [memories/MEMORY.md](memories/MEMORY.md).
 
 <!-- stack-brain:start -->
 ## Constraints
 
-Architectural rules — do not violate these.
-
 ### No Regex-Based HTML Mutation
-Do not build CLI commands that modify slide HTML content using regex or string manipulation. All HTML content reads and writes must go through a proper DOM parser (`slyds query` and `query --batch` use goquery/CSS selectors).
-*Why: Regex-based HTML manipulation is fragile (breaks on nested tags, attributes, whitespace). The `slyds query` command provides a safe, format-aware interface. When structured slide formats (YAML, JSON, MD) are added, query dispatch will route to format-specific handlers.*
+All HTML reads/writes must use `d.Query()` (goquery/CSS selectors), not regex.
+*Why: Regex HTML manipulation breaks on nested tags, attributes, whitespace.*
 <!-- stack-brain:end -->
