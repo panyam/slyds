@@ -8,19 +8,19 @@
 
 Each `tools/call` for **`slyds`** should include:
 
-| Field | Required | Meaning |
-|-------|----------|---------|
-| **`cwd`** | yes | Directory containing the deck’s `index.html`, or a subdirectory under it |
-| **`args`** | yes | argv **after** `slyds`, e.g. `["introspect"]`, `["describe", "--json"]`, `["query", "1", "h1", "--count"]` |
-| **`min_version`** | no | Minimum slyds version; fails if the binary is older |
+| Field             | Required | Meaning                                                                                                    |
+|-------------------|----------|------------------------------------------------------------------------------------------------------------|
+| **`cwd`**         | yes      | Directory containing the deck’s `index.html`, or a subdirectory under it                                   |
+| **`args`**        | yes      | argv **after** `slyds`, e.g. `["introspect"]`, `["describe", "--json"]`, `["query", "1", "h1", "--count"]` |
+| **`min_version`** | no       | Minimum slyds version; fails if the binary is older                                                        |
 
 Examples: `["introspect"]`, `["describe", "--json"]`, `["check"]`, `["ls"]`.
 
 ## Transports
 
-| Transport | Command | Typical clients |
-|-----------|---------|-----------------|
-| **stdio** | `slyds mcp` | Cursor, Claude Desktop, subprocess |
+| Transport      | Command           | Typical clients                               |
+|----------------|-------------------|-----------------------------------------------|
+| **stdio**      | `slyds mcp`       | Cursor, Claude Desktop, subprocess            |
 | **HTTP + SSE** | `slyds mcp serve` | Remote URLs, hosted agents (e.g. Glean-style) |
 
 ---
@@ -70,11 +70,11 @@ make build
 
 ### Troubleshooting (Cursor)
 
-| Symptom | Check |
-|---------|--------|
-| Server missing after edit | Full Cursor restart; valid JSON |
-| command not found | Absolute path; `make build` ok |
-| Tool always errors | **`cwd`** must contain **`index.html`** |
+| Symptom                        | Check                                       |
+|--------------------------------|---------------------------------------------|
+| Server missing after edit      | Full Cursor restart; valid JSON             |
+| command not found              | Absolute path; `make build` ok              |
+| Tool always errors             | **`cwd`** must contain **`index.html`**     |
 | curl SSE works, Cursor doesn’t | Use **`slyds mcp`** (stdio) for Cursor chat |
 
 ---
@@ -137,12 +137,12 @@ Put the file where **your** VS Code / Copilot docs specify. For **URL-only** cli
 
 ## Quick start — expose MCP with minimal setup
 
-| Goal | Command | Notes |
-|------|---------|--------|
-| **Local / editor** (stdio) | `slyds mcp` | Client spawns this process; JSON-RPC over stdin/stdout with Content-Length framing. |
-| **Same machine, URL-based testing** | `slyds mcp serve --listen 127.0.0.1:8787` | Open `GET http://127.0.0.1:8787/mcp/sse` — read the first SSE `endpoint` event for the exact POST URL (includes `session`). |
-| **Behind HTTPS / remote clients** | `slyds mcp serve --listen 127.0.0.1:8787 --public-url https://your-host/mcp` | `--public-url` must be the **external** base clients use so the `endpoint` event’s POST URL is reachable. Add reverse proxy TLS in front. |
-| **Shared secret** | Add `--token SECRET` | Clients send `Authorization: Bearer SECRET` on SSE and POST. |
+| Goal                                | Command                                                                      | Notes                                                                                                                                     |
+|-------------------------------------|------------------------------------------------------------------------------|-------------------------------------------------------------------------------------------------------------------------------------------|
+| **Local / editor** (stdio)          | `slyds mcp`                                                                  | Client spawns this process; JSON-RPC over stdin/stdout with Content-Length framing.                                                       |
+| **Same machine, URL-based testing** | `slyds mcp serve --listen 127.0.0.1:8787`                                    | Open `GET http://127.0.0.1:8787/mcp/sse` — read the first SSE `endpoint` event for the exact POST URL (includes `session`).               |
+| **Behind HTTPS / remote clients**   | `slyds mcp serve --listen 127.0.0.1:8787 --public-url https://your-host/mcp` | `--public-url` must be the **external** base clients use so the `endpoint` event’s POST URL is reachable. Add reverse proxy TLS in front. |
+| **Shared secret**                   | Add `--token SECRET`                                                         | Clients send `Authorization: Bearer SECRET` on SSE and POST.                                                                              |
 
 Fastest path for **Glean**: deploy `slyds mcp serve` behind your ingress, set `--public-url`, configure the client with the SSE URL (`…/mcp/sse`), pass **`cwd`** in each `tools/call` (same as stdio).
 
