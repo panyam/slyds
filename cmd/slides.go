@@ -7,7 +7,6 @@ import (
 	"regexp"
 	"strconv"
 	"strings"
-	"text/template"
 
 	"github.com/panyam/slyds/core"
 	"github.com/spf13/cobra"
@@ -278,63 +277,6 @@ func init() {
 
 
 
-// renderSlideFromTheme renders a slide using the embedded theme template.
-// It reads the theme from .slyds.yaml manifest in root (falling back to
-// "default"), then looks up the slide type in the theme's theme.yaml config
-// to find the correct template file.
-func renderSlideFromTheme(root, name, slideType string, number int, titleOverride ...string) (string, error) {
-	theme := "default"
-	if m, err := core.ReadManifest(root); err == nil && m.Theme != "" {
-		theme = m.Theme
-	}
-
-	cfg, err := core.LoadThemeConfig(theme)
-	if err != nil {
-		return "", err
-	}
-
-	tmplFile, err := cfg.TemplateForType(slideType)
-	if err != nil {
-		return "", err
-	}
-
-	// Title-case the name for display
-	displayName := strings.ReplaceAll(name, "-", " ")
-	words := strings.Fields(displayName)
-	for i, w := range words {
-		if len(w) > 0 {
-			words[i] = strings.ToUpper(w[:1]) + w[1:]
-		}
-	}
-	displayName = strings.Join(words, " ")
-
-	// Allow explicit title override
-	if len(titleOverride) > 0 && titleOverride[0] != "" {
-		displayName = titleOverride[0]
-	}
-
-	tmplPath := fmt.Sprintf("templates/%s/%s", theme, tmplFile)
-	content, err := core.TemplatesFS.ReadFile(tmplPath)
-	if err != nil {
-		return "", fmt.Errorf("slide template %q not found: %w", tmplFile, err)
-	}
-
-	tmpl, err := template.New(tmplFile).Parse(string(content))
-	if err != nil {
-		return "", fmt.Errorf("failed to parse slide template: %w", err)
-	}
-
-	data := map[string]any{
-		"Title":  displayName,
-		"Number": number,
-	}
-
-	var buf strings.Builder
-	if err := tmpl.Execute(&buf, data); err != nil {
-		return "", err
-	}
-	return buf.String(), nil
-}
 
 
 // resolveLayoutFlag resolves the layout name from --layout and deprecated --type flags.

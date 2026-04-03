@@ -9,38 +9,7 @@ import (
 	"github.com/panyam/slyds/core"
 )
 
-// TestRenderSlideFromThemeTwoColumn verifies that a two-column layout slide
-// can be rendered from the embedded theme template and contains the expected
-// CSS class and column structure.
-func TestRenderSlideFromThemeTwoColumn(t *testing.T) {
-	content, err := renderSlideFromTheme("", "architecture", "two-column", 3)
-	if err != nil {
-		t.Fatalf("renderSlideFromTheme(two-column) failed: %v", err)
-	}
 
-	if !strings.Contains(content, "layout-two-column") {
-		t.Error("two-column slide missing layout-two-column class")
-	}
-	if !strings.Contains(content, "col-left") {
-		t.Error("two-column slide missing col-left")
-	}
-	if !strings.Contains(content, "col-right") {
-		t.Error("two-column slide missing col-right")
-	}
-}
-
-// TestRenderSlideFromThemeSection verifies that a section divider slide
-// can be rendered and contains the expected CSS class.
-func TestRenderSlideFromThemeSection(t *testing.T) {
-	content, err := renderSlideFromTheme("", "part-two", "section", 4)
-	if err != nil {
-		t.Fatalf("renderSlideFromTheme(section) failed: %v", err)
-	}
-
-	if !strings.Contains(content, "section-slide") {
-		t.Error("section slide missing section-slide class")
-	}
-}
 
 // TestInitWithThemeFlag verifies that slyds init --theme creates a presentation
 // using the specified theme rather than the default.

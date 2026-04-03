@@ -48,41 +48,6 @@ func setupTestPresentation(t *testing.T) (string, func()) {
 
 
 
-func TestRenderSlideFromTheme(t *testing.T) {
-	content, err := renderSlideFromTheme("", "my-demo", "content", 5)
-	if err != nil {
-		t.Fatalf("renderSlideFromTheme failed: %v", err)
-	}
-
-	if !strings.Contains(content, `class="slide"`) {
-		t.Error("missing slide class")
-	}
-	if !strings.Contains(content, "Slide 5") {
-		t.Error("missing slide number")
-	}
-}
-
-func TestRenderSlideFromThemeTitle(t *testing.T) {
-	content, err := renderSlideFromTheme("", "intro", "title", 1)
-	if err != nil {
-		t.Fatalf("renderSlideFromTheme failed: %v", err)
-	}
-
-	if !strings.Contains(content, "title-slide") {
-		t.Error("missing title-slide class")
-	}
-}
-
-func TestRenderSlideFromThemeClosing(t *testing.T) {
-	content, err := renderSlideFromTheme("", "end", "closing", 10)
-	if err != nil {
-		t.Fatalf("renderSlideFromTheme failed: %v", err)
-	}
-
-	if !strings.Contains(content, "conclusion-slide") {
-		t.Error("missing conclusion-slide class")
-	}
-}
 
 
 
@@ -90,34 +55,8 @@ func TestRenderSlideFromThemeClosing(t *testing.T) {
 
 
 
-// TestRenderSlideFromThemeUsesManifest verifies that renderSlideFromTheme reads
-// the theme from .slyds.yaml instead of hardcoding "default". When a presentation
-// is created with theme "dark", new slides should use dark theme templates.
-func TestRenderSlideFromThemeUsesManifest(t *testing.T) {
-	tmp := t.TempDir()
-	origDir, _ := os.Getwd()
-	os.Chdir(tmp)
-	defer os.Chdir(origDir)
 
-	// Create a presentation with "dark" theme
-	_, err := core.CreateWithTheme("Dark Pres", 3, "dark")
-	if err != nil {
-		t.Fatalf("core.CreateWithTheme failed: %v", err)
-	}
-	presDir := filepath.Join(tmp, "dark-pres")
-	os.Chdir(presDir)
 
-	// renderSlideFromTheme should use "dark" theme from manifest
-	content, err := renderSlideFromTheme(presDir, "test-slide", "content", 2)
-	if err != nil {
-		t.Fatalf("renderSlideFromTheme failed: %v", err)
-	}
-
-	// Dark theme content template should produce valid slide content
-	if !strings.Contains(content, "slide") {
-		t.Error("expected slide content from dark theme")
-	}
-}
 
 
 

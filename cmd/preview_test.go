@@ -43,36 +43,6 @@ func TestPreviewScaffoldsFromDiskTheme(t *testing.T) {
 	}
 }
 
-// TestPreviewAddIncludeToIndex verifies that addIncludeToIndex correctly
-// inserts a templar include line before the navigation div.
-func TestPreviewAddIncludeToIndex(t *testing.T) {
-	tmp := t.TempDir()
-	indexPath := filepath.Join(tmp, "index.html")
-
-	indexHTML := `<div class="slideshow-container">
-    {{# include "slides/01-title.html" #}}
-    <div class="navigation">
-    </div>
-</div>`
-	os.WriteFile(indexPath, []byte(indexHTML), 0644)
-
-	err := addIncludeToIndex(indexPath, "02-custom.html")
-	if err != nil {
-		t.Fatalf("addIncludeToIndex failed: %v", err)
-	}
-
-	result, _ := os.ReadFile(indexPath)
-	if !strings.Contains(string(result), `"slides/02-custom.html"`) {
-		t.Error("include line not added")
-	}
-
-	// Should appear before navigation
-	navIdx := strings.Index(string(result), "navigation")
-	customIdx := strings.Index(string(result), "02-custom")
-	if customIdx > navIdx {
-		t.Error("include line added after navigation, should be before")
-	}
-}
 
 // TestLoadThemeConfigFromDir verifies that theme.yaml can be loaded from
 // a directory on disk (not from embedded FS).
