@@ -136,6 +136,8 @@ The CLI exposes machine-readable **`slyds introspect`** (layouts from `core/layo
 
 Integration tests (`cmd/mcp_http_test.go`) drive **`httptest.Server`** so responses flush like production (SSE depends on **`http.Flusher`**).
 
+**Planned migration**: The current hand-rolled MCP implementation will be replaced by [mcpkit](https://github.com/panyam/mcpkit) (`github.com/panyam/mcpkit`), which provides production-grade transports (SSE via servicekit's `SSEConn`/`SSEHub`, stdio, Streamable HTTP), constant-time bearer auth, tool timeout, allowed-roots, and observability. See mcpkit#9.
+
 Theme/manifest notes for remote agents: [docs/AGENT-THEMES.md](docs/AGENT-THEMES.md).
 
 ## Slide Lifecycle Hooks

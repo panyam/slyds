@@ -39,6 +39,9 @@ Generic `data-slot="floater"` with `.slide-floater` CSS for pinned overlays (foo
 ## Phase 9 — Slide Folders
 Support `slides/03-name/slide.html` with co-located assets (images, per-slide CSS). Auto-detect folder vs file slides.
 
+## Phase 9a — MCP migration to mcpkit (planned)
+Migrate hand-rolled MCP transport (`cmd/mcp.go`, `cmd/mcp_http.go`) to mcpkit (github.com/panyam/mcpkit). Fixes known issues: SSE write race condition, timing-vulnerable token comparison, no server timeouts, no subprocess timeout, no logging/metrics. See mcpkit#9.
+
 ## Future
 - Structured slide formats (YAML, JSON, MD) with format-aware query dispatch
 - Decouple slyds.js/css into independently publishable npm package (issue #12)
