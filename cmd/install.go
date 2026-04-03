@@ -20,7 +20,7 @@ Examples:
   slyds install github.com/someone/slyds-layout-timeline@main`,
 	Args: cobra.ExactArgs(1),
 	RunE: func(cmd *cobra.Command, args []string) error {
-		root, err := findRootIn(".")
+		root, err := core.FindDeckRoot(".")
 		if err != nil {
 			return err
 		}

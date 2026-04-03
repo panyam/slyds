@@ -84,7 +84,7 @@ func buildIntrospectDocument(dir string) (*IntrospectDocument, error) {
 		SchemaVersion:  IntrospectSchemaVersion,
 		RootResolution: `A presentation root is a directory containing index.html. Commands that accept [dir] find the nearest ancestor with index.html starting from the given path.`,
 		Layouts:        nil,
-		ThemesBuiltin:  availableThemeNames(),
+		ThemesBuiltin:  core.AvailableThemeNames(),
 		Commands:       agentCommandCatalog(),
 	}
 
@@ -107,7 +107,7 @@ func buildIntrospectDocument(dir string) (*IntrospectDocument, error) {
 		})
 	}
 
-	root, err := findRootIn(dir)
+	root, err := core.FindDeckRoot(dir)
 	if err != nil {
 		return doc, nil
 	}

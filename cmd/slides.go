@@ -4,9 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"os"
-	"path/filepath"
 	"regexp"
-	"sort"
 	"strconv"
 	"strings"
 	"text/template"
@@ -218,19 +216,6 @@ after insertion to maintain consistent NN-name.html naming.`,
 	},
 }
 
-// renderSlideContent renders the HTML for a new slide using the layout template system,
-// falling back to legacy theme-based rendering.
-func renderSlideContent(d *core.Deck, name, layoutName string, number int, titleOverride string) (string, error) {
-	content, err := renderSlideFromLayout(name, layoutName, number, titleOverride)
-	if err != nil {
-		// Fall back to legacy theme rendering
-		content, err = renderSlideFromTheme(d.Theme(), name, layoutName, number, titleOverride)
-		if err != nil {
-			return "", err
-		}
-	}
-	return content, nil
-}
 
 var slugifyCmd = &cobra.Command{
 	Use:   "slugify [dir]",
@@ -265,66 +250,6 @@ Slides without an <h1> or whose slug already matches are left unchanged.`,
 	},
 }
 
-// renameToSlugs reads each slide's <h1> content, slugifies it, and renames
-// files + updates index.html via DeckFS. Returns the number of slides renamed.
-func renameToSlugs(d *core.Deck) (int, error) {
-	slides, err := d.SlideFilenames()
-	if err != nil {
-		return 0, err
-	}
-
-	usedSlugs := make(map[string]int)
-	newNames := make([]string, len(slides))
-	renamed := 0
-
-	for i, filename := range slides {
-		content, _ := d.GetSlideContent(i + 1)
-		heading := core.ExtractFirstHeading(content)
-		if heading == "" {
-			newNames[i] = filename
-			namePart := core.ExtractNamePart(filename)
-			slug := strings.TrimSuffix(namePart, ".html")
-			usedSlugs[slug]++
-			continue
-		}
-
-		slug := core.Slugify(heading)
-		usedSlugs[slug]++
-		if usedSlugs[slug] > 1 {
-			slug = fmt.Sprintf("%s-%d", slug, usedSlugs[slug])
-		}
-
-		newName := fmt.Sprintf("%02d-%s.html", i+1, slug)
-		newNames[i] = newName
-		if newName != filename {
-			renamed++
-		}
-	}
-
-	if renamed == 0 {
-		return 0, nil
-	}
-
-	// Rename via temp to avoid collisions (all through DeckFS)
-	type renamePair struct{ from, to string }
-	var renames []renamePair
-	for i, oldName := range slides {
-		if newNames[i] != oldName {
-			renames = append(renames, renamePair{oldName, newNames[i]})
-		}
-	}
-	for _, r := range renames {
-		d.FS.Rename("slides/"+r.from, "slides/"+r.from+".tmp")
-	}
-	for _, r := range renames {
-		d.FS.Rename("slides/"+r.from+".tmp", "slides/"+r.to)
-	}
-
-	// Rebuild index.html with new names via DeckFS
-	d.RewriteSlideOrder(newNames)
-
-	return renamed, nil
-}
 
 func init() {
 	addCmd.Flags().IntVar(&slideAfter, "after", 0, "insert after slide N")
@@ -347,85 +272,11 @@ func init() {
 	rootCmd.AddCommand(slugifyCmd)
 }
 
-// extractNamePart strips the numeric prefix (e.g., "01-") from a slide filename,
-// returning just the name portion. For files without a numeric prefix (e.g.,
-// "blah.html" or "my-intro.html"), returns the filename unchanged.
-func extractNamePart(filename string) string {
-	if m := numPrefixRe.FindStringSubmatch(filename); m != nil {
-		return m[2]
-	}
-	return filename
-}
 
-// listSlidesFromIndex returns slide filenames in the order they appear in
-// index.html include directives. This is the canonical ordering source.
-// Falls back to filesystem listing if index.html has no includes.
-func listSlidesFromIndex(root string) ([]string, error) {
-	indexPath := filepath.Join(root, "index.html")
-	data, err := os.ReadFile(indexPath)
-	if err != nil {
-		return nil, err
-	}
 
-	var slides []string
-	for _, line := range strings.Split(string(data), "\n") {
-		if m := includeRe.FindStringSubmatch(line); m != nil {
-			// m[1] is "slides/filename.html", strip the "slides/" prefix
-			name := strings.TrimPrefix(m[1], "slides/")
-			slides = append(slides, name)
-		}
-	}
 
-	if len(slides) == 0 {
-		// Fallback to filesystem
-		return listSlideFiles(root), nil
-	}
-	return slides, nil
-}
 
-func findRoot() (string, error) {
-	return findRootIn(".")
-}
 
-func findRootIn(dir string) (string, error) {
-	root, err := filepath.Abs(dir)
-	if err != nil {
-		return "", err
-	}
-	if _, err := os.Stat(filepath.Join(root, "index.html")); os.IsNotExist(err) {
-		return "", fmt.Errorf("no index.html found in %s — is this a slyds presentation? Run 'slyds init' to create one", root)
-	}
-	return root, nil
-}
-
-func listSlideFiles(root string) []string {
-	slidesDir := filepath.Join(root, "slides")
-	entries, err := os.ReadDir(slidesDir)
-	if err != nil {
-		return nil
-	}
-	var files []string
-	for _, e := range entries {
-		if !e.IsDir() && strings.HasSuffix(e.Name(), ".html") {
-			files = append(files, e.Name())
-		}
-	}
-	sort.Strings(files)
-	return files
-}
-
-func extractFirstHeading(filePath string) string {
-	data, err := os.ReadFile(filePath)
-	if err != nil {
-		return ""
-	}
-	re := regexp.MustCompile(`<h1[^>]*>(.*?)</h1>`)
-	m := re.FindSubmatch(data)
-	if m != nil {
-		return string(m[1])
-	}
-	return ""
-}
 
 // renderSlideFromTheme renders a slide using the embedded theme template.
 // It reads the theme from .slyds.yaml manifest in root (falling back to
@@ -485,60 +336,6 @@ func renderSlideFromTheme(root, name, slideType string, number int, titleOverrid
 	return buf.String(), nil
 }
 
-func rewriteSlidesAndIndex(root string, orderedFiles []string) error {
-	slidesDir := filepath.Join(root, "slides")
-
-	// First, rename to temp names to avoid conflicts
-	type rename struct{ from, to string }
-	var renames []rename
-
-	for i, oldName := range orderedFiles {
-		namePart := extractNamePart(oldName)
-		newName := fmt.Sprintf("%02d-%s", i+1, namePart)
-		if oldName != newName {
-			renames = append(renames, rename{oldName, newName})
-		}
-		orderedFiles[i] = newName
-	}
-
-	// Rename via temp to avoid collisions
-	for _, r := range renames {
-		tmpName := r.from + ".tmp"
-		os.Rename(filepath.Join(slidesDir, r.from), filepath.Join(slidesDir, tmpName))
-	}
-	for _, r := range renames {
-		tmpName := r.from + ".tmp"
-		os.Rename(filepath.Join(slidesDir, tmpName), filepath.Join(slidesDir, r.to))
-	}
-
-	// Rebuild include lines in index.html
-	indexPath := filepath.Join(root, "index.html")
-	indexHTML, err := os.ReadFile(indexPath)
-	if err != nil {
-		return err
-	}
-
-	lines := strings.Split(string(indexHTML), "\n")
-	var newLines []string
-	includeInserted := false
-
-	for _, line := range lines {
-		if includeRe.MatchString(line) {
-			if !includeInserted {
-				// Insert all includes at the position of the first include
-				for _, f := range orderedFiles {
-					newLines = append(newLines, fmt.Sprintf(`    {{# include "slides/%s" #}}`, f))
-				}
-				includeInserted = true
-			}
-			// Skip old include lines
-			continue
-		}
-		newLines = append(newLines, line)
-	}
-
-	return os.WriteFile(indexPath, []byte(strings.Join(newLines, "\n")), 0644)
-}
 
 // resolveLayoutFlag resolves the layout name from --layout and deprecated --type flags.
 // If --type is set (non-empty), it maps to a layout name and prints a deprecation warning.
@@ -553,28 +350,6 @@ func resolveLayoutFlag(layoutFlag, typeFlag string) string {
 	return layoutFlag
 }
 
-// renderSlideFromLayout renders a slide using the layout template system.
-// This is the preferred method for creating new slides (Phase 2+).
-func renderSlideFromLayout(name, layoutName string, number int, titleOverride string) (string, error) {
-	displayName := strings.ReplaceAll(name, "-", " ")
-	words := strings.Fields(displayName)
-	for i, w := range words {
-		if len(w) > 0 {
-			words[i] = strings.ToUpper(w[:1]) + w[1:]
-		}
-	}
-	displayName = strings.Join(words, " ")
-
-	if titleOverride != "" {
-		displayName = titleOverride
-	}
-
-	data := map[string]any{
-		"Title":  displayName,
-		"Number": number,
-	}
-	return core.Render(layoutName, data)
-}
 
 // readSlotsFile reads a JSON slots file and returns the slot name → HTML map.
 func readSlotsFile(path string) (map[string]string, error) {
@@ -589,12 +364,3 @@ func readSlotsFile(path string) (map[string]string, error) {
 	return m, nil
 }
 
-// detectSlideLayout reads a slide file and detects its layout from the
-// data-layout attribute or legacy CSS classes.
-func detectSlideLayout(path string) string {
-	data, err := os.ReadFile(path)
-	if err != nil {
-		return "content"
-	}
-	return core.DetectLayout(string(data))
-}

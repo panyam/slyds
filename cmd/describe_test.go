@@ -1,12 +1,23 @@
 package cmd
 
 import (
-	"encoding/json"
 	"os"
 	"path/filepath"
+	"github.com/panyam/slyds/core"
+	"encoding/json"
 	"strings"
 	"testing"
 )
+
+// openAndDescribe opens a Deck from root and calls Describe.
+func openAndDescribe(t *testing.T, root string) (*core.DeckDescription, error) {
+	t.Helper()
+	d, err := core.OpenDeckDir(root)
+	if err != nil {
+		return nil, err
+	}
+	return d.Describe()
+}
 
 // TestDescribeDeck verifies that describeDeck returns a complete structured
 // summary of a freshly scaffolded presentation, including correct slide count,
@@ -15,7 +26,7 @@ func TestDescribeDeck(t *testing.T) {
 	root, cleanup := setupTestPresentation(t)
 	defer cleanup()
 
-	desc, err := describeDeck(root)
+	desc, err := openAndDescribe(t, root)
 	if err != nil {
 		t.Fatalf("describeDeck failed: %v", err)
 	}
@@ -45,7 +56,7 @@ func TestDescribeSlideMetadata(t *testing.T) {
 	root, cleanup := setupTestPresentation(t)
 	defer cleanup()
 
-	desc, err := describeDeck(root)
+	desc, err := openAndDescribe(t, root)
 	if err != nil {
 		t.Fatalf("describeDeck failed: %v", err)
 	}
@@ -82,7 +93,7 @@ func TestDescribeDetectsLayouts(t *testing.T) {
 	root, cleanup := setupTestPresentation(t)
 	defer cleanup()
 
-	desc, err := describeDeck(root)
+	desc, err := openAndDescribe(t, root)
 	if err != nil {
 		t.Fatalf("describeDeck failed: %v", err)
 	}
@@ -107,7 +118,7 @@ func TestDescribeSpeakerNotes(t *testing.T) {
 	root, cleanup := setupTestPresentation(t)
 	defer cleanup()
 
-	desc, err := describeDeck(root)
+	desc, err := openAndDescribe(t, root)
 	if err != nil {
 		t.Fatalf("describeDeck failed: %v", err)
 	}
@@ -126,7 +137,7 @@ func TestDescribeWordCount(t *testing.T) {
 	root, cleanup := setupTestPresentation(t)
 	defer cleanup()
 
-	desc, err := describeDeck(root)
+	desc, err := openAndDescribe(t, root)
 	if err != nil {
 		t.Fatalf("describeDeck failed: %v", err)
 	}
@@ -144,7 +155,7 @@ func TestDescribeJSONOutput(t *testing.T) {
 	root, cleanup := setupTestPresentation(t)
 	defer cleanup()
 
-	desc, err := describeDeck(root)
+	desc, err := openAndDescribe(t, root)
 	if err != nil {
 		t.Fatalf("describeDeck failed: %v", err)
 	}
@@ -174,7 +185,7 @@ func TestDescribeWithInsertedSlide(t *testing.T) {
 		t.Fatalf("runInsert failed: %v", err)
 	}
 
-	desc, err := describeDeck(root)
+	desc, err := openAndDescribe(t, root)
 	if err != nil {
 		t.Fatalf("describeDeck failed: %v", err)
 	}

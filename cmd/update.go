@@ -32,7 +32,7 @@ you will be prompted to enter the theme and title.`,
 			return err
 		}
 
-		if _, err := findRootIn(dir); err != nil {
+		if _, err := core.FindDeckRoot(dir); err != nil {
 			return err
 		}
 

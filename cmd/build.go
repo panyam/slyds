@@ -18,7 +18,7 @@ var buildCmd = &cobra.Command{
 		if len(args) > 0 {
 			dir = args[0]
 		}
-		root, err := findRootIn(dir)
+		root, err := core.FindDeckRoot(dir)
 		if err != nil {
 			return err
 		}
