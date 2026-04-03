@@ -12,8 +12,6 @@ import (
 	"text/template"
 
 	"github.com/panyam/slyds/core"
-	"github.com/panyam/slyds/internal/layout"
-	"github.com/panyam/slyds/internal/scaffold"
 	"github.com/spf13/cobra"
 )
 
@@ -36,13 +34,13 @@ var addCmd = &cobra.Command{
 	Short: "Add a new slide",
 	Args:  cobra.ExactArgs(1),
 	RunE: func(cmd *cobra.Command, args []string) error {
-		name := scaffold.Slugify(args[0])
-		root, err := findRoot()
+		name := core.Slugify(args[0])
+		d, err := core.OpenDeckCwd()
 		if err != nil {
 			return err
 		}
 
-		existing, err := listSlidesFromIndex(root)
+		existing, err := d.SlideFilenames()
 		if err != nil {
 			return err
 		}
@@ -57,17 +55,23 @@ var addCmd = &cobra.Command{
 		}
 
 		layoutName := resolveLayoutFlag(slideLayout, slideType)
-		if err := runInsert(root, position, name, layoutName, ""); err != nil {
+		content, err := renderSlideContent(d, name, layoutName, position, "")
+		if err != nil {
+			return err
+		}
+
+		filename := fmt.Sprintf("%02d-%s.html", position, name)
+		if err := d.AddSlide(position, filename, content); err != nil {
 			return err
 		}
 
 		if slotsFileAdd != "" {
-			if err := applySlotsFile(root, position, slotsFileAdd); err != nil {
+			if err := applySlotsFile(d, position, slotsFileAdd); err != nil {
 				return err
 			}
 		}
 
-		slides, _ := listSlidesFromIndex(root)
+		slides, _ := d.SlideFilenames()
 		fmt.Printf("Added slide: slides/%s\n", slides[position-1])
 		return nil
 	},
@@ -78,26 +82,24 @@ var rmCmd = &cobra.Command{
 	Short: "Remove a slide",
 	Args:  cobra.ExactArgs(1),
 	RunE: func(cmd *cobra.Command, args []string) error {
-		root, err := findRoot()
+		d, err := core.OpenDeckCwd()
 		if err != nil {
 			return err
 		}
 
 		target := args[0]
-		existing, err := listSlidesFromIndex(root)
+		existing, err := d.SlideFilenames()
 		if err != nil {
 			return err
 		}
 
 		var slideFile string
-		// Try as number first
 		if num, err := strconv.Atoi(target); err == nil {
 			if num < 1 || num > len(existing) {
 				return fmt.Errorf("slide %d out of range (have %d slides)", num, len(existing))
 			}
 			slideFile = existing[num-1]
 		} else {
-			// Try as name match
 			for _, f := range existing {
 				if strings.Contains(f, target) {
 					slideFile = f
@@ -110,21 +112,7 @@ var rmCmd = &cobra.Command{
 			return fmt.Errorf("slide %q not found", target)
 		}
 
-		// Remove the file
-		slidePath := filepath.Join(root, "slides", slideFile)
-		if err := os.Remove(slidePath); err != nil && !os.IsNotExist(err) {
-			return err
-		}
-
-		// Remove from ordering and renumber
-		var remaining []string
-		for _, f := range existing {
-			if f != slideFile {
-				remaining = append(remaining, f)
-			}
-		}
-
-		if err := rewriteSlidesAndIndex(root, remaining); err != nil {
+		if err := d.RemoveSlide(slideFile); err != nil {
 			return err
 		}
 
@@ -138,7 +126,7 @@ var mvCmd = &cobra.Command{
 	Short: "Move/reorder a slide",
 	Args:  cobra.ExactArgs(2),
 	RunE: func(cmd *cobra.Command, args []string) error {
-		root, err := findRoot()
+		d, err := core.OpenDeckCwd()
 		if err != nil {
 			return err
 		}
@@ -152,27 +140,7 @@ var mvCmd = &cobra.Command{
 			return fmt.Errorf("to must be a slide number: %w", err)
 		}
 
-		existing, err := listSlidesFromIndex(root)
-		if err != nil {
-			return err
-		}
-		if from < 1 || from > len(existing) || to < 1 || to > len(existing) {
-			return fmt.Errorf("slide numbers out of range (have %d slides)", len(existing))
-		}
-
-		// Reorder the slice
-		item := existing[from-1]
-		// Remove from old position
-		existing = append(existing[:from-1], existing[from:]...)
-		// Insert at new position
-		if to-1 >= len(existing) {
-			existing = append(existing, item)
-		} else {
-			existing = append(existing[:to-1], append([]string{item}, existing[to-1:]...)...)
-		}
-
-		// Rename files and update index
-		return rewriteSlidesAndIndex(root, existing)
+		return d.MoveSlide(from, to)
 	},
 }
 
@@ -185,12 +153,12 @@ var lsCmd = &cobra.Command{
 		if len(args) > 0 {
 			dir = args[0]
 		}
-		root, err := findRootIn(dir)
+		d, err := core.OpenDeckDir(dir)
 		if err != nil {
 			return err
 		}
 
-		slides, err := listSlidesFromIndex(root)
+		slides, err := d.SlideFilenames()
 		if err != nil {
 			return err
 		}
@@ -200,9 +168,9 @@ var lsCmd = &cobra.Command{
 		}
 
 		for i, f := range slides {
-			slidePath := filepath.Join(root, "slides", f)
-			heading := extractFirstHeading(slidePath)
-			slideLayout := detectSlideLayout(slidePath)
+			content, _ := d.GetSlideContent(i + 1)
+			heading := core.ExtractFirstHeading(content)
+			slideLayout := core.DetectLayout(content)
 			fmt.Printf("  %2d. %-30s [%-8s] %s\n", i+1, f, slideLayout, heading)
 		}
 		return nil
@@ -224,72 +192,48 @@ after insertion to maintain consistent NN-name.html naming.`,
 		if err != nil {
 			return fmt.Errorf("position must be an integer: %w", err)
 		}
-		name := scaffold.Slugify(args[1])
+		name := core.Slugify(args[1])
 
-		root, err := findRoot()
+		d, err := core.OpenDeckCwd()
 		if err != nil {
 			return err
 		}
 
 		layoutName := resolveLayoutFlag(insertLayout, insertType)
-		if err := runInsert(root, pos, name, layoutName, insertTitle); err != nil {
+		content, err := renderSlideContent(d, name, layoutName, pos, insertTitle)
+		if err != nil {
+			return err
+		}
+
+		filename := fmt.Sprintf("%02d-%s.html", pos, name)
+		if err := d.AddSlide(pos, filename, content); err != nil {
 			return err
 		}
 
 		if slotsFileInsert != "" {
-			if err := applySlotsFile(root, pos, slotsFileInsert); err != nil {
+			if err := applySlotsFile(d, pos, slotsFileInsert); err != nil {
 				return err
 			}
 		}
 
-		slides, _ := listSlidesFromIndex(root)
+		slides, _ := d.SlideFilenames()
 		fmt.Printf("Inserted slide %d of %d: slides/%s\n", pos, len(slides), slides[pos-1])
 		return nil
 	},
 }
 
-// runInsert is the core logic for inserting a slide at a given position.
-// It reads ordering from index.html, creates the new slide file, inserts it
-// into the ordering, and renumbers all slides + rebuilds index.html.
-// The layoutName parameter selects the structural layout template.
-func runInsert(root string, position int, name, layoutName, title string) error {
-	existing, err := listSlidesFromIndex(root)
+// renderSlideContent renders the HTML for a new slide using the layout template system,
+// falling back to legacy theme-based rendering.
+func renderSlideContent(d *core.Deck, name, layoutName string, number int, titleOverride string) (string, error) {
+	content, err := renderSlideFromLayout(name, layoutName, number, titleOverride)
 	if err != nil {
-		return err
-	}
-
-	if position < 1 || position > len(existing)+1 {
-		return fmt.Errorf("position %d out of range (have %d slides, valid range 1-%d)", position, len(existing), len(existing)+1)
-	}
-
-	// Create a temporary filename (will be renumbered by rewriteSlidesAndIndex)
-	tmpFileName := fmt.Sprintf("%02d-%s.html", position, name)
-	slidePath := filepath.Join(root, "slides", tmpFileName)
-
-	// Render slide from layout template
-	content, err := renderSlideFromLayout(name, layoutName, position, title)
-	if err != nil {
-		// Fall back to legacy theme-based rendering for backward compatibility
-		content, err = renderSlideFromTheme(root, name, layoutName, position, title)
+		// Fall back to legacy theme rendering
+		content, err = renderSlideFromTheme(d.Theme(), name, layoutName, number, titleOverride)
 		if err != nil {
-			return err
+			return "", err
 		}
 	}
-	if err := os.MkdirAll(filepath.Join(root, "slides"), 0755); err != nil {
-		return err
-	}
-	if err := os.WriteFile(slidePath, []byte(content), 0644); err != nil {
-		return err
-	}
-
-	// Build new ordered list with the insertion
-	newOrder := make([]string, 0, len(existing)+1)
-	newOrder = append(newOrder, existing[:position-1]...)
-	newOrder = append(newOrder, tmpFileName)
-	newOrder = append(newOrder, existing[position-1:]...)
-
-	// Renumber everything and rebuild index.html
-	return rewriteSlidesAndIndex(root, newOrder)
+	return content, nil
 }
 
 var slugifyCmd = &cobra.Command{
@@ -306,12 +250,12 @@ Slides without an <h1> or whose slug already matches are left unchanged.`,
 		if len(args) > 0 {
 			dir = args[0]
 		}
-		root, err := findRootIn(dir)
+		d, err := core.OpenDeckDir(dir)
 		if err != nil {
 			return err
 		}
 
-		renamed, err := renameToSlugs(root)
+		renamed, err := d.SlugifySlides(core.Slugify)
 		if err != nil {
 			return err
 		}
@@ -326,31 +270,29 @@ Slides without an <h1> or whose slug already matches are left unchanged.`,
 }
 
 // renameToSlugs reads each slide's <h1> content, slugifies it, and renames
-// files + updates index.html. Returns the number of slides renamed.
-// Slides without an <h1> or whose slug already matches are left unchanged.
-func renameToSlugs(root string) (int, error) {
-	slides, err := listSlidesFromIndex(root)
+// files + updates index.html via DeckFS. Returns the number of slides renamed.
+func renameToSlugs(d *core.Deck) (int, error) {
+	slides, err := d.SlideFilenames()
 	if err != nil {
 		return 0, err
 	}
 
-	// Build new names, tracking used slugs for deduplication
 	usedSlugs := make(map[string]int)
 	newNames := make([]string, len(slides))
 	renamed := 0
 
 	for i, filename := range slides {
-		heading := extractFirstHeading(filepath.Join(root, "slides", filename))
+		content, _ := d.GetSlideContent(i + 1)
+		heading := core.ExtractFirstHeading(content)
 		if heading == "" {
-			// No h1 — keep existing name
 			newNames[i] = filename
-			namePart := extractNamePart(filename)
+			namePart := core.ExtractNamePart(filename)
 			slug := strings.TrimSuffix(namePart, ".html")
 			usedSlugs[slug]++
 			continue
 		}
 
-		slug := scaffold.Slugify(heading)
+		slug := core.Slugify(heading)
 		usedSlugs[slug]++
 		if usedSlugs[slug] > 1 {
 			slug = fmt.Sprintf("%s-%d", slug, usedSlugs[slug])
@@ -367,12 +309,7 @@ func renameToSlugs(root string) (int, error) {
 		return 0, nil
 	}
 
-	// Use the existing rewrite infrastructure — but we need to rename
-	// files directly since rewriteSlidesAndIndex expects the files to
-	// exist with their OLD names and renames them.
-	slidesDir := filepath.Join(root, "slides")
-
-	// Rename via temp to avoid collisions
+	// Rename via temp to avoid collisions (all through DeckFS)
 	type renamePair struct{ from, to string }
 	var renames []renamePair
 	for i, oldName := range slides {
@@ -381,39 +318,14 @@ func renameToSlugs(root string) (int, error) {
 		}
 	}
 	for _, r := range renames {
-		os.Rename(filepath.Join(slidesDir, r.from), filepath.Join(slidesDir, r.from+".tmp"))
+		d.FS.Rename("slides/"+r.from, "slides/"+r.from+".tmp")
 	}
 	for _, r := range renames {
-		os.Rename(filepath.Join(slidesDir, r.from+".tmp"), filepath.Join(slidesDir, r.to))
+		d.FS.Rename("slides/"+r.from+".tmp", "slides/"+r.to)
 	}
 
-	// Rebuild index.html with new names
-	indexPath := filepath.Join(root, "index.html")
-	indexHTML, err := os.ReadFile(indexPath)
-	if err != nil {
-		return 0, err
-	}
-
-	lines := strings.Split(string(indexHTML), "\n")
-	var newLines []string
-	includeInserted := false
-
-	for _, line := range lines {
-		if includeRe.MatchString(line) {
-			if !includeInserted {
-				for _, f := range newNames {
-					newLines = append(newLines, fmt.Sprintf(`    {{# include "slides/%s" #}}`, f))
-				}
-				includeInserted = true
-			}
-			continue
-		}
-		newLines = append(newLines, line)
-	}
-
-	if err := os.WriteFile(indexPath, []byte(strings.Join(newLines, "\n")), 0644); err != nil {
-		return 0, err
-	}
+	// Rebuild index.html with new names via DeckFS
+	d.RewriteSlideOrder(newNames)
 
 	return renamed, nil
 }
@@ -525,11 +437,11 @@ func extractFirstHeading(filePath string) string {
 // to find the correct template file.
 func renderSlideFromTheme(root, name, slideType string, number int, titleOverride ...string) (string, error) {
 	theme := "default"
-	if m, err := scaffold.ReadManifest(root); err == nil && m.Theme != "" {
+	if m, err := core.ReadManifest(root); err == nil && m.Theme != "" {
 		theme = m.Theme
 	}
 
-	cfg, err := scaffold.LoadThemeConfig(theme)
+	cfg, err := core.LoadThemeConfig(theme)
 	if err != nil {
 		return "", err
 	}
@@ -638,7 +550,7 @@ func rewriteSlidesAndIndex(root string, orderedFiles []string) error {
 func resolveLayoutFlag(layoutFlag, typeFlag string) string {
 	if typeFlag != "" && layoutFlag == "content" {
 		// --type was explicitly set and --layout was left at default
-		resolved, _ := layout.ResolveType(typeFlag)
+		resolved, _ := core.ResolveType(typeFlag)
 		fmt.Fprintf(os.Stderr, "Warning: --type is deprecated, use --layout %s instead\n", resolved)
 		return resolved
 	}
@@ -665,11 +577,11 @@ func renderSlideFromLayout(name, layoutName string, number int, titleOverride st
 		"Title":  displayName,
 		"Number": number,
 	}
-	return layout.Render(layoutName, data)
+	return core.Render(layoutName, data)
 }
 
 // applySlotsFile sets inner HTML for each [data-slot] from a JSON object { "slotName": "<html>..." }.
-func applySlotsFile(root string, slidePosition int, path string) error {
+func applySlotsFile(d *core.Deck, slidePosition int, path string) error {
 	data, err := os.ReadFile(path)
 	if err != nil {
 		return fmt.Errorf("slots-file: %w", err)
@@ -682,7 +594,7 @@ func applySlotsFile(root string, slidePosition int, path string) error {
 	for slot, html := range m {
 		h := html
 		sel := `[data-slot="` + strings.ReplaceAll(slot, `"`, `\"`) + `"]`
-		if _, err := runQuery(root, ref, sel, QueryOpts{SetHTML: &h}); err != nil {
+		if _, err := d.Query(ref, sel, core.QueryOpts{SetHTML: &h}); err != nil {
 			return fmt.Errorf("slot %q: %w", slot, err)
 		}
 	}
@@ -696,5 +608,5 @@ func detectSlideLayout(path string) string {
 	if err != nil {
 		return "content"
 	}
-	return layout.DetectLayout(string(data))
+	return core.DetectLayout(string(data))
 }

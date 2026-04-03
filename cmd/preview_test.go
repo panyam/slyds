@@ -6,7 +6,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/panyam/slyds/internal/scaffold"
+	"github.com/panyam/slyds/core"
 )
 
 // TestPreviewScaffoldsFromDiskTheme verifies that CreateFromDir can scaffold
@@ -19,7 +19,7 @@ func TestPreviewScaffoldsFromDiskTheme(t *testing.T) {
 
 	// Scaffold a presentation from it
 	outDir := filepath.Join(t.TempDir(), "preview-test")
-	err := scaffold.CreateFromDir(outDir, "Preview Test", 3, themeDir)
+	err := core.CreateFromDir(outDir, "Preview Test", 3, themeDir)
 	if err != nil {
 		t.Fatalf("CreateFromDir failed: %v", err)
 	}
@@ -80,7 +80,7 @@ func TestLoadThemeConfigFromDir(t *testing.T) {
 	themeDir := t.TempDir()
 	writeTestTheme(t, themeDir)
 
-	cfg, err := scaffold.LoadThemeConfigFromDir(themeDir)
+	cfg, err := core.LoadThemeConfigFromDir(themeDir)
 	if err != nil {
 		t.Fatalf("LoadThemeConfigFromDir failed: %v", err)
 	}

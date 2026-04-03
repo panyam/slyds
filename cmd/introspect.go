@@ -5,8 +5,7 @@ import (
 	"path/filepath"
 	"sort"
 
-	"github.com/panyam/slyds/internal/layout"
-	"github.com/panyam/slyds/internal/scaffold"
+	"github.com/panyam/slyds/core"
 	"github.com/spf13/cobra"
 )
 
@@ -89,7 +88,7 @@ func buildIntrospectDocument(dir string) (*IntrospectDocument, error) {
 		Commands:       agentCommandCatalog(),
 	}
 
-	reg, err := layout.LoadRegistry()
+	reg, err := core.LoadRegistry()
 	if err != nil {
 		return nil, err
 	}
@@ -113,7 +112,7 @@ func buildIntrospectDocument(dir string) (*IntrospectDocument, error) {
 		return doc, nil
 	}
 	absDir, _ := filepath.Abs(dir)
-	manifest, manErr := scaffold.ReadManifest(root)
+	manifest, manErr := core.ReadManifest(root)
 	var im *IntrospectManifest
 	if manErr == nil && manifest != nil {
 		im = &IntrospectManifest{
@@ -122,7 +121,7 @@ func buildIntrospectDocument(dir string) (*IntrospectDocument, error) {
 			HasSources: manifest.HasSources(),
 			ModulesDir: manifest.ModulesDir,
 		}
-	} else if manErr != nil && manErr != scaffold.ErrManifestNotFound {
+	} else if manErr != nil && manErr != core.ErrManifestNotFound {
 		return nil, manErr
 	}
 	doc.Deck = &DeckContext{

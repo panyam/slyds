@@ -7,8 +7,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/panyam/slyds/internal/builder"
-	"github.com/panyam/slyds/internal/scaffold"
+	"github.com/panyam/slyds/core"
 )
 
 // exampleDeck describes an expected example presentation for table-driven tests.
@@ -82,7 +81,7 @@ func TestExampleManifest(t *testing.T) {
 
 	for _, deck := range decks {
 		t.Run(deck.dir, func(t *testing.T) {
-			m, err := scaffold.ReadManifest(filepath.Join(root, deck.dir))
+			m, err := core.ReadManifest(filepath.Join(root, deck.dir))
 			if err != nil {
 				t.Fatalf("ReadManifest failed: %v", err)
 			}
@@ -126,7 +125,7 @@ func TestExampleBuild(t *testing.T) {
 	for _, deck := range decks {
 		t.Run(deck.dir, func(t *testing.T) {
 			deckDir := filepath.Join(root, deck.dir)
-			result, err := builder.Build(deckDir)
+			result, err := core.Build(deckDir)
 			if err != nil {
 				t.Fatalf("Build failed: %v", err)
 			}
@@ -216,7 +215,7 @@ func TestExampleBuildContainsTimer(t *testing.T) {
 
 	for _, deck := range decks {
 		t.Run(deck.dir, func(t *testing.T) {
-			result, err := builder.Build(filepath.Join(root, deck.dir))
+			result, err := core.Build(filepath.Join(root, deck.dir))
 			if err != nil {
 				t.Fatalf("Build failed: %v", err)
 			}

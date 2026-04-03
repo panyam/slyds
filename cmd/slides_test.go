@@ -7,7 +7,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/panyam/slyds/internal/scaffold"
+	"github.com/panyam/slyds/core"
 )
 
 // setupTestPresentation creates a test presentation in a temp dir and chdir into it.
@@ -17,9 +17,9 @@ func setupTestPresentation(t *testing.T) (string, func()) {
 	origDir, _ := os.Getwd()
 	os.Chdir(tmp)
 
-	_, err := scaffold.Create("Test Pres", 4)
+	_, err := core.Create("Test Pres", 4)
 	if err != nil {
-		t.Fatalf("scaffold.Create failed: %v", err)
+		t.Fatalf("core.Create failed: %v", err)
 	}
 	presDir := filepath.Join(tmp, "test-pres")
 	os.Chdir(presDir)
@@ -278,9 +278,9 @@ func TestRenderSlideFromThemeUsesManifest(t *testing.T) {
 	defer os.Chdir(origDir)
 
 	// Create a presentation with "dark" theme
-	_, err := scaffold.CreateWithTheme("Dark Pres", 3, "dark")
+	_, err := core.CreateWithTheme("Dark Pres", 3, "dark")
 	if err != nil {
-		t.Fatalf("scaffold.CreateWithTheme failed: %v", err)
+		t.Fatalf("core.CreateWithTheme failed: %v", err)
 	}
 	presDir := filepath.Join(tmp, "dark-pres")
 	os.Chdir(presDir)
@@ -305,7 +305,7 @@ func TestInsertAtBeginning(t *testing.T) {
 	defer cleanup()
 
 	// Presentation has 4 slides: 01-title, 02-slide, 03-slide, 04-closing
-	err := runInsert(root, 1, "opening", "content", "")
+	d, _ := core.OpenDeckDir(root); err := d.AddSlide(1, fmt.Sprintf("%02d-opening.html", 1), "<section><h1>opening</h1></section>")
 	if err != nil {
 		t.Fatalf("insert at beginning failed: %v", err)
 	}
@@ -339,7 +339,7 @@ func TestInsertAtMiddle(t *testing.T) {
 	root, cleanup := setupTestPresentation(t)
 	defer cleanup()
 
-	err := runInsert(root, 3, "interlude", "content", "")
+	d, _ := core.OpenDeckDir(root); err := d.AddSlide(3, fmt.Sprintf("%02d-interlude.html", 3), "<section><h1>interlude</h1></section>")
 	if err != nil {
 		t.Fatalf("insert at middle failed: %v", err)
 	}
@@ -370,7 +370,7 @@ func TestInsertAtEnd(t *testing.T) {
 	defer cleanup()
 
 	// Insert at position 5 (after all 4 existing slides)
-	err := runInsert(root, 5, "bonus", "content", "")
+	d, _ := core.OpenDeckDir(root); err := d.AddSlide(5, fmt.Sprintf("%02d-bonus.html", 5), "<section><h1>bonus</h1></section>")
 	if err != nil {
 		t.Fatalf("insert at end failed: %v", err)
 	}
@@ -402,7 +402,7 @@ func TestInsertWithNonPrefixedFiles(t *testing.T) {
 	os.WriteFile(indexPath, []byte(strings.Replace(string(indexHTML), "02-slide.html", "blah.html", 1)), 0644)
 
 	// Insert at position 2
-	err := runInsert(root, 2, "new-slide", "content", "")
+	d, _ := core.OpenDeckDir(root); err := d.AddSlide(2, fmt.Sprintf("%02d-new-slide.html", 2), "<section><h1>new-slide</h1></section>")
 	if err != nil {
 		t.Fatalf("insert with non-prefixed files failed: %v", err)
 	}
@@ -434,7 +434,7 @@ func TestInsertOutOfRange(t *testing.T) {
 	defer cleanup()
 
 	// Position 0 is invalid (1-based)
-	err := runInsert(root, 0, "bad", "content", "")
+	d, _ := core.OpenDeckDir(root); err := d.AddSlide(0, fmt.Sprintf("%02d-bad.html", 0), "<section><h1>bad</h1></section>")
 	if err == nil {
 		t.Error("expected error for position 0")
 	}
@@ -453,7 +453,7 @@ func TestInsertWithType(t *testing.T) {
 	root, cleanup := setupTestPresentation(t)
 	defer cleanup()
 
-	err := runInsert(root, 2, "chapter-one", "section", "")
+	d, _ := core.OpenDeckDir(root); err := d.AddSlide(2, fmt.Sprintf("%02d-chapter-one.html", 2), "<section><h1>chapter-one</h1></section>")
 	if err != nil {
 		t.Fatalf("insert with type failed: %v", err)
 	}
@@ -476,7 +476,7 @@ func TestInsertWithTitle(t *testing.T) {
 	root, cleanup := setupTestPresentation(t)
 	defer cleanup()
 
-	err := runInsert(root, 2, "ch1", "title", "Chapter One: The Beginning")
+	d, _ := core.OpenDeckDir(root); err := d.AddSlide(2, fmt.Sprintf("%02d-ch1.html", 2), "<section><h1>ch1</h1></section>")
 	if err != nil {
 		t.Fatalf("insert with title failed: %v", err)
 	}
@@ -501,7 +501,7 @@ func TestInsertPreservesSlideContent(t *testing.T) {
 	origContent, _ := os.ReadFile(filepath.Join(root, "slides", "02-slide.html"))
 
 	// Insert at position 2, pushing original slide 2 to position 3
-	err := runInsert(root, 2, "new", "content", "")
+	d, _ := core.OpenDeckDir(root); err := d.AddSlide(2, fmt.Sprintf("%02d-new.html", 2), "<section><h1>new</h1></section>")
 	if err != nil {
 		t.Fatalf("insert failed: %v", err)
 	}
@@ -526,13 +526,16 @@ func TestMultipleInserts(t *testing.T) {
 
 	// Start: 4 slides
 	// Insert at position 1, then at position 3, then at end
-	if err := runInsert(root, 1, "first", "content", ""); err != nil {
+	d, _ := core.OpenDeckDir(root)
+	if err := d.AddSlide(1, fmt.Sprintf("%02d-first.html", 1), "<section><h1>first</h1></section>"); err != nil {
 		t.Fatalf("first insert failed: %v", err)
 	}
-	if err := runInsert(root, 3, "middle", "content", ""); err != nil {
+	d, _ := core.OpenDeckDir(root)
+	if err := d.AddSlide(3, fmt.Sprintf("%02d-middle.html", 3), "<section><h1>middle</h1></section>"); err != nil {
 		t.Fatalf("second insert failed: %v", err)
 	}
-	if err := runInsert(root, 7, "last", "content", ""); err != nil {
+	d, _ := core.OpenDeckDir(root)
+	if err := d.AddSlide(7, fmt.Sprintf("%02d-last.html", 7), "<section><h1>last</h1></section>"); err != nil {
 		t.Fatalf("third insert failed: %v", err)
 	}
 
@@ -840,7 +843,7 @@ func TestInsertWithLayoutFlag(t *testing.T) {
 	root, cleanup := setupTestPresentation(t)
 	defer cleanup()
 
-	err := runInsert(root, 2, "comparison", "two-col", "")
+	d, _ := core.OpenDeckDir(root); err := d.AddSlide(2, fmt.Sprintf("%02d-comparison.html", 2), "<section><h1>comparison</h1></section>")
 	if err != nil {
 		t.Fatalf("insert with layout two-col failed: %v", err)
 	}
@@ -871,7 +874,7 @@ func TestInsertWithLayoutTitle(t *testing.T) {
 	root, cleanup := setupTestPresentation(t)
 	defer cleanup()
 
-	err := runInsert(root, 1, "intro", "title", "Welcome")
+	d, _ := core.OpenDeckDir(root); err := d.AddSlide(1, fmt.Sprintf("%02d-intro.html", 1), "<section><h1>intro</h1></section>")
 	if err != nil {
 		t.Fatalf("insert with layout title failed: %v", err)
 	}
@@ -899,7 +902,7 @@ func TestInsertDefaultLayout(t *testing.T) {
 	root, cleanup := setupTestPresentation(t)
 	defer cleanup()
 
-	err := runInsert(root, 2, "details", "content", "")
+	d, _ := core.OpenDeckDir(root); err := d.AddSlide(2, fmt.Sprintf("%02d-details.html", 2), "<section><h1>details</h1></section>")
 	if err != nil {
 		t.Fatalf("insert with default layout failed: %v", err)
 	}
@@ -974,7 +977,7 @@ func TestInsertUnknownLayout(t *testing.T) {
 	root, cleanup := setupTestPresentation(t)
 	defer cleanup()
 
-	err := runInsert(root, 2, "bad", "nonexistent", "")
+	d, _ := core.OpenDeckDir(root); err := d.AddSlide(2, fmt.Sprintf("%02d-bad.html", 2), "<section><h1>bad</h1></section>")
 	if err == nil {
 		t.Fatal("expected error for unknown layout, got nil")
 	}

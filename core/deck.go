@@ -2,54 +2,33 @@
 // This is the primary interface for programmatic access to slyds decks —
 // used by both the CLI (cmd/) and MCP tool handlers.
 //
-// All file operations go through the DeckFS interface, making decks portable
+// All file operations go through templar.WritableFS, making decks portable
 // across local filesystems, S3, IndexedDB (WASM), in-memory (tests), etc.
 package core
 
 import (
 	"fmt"
-	"io/fs"
 	"regexp"
 	"sort"
 	"strings"
 
+	"github.com/panyam/templar"
 	"gopkg.in/yaml.v3"
 )
 
 var includeRe = regexp.MustCompile(`\{\{#\s*include\s+"(slides/[^"]+)"\s*#\}\}`)
 
-// DeckFS is the filesystem interface for deck storage.
-// It extends fs.FS (read) with write operations, making decks portable
-// across local disk, S3, IndexedDB (WASM), in-memory (tests), etc.
-type DeckFS interface {
-	fs.FS
-
-	// WriteFile writes data to the named file, creating it if necessary.
-	WriteFile(name string, data []byte, perm fs.FileMode) error
-
-	// MkdirAll creates a directory path and all parents.
-	MkdirAll(path string, perm fs.FileMode) error
-
-	// Remove deletes the named file or empty directory.
-	Remove(name string) error
-
-	// Rename renames (moves) a file.
-	Rename(oldname, newname string) error
-}
-
 // DeckManifest holds the parsed .slyds.yaml configuration.
-// This is the core subset of the manifest — the full scaffold.Manifest
-// type in internal/scaffold adds source management fields.
 type DeckManifest struct {
 	Theme string `yaml:"theme" json:"theme"`
 	Title string `yaml:"title" json:"title"`
 }
 
 // Deck represents an opened slyds presentation deck.
-// All I/O goes through the FS field, making it portable across backends.
+// All I/O goes through the FS field (templar.WritableFS), making it portable.
 type Deck struct {
-	// FS is the filesystem backing this deck.
-	FS DeckFS
+	// FS is the writable filesystem backing this deck.
+	FS templar.WritableFS
 
 	// Manifest is the parsed .slyds.yaml configuration. May be nil if none exists.
 	Manifest *DeckManifest
@@ -57,21 +36,12 @@ type Deck struct {
 
 // OpenDeck opens an existing deck from the given filesystem.
 // The FS root should be the deck directory (containing index.html).
-func OpenDeck(fsys DeckFS) (*Deck, error) {
-	// Verify index.html exists
-	if _, err := readFile(fsys, "index.html"); err != nil {
+func OpenDeck(fsys templar.WritableFS) (*Deck, error) {
+	if _, err := fsys.ReadFile("index.html"); err != nil {
 		return nil, fmt.Errorf("no index.html found — is this a slyds presentation?")
 	}
-
-	// Read manifest (optional)
 	manifest := readManifest(fsys)
-
 	return &Deck{FS: fsys, Manifest: manifest}, nil
-}
-
-// OpenDeckDir is a convenience for opening a deck from a local directory.
-func OpenDeckDir(dir string) (*Deck, error) {
-	return OpenDeck(NewOSFS(dir))
 }
 
 // Title returns the deck's title from the manifest, or "" if unknown.
@@ -93,7 +63,7 @@ func (d *Deck) Theme() string {
 // SlideFilenames returns the ordered list of slide filenames from index.html.
 // Falls back to alphabetical filesystem listing if no includes are found.
 func (d *Deck) SlideFilenames() ([]string, error) {
-	data, err := readFile(d.FS, "index.html")
+	data, err := d.FS.ReadFile( "index.html")
 	if err != nil {
 		return nil, err
 	}
@@ -130,7 +100,7 @@ func (d *Deck) GetSlideContent(position int) (string, error) {
 	if position < 1 || position > len(files) {
 		return "", fmt.Errorf("slide %d out of range (have %d slides)", position, len(files))
 	}
-	data, err := readFile(d.FS, "slides/"+files[position-1])
+	data, err := d.FS.ReadFile( "slides/"+files[position-1])
 	if err != nil {
 		return "", err
 	}
@@ -149,11 +119,196 @@ func (d *Deck) EditSlideContent(position int, content string) error {
 	return d.FS.WriteFile("slides/"+files[position-1], []byte(content), 0644)
 }
 
+// RewriteSlideOrder renumbers slide files and rebuilds index.html to match
+// the given ordering. Files are renamed via temp names to avoid collisions.
+func (d *Deck) RewriteSlideOrder(orderedFiles []string) error {
+	type renamePair struct{ from, to string }
+	var renames []renamePair
+
+	for i, oldName := range orderedFiles {
+		namePart := ExtractNamePart(oldName)
+		newName := fmt.Sprintf("%02d-%s", i+1, namePart)
+		if oldName != newName {
+			renames = append(renames, renamePair{oldName, newName})
+		}
+		orderedFiles[i] = newName
+	}
+
+	for _, r := range renames {
+		d.FS.Rename("slides/"+r.from, "slides/"+r.from+".tmp")
+	}
+	for _, r := range renames {
+		d.FS.Rename("slides/"+r.from+".tmp", "slides/"+r.to)
+	}
+
+	indexData, err := d.FS.ReadFile( "index.html")
+	if err != nil {
+		return err
+	}
+
+	lines := strings.Split(string(indexData), "\n")
+	var newLines []string
+	includeInserted := false
+
+	for _, line := range lines {
+		if includeRe.MatchString(line) {
+			if !includeInserted {
+				for _, f := range orderedFiles {
+					newLines = append(newLines, fmt.Sprintf(`    {{# include "slides/%s" #}}`, f))
+				}
+				includeInserted = true
+			}
+			continue
+		}
+		newLines = append(newLines, line)
+	}
+
+	return d.FS.WriteFile("index.html", []byte(strings.Join(newLines, "\n")), 0644)
+}
+
+// AddSlide creates a new slide file at the given position with the given content,
+// inserts it into the ordering, and renumbers all slides.
+func (d *Deck) AddSlide(position int, filename string, content string) error {
+	existing, err := d.SlideFilenames()
+	if err != nil {
+		return err
+	}
+	if position < 1 || position > len(existing)+1 {
+		return fmt.Errorf("position %d out of range (have %d slides, valid range 1-%d)", position, len(existing), len(existing)+1)
+	}
+
+	d.FS.MkdirAll("slides", 0755)
+	if err := d.FS.WriteFile("slides/"+filename, []byte(content), 0644); err != nil {
+		return err
+	}
+
+	newOrder := make([]string, 0, len(existing)+1)
+	newOrder = append(newOrder, existing[:position-1]...)
+	newOrder = append(newOrder, filename)
+	newOrder = append(newOrder, existing[position-1:]...)
+
+	return d.RewriteSlideOrder(newOrder)
+}
+
+// RemoveSlide removes a slide by filename, renumbers remaining slides.
+func (d *Deck) RemoveSlide(filename string) error {
+	existing, err := d.SlideFilenames()
+	if err != nil {
+		return err
+	}
+	if err := d.FS.Remove("slides/" + filename); err != nil {
+		return err
+	}
+	var remaining []string
+	for _, f := range existing {
+		if f != filename {
+			remaining = append(remaining, f)
+		}
+	}
+	return d.RewriteSlideOrder(remaining)
+}
+
+// MoveSlide reorders a slide from one position to another (1-based).
+func (d *Deck) MoveSlide(from, to int) error {
+	existing, err := d.SlideFilenames()
+	if err != nil {
+		return err
+	}
+	if from < 1 || from > len(existing) || to < 1 || to > len(existing) {
+		return fmt.Errorf("slide numbers out of range (have %d slides)", len(existing))
+	}
+
+	item := existing[from-1]
+	existing = append(existing[:from-1], existing[from:]...)
+	if to-1 >= len(existing) {
+		existing = append(existing, item)
+	} else {
+		existing = append(existing[:to-1], append([]string{item}, existing[to-1:]...)...)
+	}
+
+	return d.RewriteSlideOrder(existing)
+}
+
+// SlugifySlides renames slides based on their <h1> headings.
+// The slugFn parameter converts a heading string to a slug.
+// Returns the number of slides renamed.
+func (d *Deck) SlugifySlides(slugFn func(string) string) (int, error) {
+	slides, err := d.SlideFilenames()
+	if err != nil {
+		return 0, err
+	}
+
+	usedSlugs := make(map[string]int)
+	newNames := make([]string, len(slides))
+	renamed := 0
+
+	for i, filename := range slides {
+		content, _ := d.GetSlideContent(i + 1)
+		heading := ExtractFirstHeading(content)
+		if heading == "" {
+			newNames[i] = filename
+			slug := strings.TrimSuffix(ExtractNamePart(filename), ".html")
+			usedSlugs[slug]++
+			continue
+		}
+
+		slug := slugFn(heading)
+		usedSlugs[slug]++
+		if usedSlugs[slug] > 1 {
+			slug = fmt.Sprintf("%s-%d", slug, usedSlugs[slug])
+		}
+
+		newName := fmt.Sprintf("%02d-%s.html", i+1, slug)
+		newNames[i] = newName
+		if newName != filename {
+			renamed++
+		}
+	}
+
+	if renamed == 0 {
+		return 0, nil
+	}
+
+	type renamePair struct{ from, to string }
+	var renames []renamePair
+	for i, oldName := range slides {
+		if newNames[i] != oldName {
+			renames = append(renames, renamePair{oldName, newNames[i]})
+		}
+	}
+	for _, r := range renames {
+		d.FS.Rename("slides/"+r.from, "slides/"+r.from+".tmp")
+	}
+	for _, r := range renames {
+		d.FS.Rename("slides/"+r.from+".tmp", "slides/"+r.to)
+	}
+
+	return renamed, d.RewriteSlideOrder(newNames)
+}
+
+// ExtractNamePart strips the numeric prefix (e.g., "01-") from a slide filename.
+func ExtractNamePart(filename string) string {
+	re := regexp.MustCompile(`^(\d+)-(.+)$`)
+	if m := re.FindStringSubmatch(filename); m != nil {
+		return m[2]
+	}
+	return filename
+}
+
+// ExtractFirstHeading returns the text content of the first <h1> in an HTML string.
+func ExtractFirstHeading(html string) string {
+	re := regexp.MustCompile(`<h1[^>]*>(.*?)</h1>`)
+	m := re.FindStringSubmatch(html)
+	if m != nil {
+		return m[1]
+	}
+	return ""
+}
+
 // --- Internal helpers ---
 
-// listSlideFiles returns slide filenames from the filesystem, sorted alphabetically.
 func (d *Deck) listSlideFiles() []string {
-	entries, err := readDir(d.FS, "slides")
+	entries, err := d.FS.ReadDir( "slides")
 	if err != nil {
 		return nil
 	}
@@ -167,25 +322,8 @@ func (d *Deck) listSlideFiles() []string {
 	return files
 }
 
-// readFile reads from DeckFS, preferring ReadFile interface when available.
-func readFile(fsys DeckFS, name string) ([]byte, error) {
-	if rf, ok := fsys.(interface{ ReadFile(string) ([]byte, error) }); ok {
-		return rf.ReadFile(name)
-	}
-	return fs.ReadFile(fsys, name)
-}
-
-// readDir reads from DeckFS, preferring ReadDir interface when available.
-func readDir(fsys DeckFS, name string) ([]fs.DirEntry, error) {
-	if rd, ok := fsys.(interface{ ReadDir(string) ([]fs.DirEntry, error) }); ok {
-		return rd.ReadDir(name)
-	}
-	return fs.ReadDir(fsys, name)
-}
-
-// readManifest reads and parses .slyds.yaml. Returns nil if not found.
-func readManifest(fsys DeckFS) *DeckManifest {
-	data, err := readFile(fsys, ".slyds.yaml")
+func readManifest(fsys templar.WritableFS) *DeckManifest {
+	data, err := fsys.ReadFile(".slyds.yaml")
 	if err != nil {
 		return nil
 	}
@@ -194,14 +332,4 @@ func readManifest(fsys DeckFS) *DeckManifest {
 		return nil
 	}
 	return &m
-}
-
-// ExtractFirstHeading returns the text content of the first <h1> in an HTML string.
-func ExtractFirstHeading(html string) string {
-	re := regexp.MustCompile(`<h1[^>]*>(.*?)</h1>`)
-	m := re.FindStringSubmatch(html)
-	if m != nil {
-		return m[1]
-	}
-	return ""
 }

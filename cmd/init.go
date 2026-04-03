@@ -5,7 +5,7 @@ import (
 	"strings"
 
 	"github.com/spf13/cobra"
-	"github.com/panyam/slyds/internal/scaffold"
+	"github.com/panyam/slyds/core"
 )
 
 var (
@@ -30,10 +30,10 @@ var initCmd = &cobra.Command{
 
 		outDir := initDir
 		if outDir == "" {
-			outDir = scaffold.Slugify(title)
+			outDir = core.Slugify(title)
 		}
 
-		dir, err := scaffold.CreateInDir(title, initSlideCount, initTheme, outDir, initMCPDocs)
+		dir, err := core.CreateInDir(title, initSlideCount, initTheme, outDir, initMCPDocs)
 		if err != nil {
 			return err
 		}
@@ -49,7 +49,7 @@ var initCmd = &cobra.Command{
 
 func init() {
 	initCmd.Flags().IntVarP(&initSlideCount, "slides", "n", 3, "number of slides (min 2)")
-	themes, _ := scaffold.ListThemes()
+	themes, _ := core.ListThemes()
 	initCmd.Flags().StringVar(&initTheme, "theme", "default", "theme to use ("+strings.Join(themes, ", ")+")")
 	initCmd.Flags().StringVar(&initDir, "dir", "", "output directory (default: slugified title)")
 	initCmd.Flags().BoolVar(&initMCPDocs, "mcp", true, "include MCP setup section in AGENT.md (stored in .slyds.yaml as agent_include_mcp)")

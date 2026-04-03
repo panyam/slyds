@@ -1,64 +1,37 @@
 package core
 
 import (
-	"io/fs"
+	"fmt"
 	"os"
 	"path/filepath"
+
+	"github.com/panyam/templar"
 )
 
-// OSFS implements DeckFS backed by the local filesystem.
-// The root is an absolute directory path; all operations are relative to it.
-type OSFS struct {
-	Root string
+// FindDeckRoot resolves an absolute path to a deck root directory on the local filesystem.
+// Returns an error if dir does not contain index.html.
+// This is the entry point for CLI usage — after this, use OpenDeck(templar.NewLocalFS(root)).
+func FindDeckRoot(dir string) (string, error) {
+	root, err := filepath.Abs(dir)
+	if err != nil {
+		return "", err
+	}
+	if _, err := os.Stat(filepath.Join(root, "index.html")); os.IsNotExist(err) {
+		return "", fmt.Errorf("no index.html found in %s — is this a slyds presentation? Run 'slyds init' to create one", root)
+	}
+	return root, nil
 }
 
-// NewOSFS creates a DeckFS backed by the local filesystem at the given root.
-func NewOSFS(root string) *OSFS {
-	return &OSFS{Root: root}
+// OpenDeckDir is a convenience for opening a deck from a local directory path.
+func OpenDeckDir(dir string) (*Deck, error) {
+	root, err := FindDeckRoot(dir)
+	if err != nil {
+		return nil, err
+	}
+	return OpenDeck(templar.NewLocalFS(root))
 }
 
-// Open implements fs.FS.
-func (f *OSFS) Open(name string) (fs.File, error) {
-	return os.Open(filepath.Join(f.Root, name))
-}
-
-// ReadDir implements fs.ReadDirFS.
-func (f *OSFS) ReadDir(name string) ([]fs.DirEntry, error) {
-	return os.ReadDir(filepath.Join(f.Root, name))
-}
-
-// ReadFile implements fs.ReadFileFS.
-func (f *OSFS) ReadFile(name string) ([]byte, error) {
-	return os.ReadFile(filepath.Join(f.Root, name))
-}
-
-// Stat implements fs.StatFS.
-func (f *OSFS) Stat(name string) (fs.FileInfo, error) {
-	return os.Stat(filepath.Join(f.Root, name))
-}
-
-// WriteFile implements DeckFS.
-func (f *OSFS) WriteFile(name string, data []byte, perm fs.FileMode) error {
-	return os.WriteFile(filepath.Join(f.Root, name), data, perm)
-}
-
-// MkdirAll implements DeckFS.
-func (f *OSFS) MkdirAll(path string, perm fs.FileMode) error {
-	return os.MkdirAll(filepath.Join(f.Root, path), perm)
-}
-
-// Remove implements DeckFS.
-func (f *OSFS) Remove(name string) error {
-	return os.Remove(filepath.Join(f.Root, name))
-}
-
-// Rename implements DeckFS.
-func (f *OSFS) Rename(oldname, newname string) error {
-	return os.Rename(filepath.Join(f.Root, oldname), filepath.Join(f.Root, newname))
-}
-
-// AbsPath returns the absolute path for a relative name within the FS.
-// This is OS-specific and only available on OSFS (not on S3/IndexedDB backends).
-func (f *OSFS) AbsPath(name string) string {
-	return filepath.Join(f.Root, name)
+// OpenDeckCwd is a convenience for opening a deck from the current working directory.
+func OpenDeckCwd() (*Deck, error) {
+	return OpenDeckDir(".")
 }

@@ -15,7 +15,7 @@ import (
 
 	"github.com/panyam/templar"
 	"github.com/spf13/cobra"
-	"github.com/panyam/slyds/internal/scaffold"
+	"github.com/panyam/slyds/core"
 )
 
 var previewPort int
@@ -44,7 +44,7 @@ Works with any theme directory — built-in or external:
 		}
 
 		// Load theme config to discover all slide types
-		cfg, err := scaffold.LoadThemeConfigFromDir(themeDir)
+		cfg, err := core.LoadThemeConfigFromDir(themeDir)
 		if err != nil {
 			return err
 		}
@@ -60,7 +60,7 @@ Works with any theme directory — built-in or external:
 
 		// Scaffold a sample presentation with standard slides (title + content + closing)
 		title := fmt.Sprintf("%s Theme Preview", cfg.Name)
-		if err := scaffold.CreateFromDir(tmpDir, title, 3, themeDir); err != nil {
+		if err := core.CreateFromDir(tmpDir, title, 3, themeDir); err != nil {
 			return fmt.Errorf("failed to scaffold preview: %w", err)
 		}
 

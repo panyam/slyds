@@ -6,7 +6,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/panyam/slyds/internal/scaffold"
+	"github.com/panyam/slyds/core"
 )
 
 // TestRenderSlideFromThemeTwoColumn verifies that a two-column layout slide
@@ -50,7 +50,7 @@ func TestInitWithThemeFlag(t *testing.T) {
 	os.Chdir(tmp)
 	defer os.Chdir(origDir)
 
-	slug, err := scaffold.CreateWithTheme("Dark Talk", 3, "dark")
+	slug, err := core.CreateWithTheme("Dark Talk", 3, "dark")
 	if err != nil {
 		t.Fatalf("CreateWithTheme(dark) failed: %v", err)
 	}

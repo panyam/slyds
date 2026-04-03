@@ -5,7 +5,7 @@ import (
 	"os"
 	"path/filepath"
 
-	"github.com/panyam/slyds/internal/builder"
+	"github.com/panyam/slyds/core"
 	"github.com/spf13/cobra"
 )
 
@@ -23,7 +23,7 @@ var buildCmd = &cobra.Command{
 			return err
 		}
 
-		result, err := builder.Build(root)
+		result, err := core.Build(root)
 		if err != nil {
 			return fmt.Errorf("build failed: %w", err)
 		}

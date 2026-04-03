@@ -9,8 +9,6 @@ import (
 	"strings"
 
 	"github.com/panyam/slyds/core"
-	"github.com/panyam/slyds/internal/layout"
-	"github.com/panyam/slyds/internal/scaffold"
 	"github.com/spf13/cobra"
 	"gopkg.in/yaml.v3"
 )
@@ -84,8 +82,8 @@ without reading every slide file.`,
 
 // describeDeck builds a structured description of the deck at root.
 func describeDeck(root string) (*DeckDescription, error) {
-	manifest, err := scaffold.ReadManifest(root)
-	if err != nil && err != scaffold.ErrManifestNotFound {
+	manifest, err := core.ReadManifest(root)
+	if err != nil && err != core.ErrManifestNotFound {
 		return nil, err
 	}
 
@@ -113,7 +111,7 @@ func describeDeck(root string) (*DeckDescription, error) {
 		data, _ := os.ReadFile(slidePath)
 		content := string(data)
 
-		slideLayout := layout.DetectLayout(content)
+		slideLayout := core.DetectLayout(content)
 		layoutSet[slideLayout] = true
 
 		slideTitle := extractFirstHeading(slidePath)
@@ -152,7 +150,7 @@ func describeDeck(root string) (*DeckDescription, error) {
 	sortStrings(layoutsUsed)
 
 	themes := availableThemeNames()
-	layouts, _ := layout.ListLayouts()
+	layouts, _ := core.ListLayouts()
 
 	return &DeckDescription{
 		Title:            title,

@@ -4,8 +4,7 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/panyam/slyds/internal/modules"
-	"github.com/panyam/slyds/internal/scaffold"
+	"github.com/panyam/slyds/core"
 	"github.com/spf13/cobra"
 )
 
@@ -26,8 +25,8 @@ Examples:
 			return err
 		}
 
-		manifest, err := scaffold.ReadManifest(root)
-		if err == scaffold.ErrManifestNotFound {
+		manifest, err := core.ReadManifest(root)
+		if err == core.ErrManifestNotFound {
 			return fmt.Errorf("no .slyds.yaml found — is this a slyds presentation?")
 		}
 		if err != nil {
@@ -40,10 +39,10 @@ Examples:
 
 		// Add to manifest
 		if manifest.Sources == nil {
-			manifest.Sources = make(map[string]scaffold.SourceConfig)
+			manifest.Sources = make(map[string]core.SourceConfig)
 		}
 
-		src := scaffold.SourceConfig{URL: url}
+		src := core.SourceConfig{URL: url}
 		if version != "" {
 			if strings.HasPrefix(version, "v") {
 				src.Version = version
@@ -54,13 +53,13 @@ Examples:
 		manifest.Sources[name] = src
 
 		// Write updated manifest
-		if err := scaffold.WriteManifest(root, *manifest); err != nil {
+		if err := core.WriteManifest(root, *manifest); err != nil {
 			return fmt.Errorf("failed to update .slyds.yaml: %w", err)
 		}
 
 		// Fetch the new source
 		fmt.Printf("Fetching %s...\n", url)
-		if err := modules.FetchAll(manifest, root); err != nil {
+		if err := core.FetchAll(manifest, root); err != nil {
 			return fmt.Errorf("fetch failed: %w", err)
 		}
 
