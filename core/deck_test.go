@@ -1,8 +1,10 @@
 package core
 
 import (
-	"github.com/panyam/templar"
+	"strings"
 	"testing"
+
+	"github.com/panyam/templar"
 )
 
 // TestOpenDeckMemFS verifies that OpenDeck works with an in-memory filesystem,
@@ -219,5 +221,183 @@ func TestMoveSlideMemFS(t *testing.T) {
 	}
 	if c3 != "B" {
 		t.Errorf("slide 3 = %q, want B", c3)
+	}
+}
+
+// TestAddSlideOutOfRange verifies that AddSlide rejects invalid positions.
+func TestAddSlideOutOfRange(t *testing.T) {
+	mfs := templar.NewMemFS()
+	mfs.SetFile("index.html", []byte(`{{# include "slides/01-a.html" #}}`))
+	mfs.SetFile("slides/01-a.html", []byte(`A`))
+
+	d, _ := OpenDeck(mfs)
+
+	if err := d.AddSlide(0, "bad.html", "X"); err == nil {
+		t.Error("expected error for position 0")
+	}
+	if err := d.AddSlide(3, "bad.html", "X"); err == nil {
+		t.Error("expected error for position 3 (have 1 slide, max is 2)")
+	}
+}
+
+// TestAddSlidePreservesContent verifies that existing slide content is
+// not modified when a new slide is inserted.
+func TestAddSlidePreservesContent(t *testing.T) {
+	mfs := templar.NewMemFS()
+	mfs.SetFile("index.html", []byte(`{{# include "slides/01-first.html" #}}
+{{# include "slides/02-last.html" #}}`))
+	mfs.SetFile("slides/01-first.html", []byte(`<h1>First</h1>`))
+	mfs.SetFile("slides/02-last.html", []byte(`<h1>Last</h1>`))
+
+	d, _ := OpenDeck(mfs)
+	d.AddSlide(2, "middle.html", "<h1>Middle</h1>")
+
+	// Verify original content preserved
+	c1, _ := d.GetSlideContent(1)
+	c3, _ := d.GetSlideContent(3)
+	if c1 != "<h1>First</h1>" {
+		t.Errorf("slide 1 content changed: %q", c1)
+	}
+	if c3 != "<h1>Last</h1>" {
+		t.Errorf("slide 3 content changed: %q", c3)
+	}
+}
+
+// TestMultipleInserts verifies sequential inserts at different positions.
+func TestMultipleInserts(t *testing.T) {
+	mfs := templar.NewMemFS()
+	mfs.SetFile("index.html", []byte(`{{# include "slides/01-a.html" #}}`))
+	mfs.SetFile("slides/01-a.html", []byte(`A`))
+
+	d, _ := OpenDeck(mfs)
+
+	d.AddSlide(1, "b.html", "B")  // insert at beginning
+	d.AddSlide(3, "c.html", "C")  // append at end
+
+	count, _ := d.SlideCount()
+	if count != 3 {
+		t.Fatalf("count = %d, want 3", count)
+	}
+
+	c1, _ := d.GetSlideContent(1)
+	c2, _ := d.GetSlideContent(2)
+	c3, _ := d.GetSlideContent(3)
+	if c1 != "B" {
+		t.Errorf("slide 1 = %q, want B", c1)
+	}
+	if c2 != "A" {
+		t.Errorf("slide 2 = %q, want A", c2)
+	}
+	if c3 != "C" {
+		t.Errorf("slide 3 = %q, want C", c3)
+	}
+}
+
+// TestSlugifySlides verifies that slides are renamed based on h1 headings.
+func TestSlugifySlides(t *testing.T) {
+	mfs := templar.NewMemFS()
+	mfs.SetFile("index.html", []byte(`{{# include "slides/01-untitled.html" #}}
+{{# include "slides/02-untitled.html" #}}`))
+	mfs.SetFile("slides/01-untitled.html", []byte(`<section><h1>Hello World</h1></section>`))
+	mfs.SetFile("slides/02-untitled.html", []byte(`<section><h1>Getting Started</h1></section>`))
+
+	d, _ := OpenDeck(mfs)
+	slugFn := func(s string) string {
+		return strings.ToLower(strings.ReplaceAll(s, " ", "-"))
+	}
+
+	renamed, err := d.SlugifySlides(slugFn)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if renamed != 2 {
+		t.Errorf("renamed = %d, want 2", renamed)
+	}
+
+	files, _ := d.SlideFilenames()
+	if len(files) != 2 {
+		t.Fatalf("got %d slides", len(files))
+	}
+	// Verify slugified names
+	if !strings.Contains(files[0], "hello-world") {
+		t.Errorf("slide 1 = %q, want hello-world", files[0])
+	}
+	if !strings.Contains(files[1], "getting-started") {
+		t.Errorf("slide 2 = %q, want getting-started", files[1])
+	}
+}
+
+// TestSlugifySlidesIdempotent verifies that running slugify twice doesn't rename.
+func TestSlugifySlidesIdempotent(t *testing.T) {
+	mfs := templar.NewMemFS()
+	mfs.SetFile("index.html", []byte(`{{# include "slides/01-hello.html" #}}`))
+	mfs.SetFile("slides/01-hello.html", []byte(`<section><h1>Hello</h1></section>`))
+
+	d, _ := OpenDeck(mfs)
+	slugFn := func(s string) string { return strings.ToLower(s) }
+
+	renamed1, _ := d.SlugifySlides(slugFn)
+	renamed2, _ := d.SlugifySlides(slugFn)
+
+	if renamed1 != 0 {
+		t.Errorf("first slugify renamed %d, expected 0 (already slugified)", renamed1)
+	}
+	if renamed2 != 0 {
+		t.Errorf("second slugify renamed %d, expected 0", renamed2)
+	}
+}
+
+// TestExtractNamePart verifies stripping numeric prefixes from filenames.
+func TestExtractNamePart(t *testing.T) {
+	tests := []struct{ in, want string }{
+		{"01-intro.html", "intro.html"},
+		{"99-outro.html", "outro.html"},
+		{"intro.html", "intro.html"},
+		{"1-x.html", "x.html"},
+	}
+	for _, tt := range tests {
+		got := ExtractNamePart(tt.in)
+		if got != tt.want {
+			t.Errorf("ExtractNamePart(%q) = %q, want %q", tt.in, got, tt.want)
+		}
+	}
+}
+
+// TestFindDeckRoot verifies that FindDeckRoot returns the correct path.
+func TestFindDeckRoot(t *testing.T) {
+	dir := t.TempDir()
+	// No index.html → error
+	_, err := FindDeckRoot(dir)
+	if err == nil {
+		t.Error("expected error for dir without index.html")
+	}
+}
+
+// TestResolveSlide verifies slide resolution by number and name.
+func TestResolveSlide(t *testing.T) {
+	mfs := templar.NewMemFS()
+	mfs.SetFile("index.html", []byte(`{{# include "slides/01-intro.html" #}}
+{{# include "slides/02-details.html" #}}`))
+	mfs.SetFile("slides/01-intro.html", []byte(`intro`))
+	mfs.SetFile("slides/02-details.html", []byte(`details`))
+
+	d, _ := OpenDeck(mfs)
+
+	// By number
+	f, err := d.ResolveSlide("1")
+	if err != nil || f != "01-intro.html" {
+		t.Errorf("resolve 1: %q, %v", f, err)
+	}
+
+	// By name
+	f, err = d.ResolveSlide("details")
+	if err != nil || f != "02-details.html" {
+		t.Errorf("resolve details: %q, %v", f, err)
+	}
+
+	// Not found
+	_, err = d.ResolveSlide("nope")
+	if err == nil {
+		t.Error("expected error for unknown slide")
 	}
 }
