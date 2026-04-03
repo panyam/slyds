@@ -169,7 +169,7 @@ func TestDescribeWithInsertedSlide(t *testing.T) {
 	defer cleanup()
 
 	// Insert a two-col slide
-	d, _ := core.OpenDeckDir(root); err := d.AddSlide(2, fmt.Sprintf("%02d-comparison.html", 2), "<section><h1>comparison</h1></section>")
+	err := runInsert(root, 2, "comparison", "two-col", "Side by Side")
 	if err != nil {
 		t.Fatalf("runInsert failed: %v", err)
 	}
