@@ -5,7 +5,6 @@ import (
 	"path/filepath"
 	"strings"
 	"text/template"
-
 )
 
 // agentLayoutEntry holds layout data for the AGENT.md template.
@@ -17,18 +16,16 @@ type agentLayoutEntry struct {
 
 // agentMDData holds all data passed to the agent.md.tmpl template.
 type agentMDData struct {
-	Title        string
-	Theme        string
-	ThemeList    string
-	Layouts      []agentLayoutEntry
-	IncludeMCP   bool
+	Title      string
+	Theme      string
+	ThemeList  string
+	Layouts    []agentLayoutEntry
+	IncludeMCP bool
 }
 
-// WriteAgentMD generates an AGENT.md file in the deck directory containing
-// documentation for LLM agents (Claude Code, Cursor, Copilot, etc.) about
-// available commands, layouts, themes, and conventions.
-// This file is regenerated on init and update.
-func WriteAgentMD(dir string, manifest Manifest) error {
+// renderAgentMD generates the AGENT.md content string from a manifest.
+// Pure function — no I/O. Used by both WriteAgentMD and writeAgentMDFS.
+func renderAgentMD(manifest Manifest) (string, error) {
 	themes, _ := ListThemes()
 	layoutNames, _ := ListLayouts()
 	reg, _ := LoadRegistry()
@@ -53,30 +50,38 @@ func WriteAgentMD(dir string, manifest Manifest) error {
 		IncludeMCP: manifest.IncludeMCPInAgentDocs(),
 	}
 
-	// Load and render the template
 	content, err := TemplatesFS.ReadFile("templates/agent.md.tmpl")
 	if err != nil {
-		return err
+		return "", err
 	}
 
 	tmpl, err := template.New("agent.md").Parse(string(content))
+	if err != nil {
+		return "", err
+	}
+
+	var buf strings.Builder
+	if err := tmpl.Execute(&buf, data); err != nil {
+		return "", err
+	}
+	return buf.String(), nil
+}
+
+// WriteAgentMD generates AGENT.md + CLAUDE.md symlink on the local filesystem.
+// This is the path-based convenience function for CLI usage.
+func WriteAgentMD(dir string, manifest Manifest) error {
+	content, err := renderAgentMD(manifest)
 	if err != nil {
 		return err
 	}
 
 	agentPath := filepath.Join(dir, "AGENT.md")
-	f, err := os.Create(agentPath)
-	if err != nil {
-		return err
-	}
-	defer f.Close()
-
-	if err := tmpl.Execute(f, data); err != nil {
+	if err := os.WriteFile(agentPath, []byte(content), 0644); err != nil {
 		return err
 	}
 
-	// Create CLAUDE.md symlink so Claude Code loads it as project instructions
+	// Create CLAUDE.md symlink
 	claudeLink := filepath.Join(dir, "CLAUDE.md")
-	os.Remove(claudeLink) // remove stale symlink/file if exists
+	os.Remove(claudeLink)
 	return os.Symlink("AGENT.md", claudeLink)
 }
