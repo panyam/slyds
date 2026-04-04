@@ -1,6 +1,2 @@
 theme: dark
 title: Rich Content Showcase
-sources:
-    core:
-        url: github.com/panyam/slyds
-        path: core

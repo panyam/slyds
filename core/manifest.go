@@ -37,7 +37,7 @@ const DefaultModulesDir = ".slyds-modules"
 const DefaultCoreURL = "github.com/panyam/slyds"
 
 // DefaultCorePath is the subdirectory within the core URL that contains engine assets.
-const DefaultCorePath = "core"
+const DefaultCorePath = "assets"
 
 // ResolvedModulesDir returns the modules directory name (relative path).
 func (m *Manifest) ResolvedModulesDir() string {

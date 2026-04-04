@@ -9,8 +9,17 @@ slyds serve              # preview at localhost:3000
 slyds build              # build dist/index.html (self-contained)
 slyds ls                 # list slides with layouts
 slyds describe           # structured deck summary (YAML)
+slyds introspect         # machine JSON: layouts, slots, themes, commands
 slyds check              # validate deck
 ```
+
+## MCP (Model Context Protocol)
+
+Agents can drive this deck through the **slyds** CLI via MCP (`slyds mcp` for stdio, `slyds mcp serve` for HTTP+SSE). Per-editor setup (**Cursor**, **Claude**, **Copilot**) and security details:
+
+**https://github.com/panyam/slyds/blob/main/docs/MCP.md**
+
+To omit this section in the future, set `agent_include_mcp: false` in `.slyds.yaml` and run `slyds update`.
 
 ## Editing Slides
 

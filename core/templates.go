@@ -1,8 +1,8 @@
 package core
 
-// Embedded template and asset content is provided by the core package.
-// See github.com/panyam/slyds/core for the go:embed declarations.
+// Embedded template and asset content is provided by the assets package.
+// See github.com/panyam/slyds/assets for the go:embed declarations.
 //
-// Theme templates live under core/templates/<theme>/ and are loaded
+// Theme templates live under assets/templates/<theme>/ and are loaded
 // via TemplatesFS. Adding a new theme is just adding a new
 // directory with the same template file names.
