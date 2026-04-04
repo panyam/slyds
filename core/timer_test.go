@@ -1,39 +1,21 @@
 package core
 
 import (
-	"os"
-	"path/filepath"
 	"strings"
 	"testing"
-
 )
 
-// scaffoldAndBuild creates a test presentation in a temp directory, builds it,
-// and returns the built HTML string. Fails the test on any error.
+// scaffoldAndBuild creates a test deck on MemFS, builds it, and returns the HTML.
 func scaffoldAndBuild(t *testing.T) string {
 	t.Helper()
-	tmp := t.TempDir()
-	origDir, _ := os.Getwd()
-	os.Chdir(tmp)
-	defer os.Chdir(origDir)
-
-	slug, err := Create("Timer Test", 4)
-	if err != nil {
-		t.Fatalf("Create failed: %v", err)
-	}
-	root := filepath.Join(tmp, slug)
-
-	result, err := Build(root)
+	d, _ := scaffoldMem(t, "Timer Test", withSlides(4))
+	result, err := d.Build()
 	if err != nil {
 		t.Fatalf("Build failed: %v", err)
 	}
 	return result.HTML
 }
 
-// TestBuildContainsTimerFeatures verifies that built presentations include
-// the core timer functions (toggleTimer, startTimer, pauseTimer, formatTime,
-// getElapsedMs) in the inlined JavaScript output. These functions power the
-// elapsed presentation timer in the speaker notes window.
 func TestBuildContainsTimerFeatures(t *testing.T) {
 	html := scaffoldAndBuild(t)
 
@@ -52,10 +34,6 @@ func TestBuildContainsTimerFeatures(t *testing.T) {
 	}
 }
 
-// TestBuildContainsNotesTimerUI verifies that the speaker notes window HTML
-// builder includes timer display elements: the elapsed time display
-// (notesTimer), per-slide reading time (notesReadingTime), remaining deck
-// time (notesRemaining), and the start/pause toggle button (notesTimerToggle).
 func TestBuildContainsNotesTimerUI(t *testing.T) {
 	html := scaffoldAndBuild(t)
 
@@ -74,9 +52,6 @@ func TestBuildContainsNotesTimerUI(t *testing.T) {
 	}
 }
 
-// TestBuildTimerKeyboardShortcut verifies that the T key is registered as a
-// keyboard shortcut for toggling the presentation timer. The handler should
-// call toggleTimer() on both 't' and 'T' key presses.
 func TestBuildTimerKeyboardShortcut(t *testing.T) {
 	html := scaffoldAndBuild(t)
 
@@ -85,10 +60,6 @@ func TestBuildTimerKeyboardShortcut(t *testing.T) {
 	}
 }
 
-// TestBuildReadingTimeComputation verifies that the reading time computation
-// function (computeReadingTimes) is present in the built output. This function
-// calculates per-slide word counts at page load, excluding speaker notes
-// content, and converts to estimated reading time at 200 words per minute.
 func TestBuildReadingTimeComputation(t *testing.T) {
 	html := scaffoldAndBuild(t)
 

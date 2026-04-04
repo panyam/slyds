@@ -2,22 +2,31 @@ package core
 
 import (
 	"encoding/base64"
-	"os"
-	"path/filepath"
 	"strings"
 	"testing"
+
+	"github.com/panyam/templar"
 )
 
+// inlineDeck creates a Deck on a MemFS with the given files, then runs inlineAssets.
+func inlineDeck(t *testing.T, html string, files map[string][]byte) (*Result, error) {
+	t.Helper()
+	mfs := templar.NewMemFS()
+	for name, data := range files {
+		mfs.WriteFile(name, data, 0644)
+	}
+	d := &Deck{FS: mfs}
+	return d.inlineAssets(html)
+}
+
 func TestInlineCSS(t *testing.T) {
-	tmp := t.TempDir()
-
 	cssContent := "body { color: red; }"
-	os.WriteFile(filepath.Join(tmp, "style.css"), []byte(cssContent), 0644)
-
 	html := `<html><head><link rel="stylesheet" href="style.css"></head></html>`
-	result, err := InlineAssets(html, tmp)
+	result, err := inlineDeck(t, html, map[string][]byte{
+		"style.css": []byte(cssContent),
+	})
 	if err != nil {
-		t.Fatalf("InlineAssets failed: %v", err)
+		t.Fatalf("inlineAssets failed: %v", err)
 	}
 
 	if !strings.Contains(result.HTML, "<style>") {
@@ -32,16 +41,13 @@ func TestInlineCSS(t *testing.T) {
 }
 
 func TestInlineCSSReversedAttrs(t *testing.T) {
-	tmp := t.TempDir()
-
 	cssContent := "h1 { font-size: 2em; }"
-	os.WriteFile(filepath.Join(tmp, "main.css"), []byte(cssContent), 0644)
-
-	// href before rel
 	html := `<link href="main.css" rel="stylesheet">`
-	result, err := InlineAssets(html, tmp)
+	result, err := inlineDeck(t, html, map[string][]byte{
+		"main.css": []byte(cssContent),
+	})
 	if err != nil {
-		t.Fatalf("InlineAssets failed: %v", err)
+		t.Fatalf("inlineAssets failed: %v", err)
 	}
 
 	if !strings.Contains(result.HTML, "<style>") {
@@ -50,15 +56,13 @@ func TestInlineCSSReversedAttrs(t *testing.T) {
 }
 
 func TestInlineJS(t *testing.T) {
-	tmp := t.TempDir()
-
 	jsContent := "console.log('hello');"
-	os.WriteFile(filepath.Join(tmp, "app.js"), []byte(jsContent), 0644)
-
 	html := `<html><script src="app.js"></script></html>`
-	result, err := InlineAssets(html, tmp)
+	result, err := inlineDeck(t, html, map[string][]byte{
+		"app.js": []byte(jsContent),
+	})
 	if err != nil {
-		t.Fatalf("InlineAssets failed: %v", err)
+		t.Fatalf("inlineAssets failed: %v", err)
 	}
 
 	if !strings.Contains(result.HTML, "<script>\n"+jsContent) {
@@ -70,9 +74,7 @@ func TestInlineJS(t *testing.T) {
 }
 
 func TestInlineImage(t *testing.T) {
-	tmp := t.TempDir()
-
-	// Write a tiny PNG (1x1 pixel)
+	// 1x1 pixel PNG
 	pngData := []byte{
 		0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a,
 		0x00, 0x00, 0x00, 0x0d, 0x49, 0x48, 0x44, 0x52,
@@ -84,12 +86,12 @@ func TestInlineImage(t *testing.T) {
 		0x33, 0x00, 0x00, 0x00, 0x00, 0x49, 0x45, 0x4e,
 		0x44, 0xae, 0x42, 0x60, 0x82,
 	}
-	os.WriteFile(filepath.Join(tmp, "img.png"), pngData, 0644)
-
 	html := `<img src="img.png" alt="test">`
-	result, err := InlineAssets(html, tmp)
+	result, err := inlineDeck(t, html, map[string][]byte{
+		"img.png": pngData,
+	})
 	if err != nil {
-		t.Fatalf("InlineAssets failed: %v", err)
+		t.Fatalf("inlineAssets failed: %v", err)
 	}
 
 	encoded := base64.StdEncoding.EncodeToString(pngData)
@@ -100,9 +102,9 @@ func TestInlineImage(t *testing.T) {
 
 func TestInlineImageRemoteUntouched(t *testing.T) {
 	html := `<img src="https://example.com/photo.jpg" alt="remote">`
-	result, err := InlineAssets(html, ".")
+	result, err := inlineDeck(t, html, nil)
 	if err != nil {
-		t.Fatalf("InlineAssets failed: %v", err)
+		t.Fatalf("inlineAssets failed: %v", err)
 	}
 
 	if !strings.Contains(result.HTML, "https://example.com/photo.jpg") {
@@ -112,9 +114,9 @@ func TestInlineImageRemoteUntouched(t *testing.T) {
 
 func TestInlineDataURIUntouched(t *testing.T) {
 	html := `<img src="data:image/png;base64,abc" alt="data">`
-	result, err := InlineAssets(html, ".")
+	result, err := inlineDeck(t, html, nil)
 	if err != nil {
-		t.Fatalf("InlineAssets failed: %v", err)
+		t.Fatalf("inlineAssets failed: %v", err)
 	}
 
 	if result.HTML != html {
@@ -124,34 +126,27 @@ func TestInlineDataURIUntouched(t *testing.T) {
 
 func TestInlineMissingFile(t *testing.T) {
 	html := `<link rel="stylesheet" href="missing.css">`
-	result, err := InlineAssets(html, ".")
+	result, err := inlineDeck(t, html, nil)
 	if err != nil {
-		t.Fatalf("InlineAssets failed: %v", err)
+		t.Fatalf("inlineAssets failed: %v", err)
 	}
 
 	if len(result.Warnings) == 0 {
 		t.Error("expected warning for missing file")
 	}
-	// Original tag should be preserved
 	if !strings.Contains(result.HTML, "<link") {
 		t.Error("original tag removed despite missing file")
 	}
 }
 
-// TestInlineMultipleJS verifies that when an HTML document references two separate
-// JS files via <script src="...">, both are inlined into inline <script> blocks
-// and no src attributes remain. This confirms the export JS (slyds-export.js) is
-// inlined alongside the main engine JS (slyds.js) during build.
 func TestInlineMultipleJS(t *testing.T) {
-	tmp := t.TempDir()
-
-	os.WriteFile(filepath.Join(tmp, "a.js"), []byte("var a=1;"), 0644)
-	os.WriteFile(filepath.Join(tmp, "b.js"), []byte("var b=2;"), 0644)
-
 	html := `<html><script src="a.js"></script><script src="b.js"></script></html>`
-	result, err := InlineAssets(html, tmp)
+	result, err := inlineDeck(t, html, map[string][]byte{
+		"a.js": []byte("var a=1;"),
+		"b.js": []byte("var b=2;"),
+	})
 	if err != nil {
-		t.Fatalf("InlineAssets failed: %v", err)
+		t.Fatalf("inlineAssets failed: %v", err)
 	}
 
 	if !strings.Contains(result.HTML, "var a=1;") {
@@ -167,9 +162,9 @@ func TestInlineMultipleJS(t *testing.T) {
 
 func TestInlineNoAssets(t *testing.T) {
 	html := `<html><body><h1>Hello</h1></body></html>`
-	result, err := InlineAssets(html, ".")
+	result, err := inlineDeck(t, html, nil)
 	if err != nil {
-		t.Fatalf("InlineAssets failed: %v", err)
+		t.Fatalf("inlineAssets failed: %v", err)
 	}
 
 	if result.HTML != html {
