@@ -8,6 +8,7 @@ import (
 	"strings"
 	"text/template"
 
+	"github.com/panyam/templar"
 )
 
 
@@ -23,20 +24,15 @@ func CreateWithTheme(title string, slideCount int, theme string) (string, error)
 	return CreateInDir(title, slideCount, theme, Slugify(title), true)
 }
 
-// CreateInDir scaffolds a new presentation in the specified output directory
-// using the given built-in theme. The outDir can be a relative or absolute path.
-// includeMCPInAgent controls whether AGENT.md includes the MCP section; it is stored in .slyds.yaml as agent_include_mcp.
+// CreateInDir scaffolds a new presentation in the specified output directory.
+// This is the path-based convenience function — delegates to ScaffoldDeck(LocalFS).
 func CreateInDir(title string, slideCount int, theme string, outDir string, includeMCPInAgent bool) (string, error) {
-	if !ThemeExists(theme) {
-		available, _ := ListThemes()
-		return "", fmt.Errorf("theme %q not found (available: %s)", theme, strings.Join(available, ", "))
-	}
-
 	dir, err := filepath.Abs(outDir)
 	if err != nil {
 		return "", err
 	}
 
+	// Validate: directory must not exist or be empty
 	if info, err := os.Stat(dir); err == nil {
 		if !info.IsDir() {
 			return "", fmt.Errorf("%q exists and is not a directory", outDir)
@@ -47,76 +43,26 @@ func CreateInDir(title string, slideCount int, theme string, outDir string, incl
 		}
 	}
 
-	if err := os.MkdirAll(filepath.Join(dir, "slides"), 0755); err != nil {
+	// Create the directory and scaffold via FS
+	if err := os.MkdirAll(dir, 0755); err != nil {
 		return "", err
 	}
 
-	// Write engine files from embedded assets
-	if err := os.WriteFile(filepath.Join(dir, "slyds.css"), []byte(SlydsCSS), 0644); err != nil {
-		return "", err
-	}
-	if err := os.WriteFile(filepath.Join(dir, "slyds.js"), []byte(SlydsJS), 0644); err != nil {
-		return "", err
-	}
-	if err := os.WriteFile(filepath.Join(dir, "slyds-export.js"), []byte(SlydsExportJS), 0644); err != nil {
-		return "", err
-	}
-
-	// Write theme CSS files into themes/ subdirectory
-	if err := writeThemeFiles(dir); err != nil {
-		return "", err
-	}
-
-	// Render and write theme.css from template
-	themeData := map[string]any{"Title": title}
-	if err := renderEmbeddedTemplate(theme, "theme.css.tmpl", themeData, filepath.Join(dir, "theme.css")); err != nil {
-		return "", fmt.Errorf("failed to render theme.css: %w", err)
-	}
-
-	// Generate slide files
-	slideFiles, err := generateSlides(theme, title, slideCount, dir)
+	fsys := templar.NewLocalFS(dir)
+	_, err = ScaffoldDeck(fsys, ScaffoldOpts{
+		Title:           title,
+		SlideCount:      slideCount,
+		ThemeName:       theme,
+		IncludeMCPAgent: includeMCPInAgent,
+	})
 	if err != nil {
 		return "", err
 	}
 
-	// Render and write index.html with templar include directives
-	var includes strings.Builder
-	sort.Strings(slideFiles)
-	for _, name := range slideFiles {
-		fmt.Fprintf(&includes, "    {{# include \"slides/%s\" #}}\n", name)
-	}
-	indexData := map[string]any{
-		"Title":      title,
-		"Theme":      theme,
-		"ThemeLinks": themeLinksHTML(),
-		"Includes":   includes.String(),
-	}
-	if err := renderEmbeddedTemplate(theme, "index.html.tmpl", indexData, filepath.Join(dir, "index.html")); err != nil {
-		return "", fmt.Errorf("failed to render index.html: %w", err)
-	}
-
-	// Copy static assets (images, fonts, etc.) from theme
-	if err := copyEmbeddedAssets(theme, dir); err != nil {
-		return "", fmt.Errorf("failed to copy theme assets: %w", err)
-	}
-
-	// Write .slyds.yaml manifest (no sources — user opts in via slyds update)
-	manifest := Manifest{
-		Theme: theme,
-		Title: title,
-	}
-	if !includeMCPInAgent {
-		f := false
-		manifest.AgentIncludeMCP = &f
-	}
-	if err := WriteManifest(dir, manifest); err != nil {
-		return "", fmt.Errorf("failed to write manifest: %w", err)
-	}
-
-	// Generate CLAUDE.md for LLM agents
-	if err := WriteAgentMD(dir, manifest); err != nil {
-		return "", fmt.Errorf("failed to write CLAUDE.md: %w", err)
-	}
+	// Write CLAUDE.md symlink (OS-specific, can't go through WritableFS)
+	claudeLink := filepath.Join(dir, "CLAUDE.md")
+	os.Remove(claudeLink)
+	os.Symlink("AGENT.md", claudeLink)
 
 	return outDir, nil
 }
@@ -424,39 +370,35 @@ func ParseIncludeDirectives(indexHTML string) string {
 	return buf.String()
 }
 
-// Update refreshes engine and theme files in an existing presentation directory
-// without touching the slides/ directory.
+// Update refreshes engine and theme files in an existing presentation.
+// Path-based convenience — delegates to UpdateDeck via LocalFS.
 func Update(dir, theme, title string) error {
+	fsys := templar.NewLocalFS(dir)
+	return UpdateDeck(fsys, theme, title)
+}
+
+// UpdateDeck refreshes engine and theme files on the given FS
+// without touching slides/. Preserves existing manifest sources.
+func UpdateDeck(fsys templar.WritableFS, theme, title string) error {
 	if !ThemeExists(theme) {
 		available, _ := ListThemes()
 		return fmt.Errorf("theme %q not found (available: %s)", theme, strings.Join(available, ", "))
 	}
 
 	// Overwrite engine files
-	if err := os.WriteFile(filepath.Join(dir, "slyds.css"), []byte(SlydsCSS), 0644); err != nil {
-		return fmt.Errorf("failed to write slyds.css: %w", err)
-	}
-	if err := os.WriteFile(filepath.Join(dir, "slyds.js"), []byte(SlydsJS), 0644); err != nil {
-		return fmt.Errorf("failed to write slyds.js: %w", err)
-	}
-	if err := os.WriteFile(filepath.Join(dir, "slyds-export.js"), []byte(SlydsExportJS), 0644); err != nil {
-		return fmt.Errorf("failed to write slyds-export.js: %w", err)
-	}
+	fsys.WriteFile("slyds.css", []byte(SlydsCSS), 0644)
+	fsys.WriteFile("slyds.js", []byte(SlydsJS), 0644)
+	fsys.WriteFile("slyds-export.js", []byte(SlydsExportJS), 0644)
 
 	// Update theme CSS files
-	if err := writeThemeFiles(dir); err != nil {
-		return fmt.Errorf("failed to write theme files: %w", err)
-	}
+	writeThemeFilesFS(fsys)
 
 	// Re-render theme.css
 	themeData := map[string]any{"Title": title}
-	if err := renderEmbeddedTemplate(theme, "theme.css.tmpl", themeData, filepath.Join(dir, "theme.css")); err != nil {
-		return fmt.Errorf("failed to render theme.css: %w", err)
-	}
+	renderEmbeddedTemplateFS(fsys, theme, "theme.css.tmpl", themeData, "theme.css")
 
 	// Parse existing includes from index.html
-	indexPath := filepath.Join(dir, "index.html")
-	indexBytes, err := os.ReadFile(indexPath)
+	indexBytes, err := fsys.ReadFile("index.html")
 	if err != nil {
 		return fmt.Errorf("failed to read index.html: %w", err)
 	}
@@ -469,31 +411,20 @@ func Update(dir, theme, title string) error {
 		"ThemeLinks": themeLinksHTML(),
 		"Includes":   includes,
 	}
-	if err := renderEmbeddedTemplate(theme, "index.html.tmpl", indexData, indexPath); err != nil {
-		return fmt.Errorf("failed to render index.html: %w", err)
-	}
+	renderEmbeddedTemplateFS(fsys, theme, "index.html.tmpl", indexData, "index.html")
 
 	// Re-copy theme static assets
-	if err := copyEmbeddedAssets(theme, dir); err != nil {
-		return fmt.Errorf("failed to copy theme assets: %w", err)
-	}
+	copyEmbeddedAssetsFS(fsys, theme)
 
-	// Write/update manifest — preserve existing sources if present
+	// Write/update manifest — preserve existing sources
 	manifest := Manifest{Theme: theme, Title: title}
-	existing, err := ReadManifest(dir)
-	if err == nil {
+	if existing, _ := readFullManifestFS(fsys); existing != nil {
 		manifest.Sources = existing.Sources
 		manifest.ModulesDir = existing.ModulesDir
 		manifest.AgentIncludeMCP = existing.AgentIncludeMCP
 	}
-	if err := WriteManifest(dir, manifest); err != nil {
-		return fmt.Errorf("failed to write manifest: %w", err)
-	}
-
-	// Regenerate AGENT.md
-	if err := WriteAgentMD(dir, manifest); err != nil {
-		return fmt.Errorf("failed to write AGENT.md: %w", err)
-	}
+	writeManifestFS(fsys, manifest)
+	writeAgentMDFS(fsys, manifest)
 
 	return nil
 }

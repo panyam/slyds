@@ -8,6 +8,7 @@ import (
 	"text/template"
 
 	"github.com/panyam/templar"
+	"gopkg.in/yaml.v3"
 )
 
 // ScaffoldOpts configures deck scaffolding.
@@ -149,13 +150,13 @@ func generateSlidesFS(fsys templar.WritableFS, theme, title string, count int) (
 	}
 	var files []string
 
-	// Title slide
+	// Title slide — prefer layout system (has data-layout, data-slot)
 	name := "01-title.html"
 	data := map[string]any{"Title": title, "Number": 1}
-	content, err := renderSlideTemplate(theme, "slides/title.html.tmpl", data)
+	content, err := Render("title", data)
 	if err != nil {
-		// Fallback to layout system
-		content, err = Render("title", data)
+		// Fallback to theme template
+		content, err = renderSlideTemplate(theme, "slides/title.html.tmpl", data)
 		if err != nil {
 			return nil, fmt.Errorf("title slide: %w", err)
 		}
@@ -165,11 +166,11 @@ func generateSlidesFS(fsys templar.WritableFS, theme, title string, count int) (
 
 	// Content slides
 	for i := 2; i < count; i++ {
-		name = fmt.Sprintf("%02d-slide-%d.html", i, i)
+		name = fmt.Sprintf("%02d-slide.html", i)
 		data = map[string]any{"Title": fmt.Sprintf("Slide %d", i), "Number": i}
-		content, err = renderSlideTemplate(theme, "slides/content.html.tmpl", data)
+		content, err = Render("content", data)
 		if err != nil {
-			content, err = Render("content", data)
+			content, err = renderSlideTemplate(theme, "slides/content.html.tmpl", data)
 			if err != nil {
 				return nil, fmt.Errorf("content slide %d: %w", i, err)
 			}
@@ -181,9 +182,9 @@ func generateSlidesFS(fsys templar.WritableFS, theme, title string, count int) (
 	// Closing slide
 	name = fmt.Sprintf("%02d-closing.html", count)
 	data = map[string]any{"Title": "Thank You", "Number": count}
-	content, err = renderSlideTemplate(theme, "slides/closing.html.tmpl", data)
+	content, err = Render("closing", data)
 	if err != nil {
-		content, err = Render("closing", data)
+		content, err = renderSlideTemplate(theme, "slides/closing.html.tmpl", data)
 		if err != nil {
 			return nil, fmt.Errorf("closing slide: %w", err)
 		}
@@ -239,6 +240,19 @@ func writeManifestFS(fsys templar.WritableFS, m Manifest) error {
 		data += "agent_include_mcp: false\n"
 	}
 	return fsys.WriteFile(".slyds.yaml", []byte(data), 0644)
+}
+
+// readFullManifestFS reads the full Manifest (including Sources) from FS.
+func readFullManifestFS(fsys templar.WritableFS) (*Manifest, error) {
+	data, err := fsys.ReadFile(".slyds.yaml")
+	if err != nil {
+		return nil, err
+	}
+	var m Manifest
+	if err := yaml.Unmarshal(data, &m); err != nil {
+		return nil, err
+	}
+	return &m, nil
 }
 
 // writeAgentMDFS writes AGENT.md via FS.

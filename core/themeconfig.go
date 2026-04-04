@@ -2,8 +2,6 @@ package core
 
 import (
 	"fmt"
-	"os"
-	"path/filepath"
 
 	"gopkg.in/yaml.v3"
 )
@@ -32,20 +30,6 @@ func LoadThemeConfig(theme string) (*ThemeConfig, error) {
 	return &cfg, nil
 }
 
-// LoadThemeConfigFromDir reads and parses the theme.yaml from a theme
-// directory on disk. Used for previewing external/community themes.
-func LoadThemeConfigFromDir(themeDir string) (*ThemeConfig, error) {
-	data, err := os.ReadFile(filepath.Join(themeDir, "theme.yaml"))
-	if err != nil {
-		return nil, fmt.Errorf("theme.yaml not found in %q: %w", themeDir, err)
-	}
-
-	var cfg ThemeConfig
-	if err := yaml.Unmarshal(data, &cfg); err != nil {
-		return nil, fmt.Errorf("failed to parse theme.yaml in %q: %w", themeDir, err)
-	}
-	return &cfg, nil
-}
 
 // TemplateForType returns the template path for a given slide type,
 // or an error if the type is not defined in the theme.
