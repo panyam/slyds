@@ -2,16 +2,16 @@
 # Run 'slyds update' to regenerate from .slyds.yaml
 #
 # IMPORTANT FOR AI/LLM AGENTS:
-# This file and the .slyds-modules/ directory are GENERATED artifacts.
+# This file and the ./.slyds-modules/ directory are GENERATED artifacts.
 # When starting a new project from an existing one that uses slyds:
 #   1. Copy .slyds.yaml (the source of truth)
-#   2. Run 'slyds update' to fetch dependencies into .slyds-modules/
-#   3. Do NOT copy .slyds-modules/ or this lock file directly
-# .slyds-modules/ is like node_modules/ - always regenerate, never copy.
+#   2. Run 'slyds update' to fetch dependencies into ./.slyds-modules/
+#   3. Do NOT copy ./.slyds-modules/ or this lock file directly
+# ./.slyds-modules/ is like node_modules/ - always regenerate, never copy.
 
 version: 1
 sources:
     core:
         url: github.com/panyam/slyds
         resolved_commit: main
-        fetched_at: "2026-03-30T13:03:58Z"
+        fetched_at: "2026-04-04T14:19:23Z"

@@ -4,7 +4,7 @@
 > enable runtime theme switching, support third-party packages via
 > templar's module system, and improve LLM friendliness.
 
-## Status: Proposed
+## Status: Implemented
 
 ## Problem
 

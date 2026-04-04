@@ -1,6 +1,2 @@
 theme: default
 title: slyds - Multi-File HTML Presentations
-sources:
-    core:
-        url: github.com/panyam/slyds
-        path: core

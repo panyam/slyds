@@ -37,12 +37,32 @@ body {
     display: none;
     padding: 60px;
     flex: 1;
-    overflow-y: auto;
+    overflow: hidden;
     animation: fadeIn 0.5s;
+    position: relative;
+    flex-direction: column;
+    color: var(--slyds-fg);
+    background: var(--slyds-bg);
+}
+
+/* Content slots scroll; slide itself doesn't (so floaters stay pinned) */
+[data-slot="body"],
+[data-slot="left"],
+[data-slot="right"] {
+    overflow-y: auto;
+    flex: 1;
+}
+
+/* ── Floating slot — pinned overlays (footers, watermarks, logos) ── */
+.slide-floater {
+    position: absolute;
+    pointer-events: none;
+    z-index: 10;
+    color: inherit;
 }
 
 .slide.active {
-    display: block;
+    display: flex;
 }
 
 @keyframes fadeIn {
@@ -90,6 +110,28 @@ body {
 
 .slide li {
     margin-bottom: 10px;
+}
+
+/* ── Tables ── */
+.slide table {
+    width: 100%;
+    border-collapse: collapse;
+    margin: 20px 0;
+}
+
+.slide th, .slide td {
+    padding: 10px 16px;
+    text-align: left;
+    border-bottom: 1px solid var(--slyds-code-border);
+}
+
+.slide th {
+    font-weight: 600;
+    opacity: 0.85;
+}
+
+.slide tr:hover {
+    background: rgba(128, 128, 128, 0.08);
 }
 
 /* ── Code blocks ── */
