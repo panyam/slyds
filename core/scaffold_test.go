@@ -30,21 +30,7 @@ func TestSlugify(t *testing.T) {
 }
 
 func TestCreate(t *testing.T) {
-	// Work in a temp directory
-	tmp := t.TempDir()
-	origDir, _ := os.Getwd()
-	os.Chdir(tmp)
-	defer os.Chdir(origDir)
-
-	slug, err := Create("Test Talk", 3)
-	if err != nil {
-		t.Fatalf("Create failed: %v", err)
-	}
-	if slug != "test-talk" {
-		t.Errorf("slug = %q, want %q", slug, "test-talk")
-	}
-
-	dir := filepath.Join(tmp, "test-talk")
+	_, mfs := scaffoldMem(t, "Test Talk")
 
 	// Check required files exist
 	requiredFiles := []string{
@@ -58,19 +44,13 @@ func TestCreate(t *testing.T) {
 		"slides/03-closing.html",
 	}
 	for _, f := range requiredFiles {
-		path := filepath.Join(dir, f)
-		if _, err := os.Stat(path); os.IsNotExist(err) {
+		if !hasFile(mfs, f) {
 			t.Errorf("missing file: %s", f)
 		}
 	}
 
 	// Check index.html has templar include directives
-	indexHTML, err := os.ReadFile(filepath.Join(dir, "index.html"))
-	if err != nil {
-		t.Fatalf("failed to read index.html: %v", err)
-	}
-	indexStr := string(indexHTML)
-
+	indexStr := readFile(t, mfs, "index.html")
 	if !strings.Contains(indexStr, `{{# include "slides/01-title.html" #}}`) {
 		t.Error("index.html missing include for 01-title.html")
 	}
@@ -82,59 +62,32 @@ func TestCreate(t *testing.T) {
 	}
 
 	// Check slide content
-	titleSlide, _ := os.ReadFile(filepath.Join(dir, "slides", "01-title.html"))
-	if !strings.Contains(string(titleSlide), "Test Talk") {
+	titleSlide := readFile(t, mfs, "slides/01-title.html")
+	if !strings.Contains(titleSlide, "Test Talk") {
 		t.Error("title slide missing presentation title")
 	}
-	if !strings.Contains(string(titleSlide), `class="slide`) {
+	if !strings.Contains(titleSlide, `class="slide`) {
 		t.Error("title slide missing slide class")
 	}
 }
 
 func TestCreateMinSlides(t *testing.T) {
-	tmp := t.TempDir()
-	origDir, _ := os.Getwd()
-	os.Chdir(tmp)
-	defer os.Chdir(origDir)
-
-	slug, err := Create("Min Slides", 2)
-	if err != nil {
-		t.Fatalf("Create failed: %v", err)
-	}
-
-	dir := filepath.Join(tmp, slug)
-
-	// Should have exactly title + closing
-	slides, err := os.ReadDir(filepath.Join(dir, "slides"))
-	if err != nil {
-		t.Fatalf("failed to read slides dir: %v", err)
-	}
-	if len(slides) != 2 {
-		t.Errorf("expected 2 slides, got %d", len(slides))
+	d, _ := scaffoldMem(t, "Min Slides", withSlides(2))
+	count, _ := d.SlideCount()
+	if count != 2 {
+		t.Errorf("expected 2 slides, got %d", count)
 	}
 }
 
 func TestCreateMoreSlides(t *testing.T) {
-	tmp := t.TempDir()
-	origDir, _ := os.Getwd()
-	os.Chdir(tmp)
-	defer os.Chdir(origDir)
-
-	_, err := Create("Many Slides", 6)
-	if err != nil {
-		t.Fatalf("Create failed: %v", err)
-	}
-
-	dir := filepath.Join(tmp, "many-slides")
-	slides, err := os.ReadDir(filepath.Join(dir, "slides"))
-	if err != nil {
-		t.Fatalf("failed to read slides dir: %v", err)
-	}
-	if len(slides) != 6 {
-		t.Errorf("expected 6 slides, got %d", len(slides))
+	d, _ := scaffoldMem(t, "Many Slides", withSlides(6))
+	count, _ := d.SlideCount()
+	if count != 6 {
+		t.Errorf("expected 6 slides, got %d", count)
 	}
 }
 
+// TestCreateDuplicateDir tests OS-level validation — must use disk.
 func TestCreateDuplicateDir(t *testing.T) {
 	tmp := t.TempDir()
 	origDir, _ := os.Getwd()
@@ -152,14 +105,9 @@ func TestCreateDuplicateDir(t *testing.T) {
 	}
 }
 
-// TestCreateInDir verifies that --dir flag routes output to the specified
-// directory instead of deriving it from the slugified title.
+// TestCreateInDir tests OS-level dir routing — must use disk.
 func TestCreateInDir(t *testing.T) {
 	tmp := t.TempDir()
-	origDir, _ := os.Getwd()
-	os.Chdir(tmp)
-	defer os.Chdir(origDir)
-
 	outDir := filepath.Join(tmp, "custom", "path")
 	result, err := CreateInDir("My Talk", 3, "default", outDir, true)
 	if err != nil {
@@ -168,8 +116,6 @@ func TestCreateInDir(t *testing.T) {
 	if result != outDir {
 		t.Errorf("returned dir = %q, want %q", result, outDir)
 	}
-
-	// Verify files exist in the custom path
 	if _, err := os.Stat(filepath.Join(outDir, "index.html")); os.IsNotExist(err) {
 		t.Error("index.html not found in custom dir")
 	}
@@ -178,12 +124,9 @@ func TestCreateInDir(t *testing.T) {
 	}
 }
 
-// TestCreateInDirNonEmpty verifies that creating a presentation in a
-// non-empty directory returns an error to prevent overwriting existing files.
+// TestCreateInDirNonEmpty tests OS-level validation — must use disk.
 func TestCreateInDirNonEmpty(t *testing.T) {
 	tmp := t.TempDir()
-
-	// Create a non-empty directory
 	targetDir := filepath.Join(tmp, "existing")
 	os.MkdirAll(targetDir, 0755)
 	os.WriteFile(filepath.Join(targetDir, "file.txt"), []byte("existing"), 0644)
@@ -197,11 +140,9 @@ func TestCreateInDirNonEmpty(t *testing.T) {
 	}
 }
 
-// TestCreateInDirEmpty verifies that creating a presentation in an
-// existing but empty directory succeeds.
+// TestCreateInDirEmpty tests OS-level validation — must use disk.
 func TestCreateInDirEmpty(t *testing.T) {
 	tmp := t.TempDir()
-
 	targetDir := filepath.Join(tmp, "empty-dir")
 	os.MkdirAll(targetDir, 0755)
 
@@ -209,27 +150,19 @@ func TestCreateInDirEmpty(t *testing.T) {
 	if err != nil {
 		t.Fatalf("CreateInDir into empty dir failed: %v", err)
 	}
-
 	if _, err := os.Stat(filepath.Join(targetDir, "index.html")); os.IsNotExist(err) {
 		t.Error("index.html not found")
 	}
 }
 
 func TestCreateInDirAgentMCPInAgentMD(t *testing.T) {
-	tmp := t.TempDir()
-	origDir, _ := os.Getwd()
-	os.Chdir(tmp)
-	defer os.Chdir(origDir)
-
-	dir := filepath.Join(tmp, "mcp-on")
-	if _, err := CreateInDir("MCP On", 3, "default", dir, true); err != nil {
-		t.Fatalf("CreateInDir mcp on: %v", err)
-	}
-	agentOn, _ := os.ReadFile(filepath.Join(dir, "AGENT.md"))
-	if !strings.Contains(string(agentOn), "## MCP (Model Context Protocol)") {
+	// MCP on
+	_, mfsOn := scaffoldMem(t, "MCP On", withMCP(true))
+	agentOn := readFile(t, mfsOn, "AGENT.md")
+	if !strings.Contains(agentOn, "## MCP (Model Context Protocol)") {
 		t.Error("AGENT.md should include MCP section when includeMCPInAgent is true")
 	}
-	manOn, err := ReadManifestFS(templar.NewLocalFS(dir))
+	manOn, err := ReadManifestFS(mfsOn)
 	if err != nil {
 		t.Fatalf("ReadManifest: %v", err)
 	}
@@ -237,15 +170,13 @@ func TestCreateInDirAgentMCPInAgentMD(t *testing.T) {
 		t.Errorf("manifest agent_include_mcp = %v, want nil (default include)", manOn.AgentIncludeMCP)
 	}
 
-	dirOff := filepath.Join(tmp, "mcp-off")
-	if _, err := CreateInDir("MCP Off", 3, "default", dirOff, false); err != nil {
-		t.Fatalf("CreateInDir mcp off: %v", err)
-	}
-	agentOff, _ := os.ReadFile(filepath.Join(dirOff, "AGENT.md"))
-	if strings.Contains(string(agentOff), "## MCP (Model Context Protocol)") {
+	// MCP off
+	_, mfsOff := scaffoldMem(t, "MCP Off", withMCP(false))
+	agentOff := readFile(t, mfsOff, "AGENT.md")
+	if strings.Contains(agentOff, "## MCP (Model Context Protocol)") {
 		t.Error("AGENT.md should omit MCP section when includeMCPInAgent is false")
 	}
-	manOff, err := ReadManifestFS(templar.NewLocalFS(dirOff))
+	manOff, err := ReadManifestFS(mfsOff)
 	if err != nil {
 		t.Fatalf("ReadManifest: %v", err)
 	}
@@ -255,44 +186,27 @@ func TestCreateInDirAgentMCPInAgentMD(t *testing.T) {
 }
 
 func TestUpdatePreservesAgentIncludeMCPFalse(t *testing.T) {
-	tmp := t.TempDir()
-	origDir, _ := os.Getwd()
-	os.Chdir(tmp)
-	defer os.Chdir(origDir)
+	_, mfs := scaffoldMem(t, "Preserve", withMCP(false))
 
-	dir := filepath.Join(tmp, "preserve-mcp-flag")
-	if _, err := CreateInDir("Preserve", 3, "default", dir, false); err != nil {
-		t.Fatalf("CreateInDir: %v", err)
+	if err := UpdateDeck(mfs, "default", "Preserve"); err != nil {
+		t.Fatalf("UpdateDeck: %v", err)
 	}
-	if err := Update(dir, "default", "Preserve"); err != nil {
-		t.Fatalf("Update: %v", err)
-	}
-	m, err := ReadManifestFS(templar.NewLocalFS(dir))
+	m, err := ReadManifestFS(mfs)
 	if err != nil {
 		t.Fatalf("ReadManifest: %v", err)
 	}
 	if m.AgentIncludeMCP == nil || *m.AgentIncludeMCP {
 		t.Errorf("agent_include_mcp after update = %v, want false", m.AgentIncludeMCP)
 	}
-	agent, _ := os.ReadFile(filepath.Join(dir, "AGENT.md"))
-	if strings.Contains(string(agent), "## MCP (Model Context Protocol)") {
+	agent := readFile(t, mfs, "AGENT.md")
+	if strings.Contains(agent, "## MCP (Model Context Protocol)") {
 		t.Error("AGENT.md should still omit MCP after update when agent_include_mcp is false")
 	}
 }
 
 func TestCreateWritesManifest(t *testing.T) {
-	tmp := t.TempDir()
-	origDir, _ := os.Getwd()
-	os.Chdir(tmp)
-	defer os.Chdir(origDir)
-
-	_, err := CreateWithTheme("Manifest Test", 3, "dark")
-	if err != nil {
-		t.Fatalf("CreateWithTheme failed: %v", err)
-	}
-
-	dir := filepath.Join(tmp, "manifest-test")
-	m, err := ReadManifestFS(templar.NewLocalFS(dir))
+	_, mfs := scaffoldMem(t, "Manifest Test", withTheme("dark"))
+	m, err := ReadManifestFS(mfs)
 	if err != nil {
 		t.Fatalf("ReadManifest: %v", err)
 	}
@@ -344,62 +258,40 @@ func TestParseIncludeDirectivesEmpty(t *testing.T) {
 }
 
 func TestUpdate(t *testing.T) {
-	tmp := t.TempDir()
-	origDir, _ := os.Getwd()
-	os.Chdir(tmp)
-	defer os.Chdir(origDir)
-
-	// Create initial presentation
-	dir := filepath.Join(tmp, "update-test")
-	_, err := CreateInDir("Update Test", 3, "default", dir, true)
-	if err != nil {
-		t.Fatalf("CreateInDir failed: %v", err)
-	}
+	_, mfs := scaffoldMem(t, "Update Test")
 
 	// Modify a slide to simulate user content
-	slideFile := filepath.Join(dir, "slides", "02-slide.html")
-	customContent := []byte("<div class=\"slide\"><h1>My Custom Content</h1></div>")
-	if err := os.WriteFile(slideFile, customContent, 0644); err != nil {
-		t.Fatalf("failed to write custom slide: %v", err)
-	}
+	customContent := "<div class=\"slide\"><h1>My Custom Content</h1></div>"
+	mfs.WriteFile("slides/02-slide.html", []byte(customContent), 0644)
 
 	// Corrupt slyds.css to prove update refreshes it
-	if err := os.WriteFile(filepath.Join(dir, "slyds.css"), []byte("/* old */"), 0644); err != nil {
-		t.Fatalf("failed to corrupt slyds.css: %v", err)
-	}
+	mfs.WriteFile("slyds.css", []byte("/* old */"), 0644)
 
 	// Run update
-	if err := Update(dir, "default", "Update Test"); err != nil {
-		t.Fatalf("Update failed: %v", err)
+	if err := UpdateDeck(mfs, "default", "Update Test"); err != nil {
+		t.Fatalf("UpdateDeck failed: %v", err)
 	}
 
 	// Verify slide content preserved
-	got, err := os.ReadFile(slideFile)
-	if err != nil {
-		t.Fatalf("failed to read slide: %v", err)
-	}
-	if string(got) != string(customContent) {
+	got := readFile(t, mfs, "slides/02-slide.html")
+	if got != customContent {
 		t.Errorf("slide content changed after update:\ngot:  %s\nwant: %s", got, customContent)
 	}
 
 	// Verify slyds.css was refreshed
-	cssData, _ := os.ReadFile(filepath.Join(dir, "slyds.css"))
-	if string(cssData) == "/* old */" {
+	css := readFile(t, mfs, "slyds.css")
+	if css == "/* old */" {
 		t.Error("slyds.css was not refreshed")
 	}
 
 	// Verify slyds-export.js was written during update
-	exportJS, err := os.ReadFile(filepath.Join(dir, "slyds-export.js"))
-	if err != nil {
-		t.Fatalf("slyds-export.js not found after update: %v", err)
-	}
+	exportJS := readFile(t, mfs, "slyds-export.js")
 	if len(exportJS) == 0 {
 		t.Error("slyds-export.js is empty after update")
 	}
 
 	// Verify index.html still has includes
-	indexData, _ := os.ReadFile(filepath.Join(dir, "index.html"))
-	indexStr := string(indexData)
+	indexStr := readFile(t, mfs, "index.html")
 	if !strings.Contains(indexStr, `{{# include "slides/01-title.html" #}}`) {
 		t.Error("index.html missing include for 01-title.html after update")
 	}
@@ -408,7 +300,7 @@ func TestUpdate(t *testing.T) {
 	}
 
 	// Verify manifest updated
-	m, err := ReadManifestFS(templar.NewLocalFS(dir))
+	m, err := ReadManifestFS(mfs)
 	if err != nil {
 		t.Fatalf("ReadManifest after update: %v", err)
 	}
@@ -417,26 +309,10 @@ func TestUpdate(t *testing.T) {
 	}
 }
 
-// TestCreateHasExportButton verifies that a scaffolded presentation's index.html
-// contains the export button onclick handler and a script reference to slyds-export.js,
-// ensuring the client-side export feature is wired up during init.
 func TestCreateHasExportButton(t *testing.T) {
-	tmp := t.TempDir()
-	origDir, _ := os.Getwd()
-	os.Chdir(tmp)
-	defer os.Chdir(origDir)
+	_, mfs := scaffoldMem(t, "Export Button Test")
 
-	_, err := CreateInDir("Export Button Test", 3, "default", filepath.Join(tmp, "export-btn"), true)
-	if err != nil {
-		t.Fatalf("CreateInDir failed: %v", err)
-	}
-
-	indexHTML, err := os.ReadFile(filepath.Join(tmp, "export-btn", "index.html"))
-	if err != nil {
-		t.Fatalf("failed to read index.html: %v", err)
-	}
-	indexStr := string(indexHTML)
-
+	indexStr := readFile(t, mfs, "index.html")
 	if !strings.Contains(indexStr, "exportPresentation()") {
 		t.Error("index.html missing exportPresentation() onclick handler")
 	}
@@ -445,9 +321,6 @@ func TestCreateHasExportButton(t *testing.T) {
 	}
 }
 
-// TestAllThemesHaveExportButton verifies that every built-in theme produces an
-// index.html with the export button and export JS script reference, ensuring no
-// theme is accidentally missing the export feature.
 func TestAllThemesHaveExportButton(t *testing.T) {
 	themes, err := ListThemes()
 	if err != nil {
@@ -456,17 +329,8 @@ func TestAllThemesHaveExportButton(t *testing.T) {
 
 	for _, theme := range themes {
 		t.Run(theme, func(t *testing.T) {
-			tmp := t.TempDir()
-			_, err := CreateInDir("Theme Test", 2, theme, filepath.Join(tmp, "deck"), true)
-			if err != nil {
-				t.Fatalf("CreateInDir(%s) failed: %v", theme, err)
-			}
-
-			indexHTML, err := os.ReadFile(filepath.Join(tmp, "deck", "index.html"))
-			if err != nil {
-				t.Fatalf("failed to read index.html: %v", err)
-			}
-			indexStr := string(indexHTML)
+			_, mfs := scaffoldMem(t, "Theme Test", withTheme(theme), withSlides(2))
+			indexStr := readFile(t, mfs, "index.html")
 
 			if !strings.Contains(indexStr, "exportPresentation()") {
 				t.Errorf("theme %s: index.html missing export button", theme)
@@ -479,107 +343,50 @@ func TestAllThemesHaveExportButton(t *testing.T) {
 }
 
 func TestUpdateInvalidTheme(t *testing.T) {
-	tmp := t.TempDir()
-	dir := filepath.Join(tmp, "bad-theme")
-	os.MkdirAll(dir, 0755)
-	os.WriteFile(filepath.Join(dir, "index.html"), []byte("<html></html>"), 0644)
+	mfs := templar.NewMemFS()
+	mfs.WriteFile("index.html", []byte("<html></html>"), 0644)
 
-	err := Update(dir, "nonexistent", "Test")
+	err := UpdateDeck(mfs, "nonexistent", "Test")
 	if err == nil {
 		t.Error("expected error for invalid theme, got nil")
 	}
 }
 
-// TestCreateTitleSlideHasDataLayout verifies that a scaffolded presentation's
-// title slide (first slide) has the data-layout="title" attribute, confirming
-// that generateSlides uses the layout template system.
 func TestCreateTitleSlideHasDataLayout(t *testing.T) {
-	tmp := t.TempDir()
-	origDir, _ := os.Getwd()
-	os.Chdir(tmp)
-	defer os.Chdir(origDir)
-
-	slug, err := Create("Layout Test", 3)
-	if err != nil {
-		t.Fatalf("Create failed: %v", err)
-	}
-
-	content, err := os.ReadFile(filepath.Join(tmp, slug, "slides", "01-title.html"))
-	if err != nil {
-		t.Fatalf("failed to read title slide: %v", err)
-	}
-	if !strings.Contains(string(content), `data-layout="title"`) {
+	_, mfs := scaffoldMem(t, "Layout Test")
+	content := readFile(t, mfs, "slides/01-title.html")
+	if !strings.Contains(content, `data-layout="title"`) {
 		t.Error("title slide missing data-layout=\"title\" attribute")
 	}
-	if !strings.Contains(string(content), `data-slot="title"`) {
+	if !strings.Contains(content, `data-slot="title"`) {
 		t.Error("title slide missing data-slot=\"title\" attribute")
 	}
 }
 
-// TestCreateContentSlideHasDataLayout verifies that scaffolded content slides
-// (middle slides) have the data-layout="content" attribute.
 func TestCreateContentSlideHasDataLayout(t *testing.T) {
-	tmp := t.TempDir()
-	origDir, _ := os.Getwd()
-	os.Chdir(tmp)
-	defer os.Chdir(origDir)
-
-	slug, err := Create("Layout Test", 4)
-	if err != nil {
-		t.Fatalf("Create failed: %v", err)
-	}
-
-	content, err := os.ReadFile(filepath.Join(tmp, slug, "slides", "02-slide.html"))
-	if err != nil {
-		t.Fatalf("failed to read content slide: %v", err)
-	}
-	if !strings.Contains(string(content), `data-layout="content"`) {
+	_, mfs := scaffoldMem(t, "Layout Test", withSlides(4))
+	content := readFile(t, mfs, "slides/02-slide.html")
+	if !strings.Contains(content, `data-layout="content"`) {
 		t.Error("content slide missing data-layout=\"content\" attribute")
 	}
-	if !strings.Contains(string(content), `data-slot="body"`) {
+	if !strings.Contains(content, `data-slot="body"`) {
 		t.Error("content slide missing data-slot=\"body\" attribute")
 	}
 }
 
-// TestCreateClosingSlideHasDataLayout verifies that the scaffolded closing slide
-// (last slide) has the data-layout="closing" attribute.
 func TestCreateClosingSlideHasDataLayout(t *testing.T) {
-	tmp := t.TempDir()
-	origDir, _ := os.Getwd()
-	os.Chdir(tmp)
-	defer os.Chdir(origDir)
-
-	slug, err := Create("Layout Test", 3)
-	if err != nil {
-		t.Fatalf("Create failed: %v", err)
-	}
-
-	content, err := os.ReadFile(filepath.Join(tmp, slug, "slides", "03-closing.html"))
-	if err != nil {
-		t.Fatalf("failed to read closing slide: %v", err)
-	}
-	if !strings.Contains(string(content), `data-layout="closing"`) {
+	_, mfs := scaffoldMem(t, "Layout Test")
+	content := readFile(t, mfs, "slides/03-closing.html")
+	if !strings.Contains(content, `data-layout="closing"`) {
 		t.Error("closing slide missing data-layout=\"closing\" attribute")
 	}
 }
 
-// TestCreateHasThemesDirectory verifies that a scaffolded presentation contains
-// a themes/ subdirectory with the base CSS and all theme override files.
 func TestCreateHasThemesDirectory(t *testing.T) {
-	tmp := t.TempDir()
-	origDir, _ := os.Getwd()
-	os.Chdir(tmp)
-	defer os.Chdir(origDir)
-
-	slug, err := Create("Themes Test", 3)
-	if err != nil {
-		t.Fatalf("Create failed: %v", err)
-	}
-
-	dir := filepath.Join(tmp, slug)
+	_, mfs := scaffoldMem(t, "Themes Test")
 	required := []string{"themes/_base.css", "themes/dark.css", "themes/default.css"}
 	for _, f := range required {
-		if _, err := os.Stat(filepath.Join(dir, f)); os.IsNotExist(err) {
+		if !hasFile(mfs, f) {
 			t.Errorf("missing theme file: %s", f)
 		}
 	}
