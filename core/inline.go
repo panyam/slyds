@@ -6,20 +6,21 @@ import (
 	"io"
 	"mime"
 	"net/http"
-	"os"
-	"path/filepath"
+	"path"
 	"regexp"
 	"strings"
+
+	"github.com/panyam/templar"
 )
 
 var (
 	cssRe = regexp.MustCompile(`<link\s+[^>]*(?:rel=["']stylesheet["'][^>]*href=["']([^"']+)["']|href=["']([^"']+)["'][^>]*rel=["']stylesheet["'])[^>]*/?>`)
 	jsRe  = regexp.MustCompile(`<script\s+[^>]*src=["']([^"']+)["'][^>]*></script>`)
-	imgRe = regexp.MustCompile(`<img\s+[^>]*src=["']([^"']+)["'][^>]*/?>`)
+	inlineImgRe = regexp.MustCompile(`<img\s+[^>]*src=["']([^"']+)["'][^>]*/?>`)
 )
 
-// InlineAssets inlines CSS, JS, and images into the HTML.
-func InlineAssets(html string, baseDir string) (*Result, error) {
+// inlineAssets inlines CSS, JS, and images into the HTML using the deck's FS.
+func (d *Deck) inlineAssets(html string) (*Result, error) {
 	var warnings []string
 
 	// Inline CSS
@@ -29,7 +30,7 @@ func InlineAssets(html string, baseDir string) (*Result, error) {
 		if href == "" {
 			href = m[2]
 		}
-		content, err := resolveAsset(href, baseDir)
+		content, err := d.resolveAsset(href)
 		if err != nil {
 			warnings = append(warnings, fmt.Sprintf("CSS not inlined: %s (%v)", href, err))
 			return match
@@ -41,7 +42,7 @@ func InlineAssets(html string, baseDir string) (*Result, error) {
 	html = jsRe.ReplaceAllStringFunc(html, func(match string) string {
 		m := jsRe.FindStringSubmatch(match)
 		src := m[1]
-		content, err := resolveAsset(src, baseDir)
+		content, err := d.resolveAsset(src)
 		if err != nil {
 			warnings = append(warnings, fmt.Sprintf("JS not inlined: %s (%v)", src, err))
 			return match
@@ -50,22 +51,18 @@ func InlineAssets(html string, baseDir string) (*Result, error) {
 	})
 
 	// Inline images as base64 data URIs
-	html = imgRe.ReplaceAllStringFunc(html, func(match string) string {
-		m := imgRe.FindStringSubmatch(match)
+	html = inlineImgRe.ReplaceAllStringFunc(html, func(match string) string {
+		m := inlineImgRe.FindStringSubmatch(match)
 		src := m[1]
-		if strings.HasPrefix(src, "data:") {
-			return match // already a data URI
+		if strings.HasPrefix(src, "data:") || strings.HasPrefix(src, "http://") || strings.HasPrefix(src, "https://") {
+			return match
 		}
-		if strings.HasPrefix(src, "http://") || strings.HasPrefix(src, "https://") {
-			return match // leave remote images
-		}
-		imgPath := filepath.Join(baseDir, src)
-		data, err := os.ReadFile(imgPath)
+		data, err := d.FS.ReadFile(src)
 		if err != nil {
 			warnings = append(warnings, fmt.Sprintf("Image not inlined: %s (%v)", src, err))
 			return match
 		}
-		ext := filepath.Ext(src)
+		ext := path.Ext(src)
 		mimeType := mime.TypeByExtension(ext)
 		if mimeType == "" {
 			mimeType = "application/octet-stream"
@@ -78,16 +75,26 @@ func InlineAssets(html string, baseDir string) (*Result, error) {
 	return &Result{HTML: html, Warnings: warnings}, nil
 }
 
-func resolveAsset(ref string, baseDir string) (string, error) {
+// resolveAsset reads a local or remote asset. Local paths go through DeckFS.
+func (d *Deck) resolveAsset(ref string) (string, error) {
 	if strings.HasPrefix(ref, "https://") || strings.HasPrefix(ref, "http://") {
 		return fetchURL(ref)
 	}
-	filePath := filepath.Join(baseDir, ref)
-	data, err := os.ReadFile(filePath)
+	data, err := d.FS.ReadFile(ref)
 	if err != nil {
 		return "", err
 	}
 	return string(data), nil
+}
+
+// InlineAssets is the package-level function for backward compatibility.
+func InlineAssets(html string, baseDir string) (*Result, error) {
+	d, err := OpenDeck(templar.NewLocalFS(baseDir))
+	if err != nil {
+		// If no index.html, create a minimal deck just for inlining
+		d = &Deck{FS: templar.NewLocalFS(baseDir)}
+	}
+	return d.inlineAssets(html)
 }
 
 func fetchURL(url string) (string, error) {

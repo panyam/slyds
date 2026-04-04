@@ -2,8 +2,6 @@ package cmd
 
 import (
 	"fmt"
-	"os"
-	"path/filepath"
 
 	"github.com/panyam/slyds/core"
 	"github.com/spf13/cobra"
@@ -18,29 +16,23 @@ var buildCmd = &cobra.Command{
 		if len(args) > 0 {
 			dir = args[0]
 		}
-		root, err := core.FindDeckRoot(dir)
+		d, err := core.OpenDeckDir(dir)
 		if err != nil {
 			return err
 		}
 
-		result, err := core.Build(root)
+		result, err := d.Build()
 		if err != nil {
 			return fmt.Errorf("build failed: %w", err)
 		}
 
-		distDir := filepath.Join(root, "dist")
-		if err := os.MkdirAll(distDir, 0755); err != nil {
-			return err
-		}
-		outPath := filepath.Join(distDir, "index.html")
-		if err := os.WriteFile(outPath, []byte(result.HTML), 0644); err != nil {
+		// Write output to dist/ via DeckFS
+		d.FS.MkdirAll("dist", 0755)
+		if err := d.FS.WriteFile("dist/index.html", []byte(result.HTML), 0644); err != nil {
 			return err
 		}
 
-		cwd, _ := os.Getwd()
-		rel, _ := filepath.Rel(cwd, outPath)
-		fmt.Printf("\nBuild complete: %s\n", rel)
-
+		fmt.Println("\nBuild complete: dist/index.html")
 		if len(result.Warnings) > 0 {
 			fmt.Println("\nWarnings:")
 			for _, w := range result.Warnings {

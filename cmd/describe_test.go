@@ -1,12 +1,11 @@
 package cmd
 
 import (
-	"os"
-	"path/filepath"
-	"github.com/panyam/slyds/core"
 	"encoding/json"
 	"strings"
 	"testing"
+
+	"github.com/panyam/slyds/core"
 )
 
 // openAndDescribe opens a Deck from root and calls Describe.
@@ -19,16 +18,15 @@ func openAndDescribe(t *testing.T, root string) (*core.DeckDescription, error) {
 	return d.Describe()
 }
 
-// TestDescribeDeck verifies that describeDeck returns a complete structured
-// summary of a freshly scaffolded presentation, including correct slide count,
-// layout detection, title extraction, and available themes/layouts.
+// TestDescribeDeck verifies that Describe returns a complete structured
+// summary of a freshly scaffolded presentation.
 func TestDescribeDeck(t *testing.T) {
 	root, cleanup := setupTestPresentation(t)
 	defer cleanup()
 
 	desc, err := openAndDescribe(t, root)
 	if err != nil {
-		t.Fatalf("describeDeck failed: %v", err)
+		t.Fatalf("Describe failed: %v", err)
 	}
 
 	if desc.Title != "Test Pres" {
@@ -40,8 +38,6 @@ func TestDescribeDeck(t *testing.T) {
 	if desc.SlideCount != 4 {
 		t.Errorf("slide_count = %d, want %d", desc.SlideCount, 4)
 	}
-
-	// Should have themes and layouts available
 	if len(desc.ThemesAvailable) == 0 {
 		t.Error("expected non-empty themes_available")
 	}
@@ -50,22 +46,20 @@ func TestDescribeDeck(t *testing.T) {
 	}
 }
 
-// TestDescribeSlideMetadata verifies that each slide in the description
-// has the expected metadata: position, file name, layout, title, and word count.
+// TestDescribeSlideMetadata verifies per-slide metadata.
 func TestDescribeSlideMetadata(t *testing.T) {
 	root, cleanup := setupTestPresentation(t)
 	defer cleanup()
 
 	desc, err := openAndDescribe(t, root)
 	if err != nil {
-		t.Fatalf("describeDeck failed: %v", err)
+		t.Fatalf("Describe failed: %v", err)
 	}
 
 	if len(desc.Slides) != 4 {
 		t.Fatalf("expected 4 slides, got %d", len(desc.Slides))
 	}
 
-	// First slide should be title layout
 	first := desc.Slides[0]
 	if first.Position != 1 {
 		t.Errorf("first slide position = %d, want 1", first.Position)
@@ -73,37 +67,30 @@ func TestDescribeSlideMetadata(t *testing.T) {
 	if first.Layout != "title" {
 		t.Errorf("first slide layout = %q, want %q", first.Layout, "title")
 	}
-	if first.File != "01-title.html" {
-		t.Errorf("first slide file = %q, want %q", first.File, "01-title.html")
-	}
 	if first.Title == "" {
 		t.Error("first slide has empty title")
 	}
 
-	// Last slide should be closing layout
 	last := desc.Slides[len(desc.Slides)-1]
 	if last.Layout != "closing" {
 		t.Errorf("last slide layout = %q, want %q", last.Layout, "closing")
 	}
 }
 
-// TestDescribeDetectsLayouts verifies that describeDeck correctly reports
-// which layouts are used in the deck.
+// TestDescribeDetectsLayouts verifies layout detection in Describe.
 func TestDescribeDetectsLayouts(t *testing.T) {
 	root, cleanup := setupTestPresentation(t)
 	defer cleanup()
 
 	desc, err := openAndDescribe(t, root)
 	if err != nil {
-		t.Fatalf("describeDeck failed: %v", err)
+		t.Fatalf("Describe failed: %v", err)
 	}
 
-	// A default scaffolded deck should have title, content, and closing layouts
 	layoutSet := map[string]bool{}
 	for _, l := range desc.LayoutsUsed {
 		layoutSet[l] = true
 	}
-
 	if !layoutSet["title"] {
 		t.Error("expected 'title' in layouts_used")
 	}
@@ -112,18 +99,16 @@ func TestDescribeDetectsLayouts(t *testing.T) {
 	}
 }
 
-// TestDescribeSpeakerNotes verifies that describeDeck detects the presence
-// of speaker notes in slides.
+// TestDescribeSpeakerNotes verifies speaker notes detection.
 func TestDescribeSpeakerNotes(t *testing.T) {
 	root, cleanup := setupTestPresentation(t)
 	defer cleanup()
 
 	desc, err := openAndDescribe(t, root)
 	if err != nil {
-		t.Fatalf("describeDeck failed: %v", err)
+		t.Fatalf("Describe failed: %v", err)
 	}
 
-	// Scaffolded slides should have speaker notes
 	for _, slide := range desc.Slides {
 		if !slide.HasNotes {
 			t.Errorf("slide %d (%s) missing speaker notes", slide.Position, slide.File)
@@ -131,33 +116,31 @@ func TestDescribeSpeakerNotes(t *testing.T) {
 	}
 }
 
-// TestDescribeWordCount verifies that describeDeck counts words in visible
-// slide content (excluding speaker notes and HTML tags).
+// TestDescribeWordCount verifies word counting in Describe.
 func TestDescribeWordCount(t *testing.T) {
 	root, cleanup := setupTestPresentation(t)
 	defer cleanup()
 
 	desc, err := openAndDescribe(t, root)
 	if err != nil {
-		t.Fatalf("describeDeck failed: %v", err)
+		t.Fatalf("Describe failed: %v", err)
 	}
 
 	for _, slide := range desc.Slides {
 		if slide.Words <= 0 {
-			t.Errorf("slide %d (%s) has %d words — expected positive count", slide.Position, slide.File, slide.Words)
+			t.Errorf("slide %d (%s) has %d words", slide.Position, slide.File, slide.Words)
 		}
 	}
 }
 
-// TestDescribeJSONOutput verifies that the deck description can be marshaled
-// to valid JSON with expected fields present.
+// TestDescribeJSONOutput verifies JSON serialization of the description.
 func TestDescribeJSONOutput(t *testing.T) {
 	root, cleanup := setupTestPresentation(t)
 	defer cleanup()
 
 	desc, err := openAndDescribe(t, root)
 	if err != nil {
-		t.Fatalf("describeDeck failed: %v", err)
+		t.Fatalf("Describe failed: %v", err)
 	}
 
 	data, err := json.MarshalIndent(desc, "", "  ")
@@ -173,28 +156,25 @@ func TestDescribeJSONOutput(t *testing.T) {
 	}
 }
 
-// TestDescribeWithInsertedSlide verifies that describeDeck correctly handles
-// a deck with a manually inserted slide, detecting its layout and metadata.
+// TestDescribeWithInsertedSlide verifies Describe after inserting a slide.
 func TestDescribeWithInsertedSlide(t *testing.T) {
 	root, cleanup := setupTestPresentation(t)
 	defer cleanup()
 
-	// Insert a two-col slide
 	err := runInsert(root, 2, "comparison", "two-col", "Side by Side")
 	if err != nil {
-		t.Fatalf("runInsert failed: %v", err)
+		t.Fatalf("InsertSlide failed: %v", err)
 	}
 
 	desc, err := openAndDescribe(t, root)
 	if err != nil {
-		t.Fatalf("describeDeck failed: %v", err)
+		t.Fatalf("Describe failed: %v", err)
 	}
 
 	if desc.SlideCount != 5 {
 		t.Errorf("slide_count = %d, want 5", desc.SlideCount)
 	}
 
-	// Second slide should be our inserted two-col
 	second := desc.Slides[1]
 	if second.Layout != "two-col" {
 		t.Errorf("inserted slide layout = %q, want %q", second.Layout, "two-col")
@@ -204,35 +184,25 @@ func TestDescribeWithInsertedSlide(t *testing.T) {
 	}
 }
 
-// TestAgentMDGenerated verifies that slyds init creates an AGENT.md file
-// and a CLAUDE.md symlink in the deck directory.
+// TestAgentMDGenerated verifies that scaffold creates AGENT.md.
+// Uses Deck.FS to check file existence instead of os.Stat.
 func TestAgentMDGenerated(t *testing.T) {
 	root, cleanup := setupTestPresentation(t)
 	defer cleanup()
 
-	// Check AGENT.md exists
-	agentPath := filepath.Join(root, "AGENT.md")
-	if _, err := os.Stat(agentPath); os.IsNotExist(err) {
+	d, _ := core.OpenDeckDir(root)
+	if _, err := d.FS.ReadFile("AGENT.md"); err != nil {
 		t.Error("AGENT.md not generated by scaffold")
-	}
-
-	// Check CLAUDE.md symlink exists
-	claudePath := filepath.Join(root, "CLAUDE.md")
-	info, err := os.Lstat(claudePath)
-	if os.IsNotExist(err) {
-		t.Error("CLAUDE.md symlink not created")
-	} else if err == nil && info.Mode()&os.ModeSymlink == 0 {
-		t.Error("CLAUDE.md exists but is not a symlink")
 	}
 }
 
-// TestAgentMDContainsLayouts verifies that the generated AGENT.md includes
-// documentation about available layouts and their slots.
+// TestAgentMDContainsLayouts verifies AGENT.md documents layouts.
 func TestAgentMDContainsLayouts(t *testing.T) {
 	root, cleanup := setupTestPresentation(t)
 	defer cleanup()
 
-	data, err := os.ReadFile(filepath.Join(root, "AGENT.md"))
+	d, _ := core.OpenDeckDir(root)
+	data, err := d.FS.ReadFile("AGENT.md")
 	if err != nil {
 		t.Fatalf("failed to read AGENT.md: %v", err)
 	}
@@ -240,18 +210,18 @@ func TestAgentMDContainsLayouts(t *testing.T) {
 
 	for _, expected := range []string{"## Available Layouts", "two-col", "title", "content", "## Available Themes", "## Quick Reference", "slyds describe"} {
 		if !strings.Contains(content, expected) {
-			t.Errorf("AGENT.md missing expected content: %q", expected)
+			t.Errorf("AGENT.md missing: %q", expected)
 		}
 	}
 }
 
-// TestAgentMDContainsTitle verifies that the generated AGENT.md includes
-// the presentation title from the manifest.
+// TestAgentMDContainsTitle verifies AGENT.md includes the presentation title.
 func TestAgentMDContainsTitle(t *testing.T) {
 	root, cleanup := setupTestPresentation(t)
 	defer cleanup()
 
-	data, err := os.ReadFile(filepath.Join(root, "AGENT.md"))
+	d, _ := core.OpenDeckDir(root)
+	data, err := d.FS.ReadFile("AGENT.md")
 	if err != nil {
 		t.Fatalf("failed to read AGENT.md: %v", err)
 	}

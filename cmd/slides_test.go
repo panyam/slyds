@@ -96,11 +96,11 @@ func TestInsertWithDeprecatedType(t *testing.T) {
 		t.Fatalf("insert with deprecated type failed: %v", err)
 	}
 
-	content, err := os.ReadFile(filepath.Join(root, "slides", "02-break.html"))
+	d, _ := core.OpenDeckDir(root)
+	html, err := d.GetSlideContent(2)
 	if err != nil {
 		t.Fatalf("failed to read inserted slide: %v", err)
 	}
-	html := string(content)
 
 	if !strings.Contains(html, `data-layout="section"`) {
 		t.Error("section slide missing data-layout=\"section\" — deprecated --type mapping failed")
@@ -123,11 +123,12 @@ func TestInsertWithDeprecatedTypeTwoColumn(t *testing.T) {
 		t.Fatalf("insert with deprecated two-column type failed: %v", err)
 	}
 
-	content, err := os.ReadFile(filepath.Join(root, "slides", "02-versus.html"))
+	d, _ := core.OpenDeckDir(root)
+	slideContent, err := d.GetSlideContent(2)
 	if err != nil {
 		t.Fatalf("failed to read inserted slide: %v", err)
 	}
-	if !strings.Contains(string(content), `data-layout="two-col"`) {
+	if !strings.Contains(slideContent, `data-layout="two-col"`) {
 		t.Error("two-column type did not map to two-col layout")
 	}
 }

@@ -3,8 +3,7 @@ package core
 import (
 	"bytes"
 	"fmt"
-	"os"
-	"path/filepath"
+	"io/fs"
 	"strings"
 
 	"github.com/panyam/templar"
@@ -16,13 +15,17 @@ type Result struct {
 	Warnings []string
 }
 
-// Build reads index.html from root, resolves all templar includes,
+// Build reads index.html from the deck's FS, resolves all templar includes,
 // inlines CSS/JS/images, and returns a self-contained HTML string.
-func Build(root string) (*Result, error) {
-	// Use templar to resolve includes.
-	// Uses SourceLoader if .slyds.yaml declares sources, otherwise FileSystemLoader.
+// All I/O goes through the deck's WritableFS.
+func (d *Deck) Build() (*Result, error) {
+	// Set up templar loader backed by the deck's FS
 	group := templar.NewTemplateGroup()
-	group.Loader = NewLoaderForDeck(root)
+	group.Loader = &templar.FileSystemLoader{
+		Folders:     []string{"."},
+		FileSystems: []fs.FS{d.FS},
+		Extensions:  []string{"html"},
+	}
 
 	templates, err := group.Loader.Load("index.html", "")
 	if err != nil {
@@ -41,8 +44,8 @@ func Build(root string) (*Result, error) {
 
 	html := buf.String()
 
-	// Inline assets
-	result, err := InlineAssets(html, root)
+	// Inline assets via FS
+	result, err := d.inlineAssets(html)
 	if err != nil {
 		return nil, err
 	}
@@ -50,9 +53,19 @@ func Build(root string) (*Result, error) {
 	return result, nil
 }
 
-// FlattenIncludes manually resolves {{# include "path" #}} directives.
-// This is a fallback if templar rendering doesn't work as expected.
-func FlattenIncludes(html string, root string) (string, error) {
+// Build is the package-level function for backward compatibility.
+// Prefers Deck.Build() for new code.
+func Build(root string) (*Result, error) {
+	d, err := OpenDeck(templar.NewLocalFS(root))
+	if err != nil {
+		return nil, err
+	}
+	return d.Build()
+}
+
+// FlattenIncludes manually resolves {{# include "path" #}} directives
+// using the deck's FS. Fallback if templar rendering doesn't work.
+func (d *Deck) FlattenIncludes(html string) (string, error) {
 	for {
 		idx := strings.Index(html, "{{#")
 		if idx == -1 {
@@ -65,26 +78,22 @@ func FlattenIncludes(html string, root string) (string, error) {
 		end += idx + 3
 
 		directive := html[idx:end]
-		// Parse: {{# include "path" #}}
 		directive = strings.TrimPrefix(directive, "{{#")
 		directive = strings.TrimSuffix(directive, "#}}")
 		directive = strings.TrimSpace(directive)
 
 		if !strings.HasPrefix(directive, "include") {
-			// Skip non-include directives
 			html = html[:idx] + html[end:]
 			continue
 		}
 
-		// Extract path
 		parts := strings.Fields(directive)
 		if len(parts) < 2 {
 			return "", fmt.Errorf("malformed include directive: %s", html[idx:end])
 		}
 		path := strings.Trim(parts[1], `"'`)
-		fullPath := filepath.Join(root, path)
 
-		content, err := os.ReadFile(fullPath)
+		content, err := d.FS.ReadFile(path)
 		if err != nil {
 			return "", fmt.Errorf("failed to include %q: %w", path, err)
 		}
@@ -92,4 +101,10 @@ func FlattenIncludes(html string, root string) (string, error) {
 		html = html[:idx] + string(content) + html[end:]
 	}
 	return html, nil
+}
+
+// FlattenIncludes is the package-level function for backward compatibility.
+func FlattenIncludes(html string, root string) (string, error) {
+	d := &Deck{FS: templar.NewLocalFS(root)}
+	return d.FlattenIncludes(html)
 }
