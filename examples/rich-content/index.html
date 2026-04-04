@@ -1,0 +1,1683 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Rich Content Showcase</title>
+  <style>
+/* slyds — Base theme variable contract
+   Defines ALL variables with sensible defaults (light theme).
+   Named themes override only what they change — see per-theme files.
+
+   See docs/CSS-VARIABLE-CONTRACT.md for the full specification.
+
+   Tiers:
+     Core     — stable API, breaking change to rename
+     Extended — base provides defaults, themes should override for polish
+     Private  — namespaced per theme/layout, not part of contract
+*/
+
+/* ── Base defaults (light theme) ── */
+[data-theme] {
+  /* Core: colors */
+  --slyds-bg: #ffffff;
+  --slyds-fg: #2c3e50;
+  --slyds-accent1: #0066cc;
+
+  /* Core: typography */
+  --slyds-heading-font: 'Segoe UI', system-ui, sans-serif;
+  --slyds-body-font: 'Segoe UI', system-ui, sans-serif;
+  --slyds-code-font: 'Fira Code', 'SF Mono', 'Consolas', monospace;
+
+  /* Core: code blocks */
+  --slyds-code-bg: #f5f5f5;
+
+  /* Core: geometry */
+  --slyds-radius: 8px;
+
+  /* Extended: secondary colors */
+  --slyds-accent2: #004488;
+  --slyds-accent3: #003366;
+  --slyds-fg-muted: #6c757d;
+  --slyds-bg-secondary: #f8f9fa;
+  --slyds-bg-highlight: rgba(0, 102, 204, 0.08);
+  --slyds-divider: #e0e0e0;
+
+  /* Extended: surfaces */
+  --slyds-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
+
+  /* Extended: code blocks */
+  --slyds-code-fg: #1a1a1a;
+  --slyds-code-border: #e0e0e0;
+
+  /* Extended: special slides (title, section, conclusion) */
+  --slyds-title-bg: linear-gradient(135deg, #003366, #0066cc);
+  --slyds-title-fg: #ffffff;
+
+  /* Extended: navigation */
+  --slyds-nav-bg: var(--slyds-accent1);
+  --slyds-nav-fg: #ffffff;
+  --slyds-nav-hover: var(--slyds-accent2);
+
+  /* Extended: chrome (toolbar, borders) */
+  --slyds-chrome-bg: rgba(0, 0, 0, 0.03);
+  --slyds-chrome-border: rgba(0, 0, 0, 0.06);
+
+  /* Extended: typography sizing */
+  --slyds-line-height: 1.6;
+}
+
+</style>
+  <style>
+/* slyds theme: corporate */
+
+[data-theme="corporate"] {
+  --slyds-fg: #1a1a1a;
+  --slyds-accent1: #0066cc;
+  --slyds-accent2: #004488;
+  --slyds-accent3: #003366;
+  --slyds-bg-secondary: #f8f9fb;
+  --slyds-bg-highlight: #f0f6ff;
+  --slyds-divider: #dee2e6;
+  --slyds-code-fg: #333333;
+  --slyds-code-border: #dee2e6;
+  --slyds-heading-font: 'Segoe UI', 'Helvetica Neue', Arial, sans-serif;
+  --slyds-body-font: 'Segoe UI', 'Helvetica Neue', Arial, sans-serif;
+  --slyds-title-bg: linear-gradient(135deg, #003366, #004488, #0066cc);
+  --slyds-chrome-bg: rgba(0, 51, 102, 0.15);
+  --slyds-chrome-border: rgba(0, 51, 102, 0.1);
+  --slyds-line-height: 1.7;
+}
+
+</style>
+  <style>
+/* slyds theme: dark */
+
+[data-theme="dark"] {
+  --slyds-bg: #1e1e2e;
+  --slyds-fg: #e0e0e0;
+  --slyds-accent1: #00d4ff;
+  --slyds-accent2: #00b4d8;
+  --slyds-accent3: #e040fb;
+  --slyds-fg-muted: #888888;
+  --slyds-bg-secondary: rgba(255, 255, 255, 0.02);
+  --slyds-bg-highlight: rgba(0, 212, 255, 0.1);
+  --slyds-divider: #333355;
+  --slyds-shadow: 0 20px 60px rgba(0, 0, 0, 0.4);
+  --slyds-code-bg: #0d1117;
+  --slyds-code-fg: #c9d1d9;
+  --slyds-code-border: #30363d;
+  --slyds-code-font: 'SF Mono', 'Fira Code', 'Consolas', monospace;
+  --slyds-title-bg: linear-gradient(135deg, #1a1a2e, #0f3460);
+  --slyds-nav-hover: #00b4d8;
+  --slyds-chrome-bg: rgba(0, 0, 0, 0.5);
+  --slyds-chrome-border: rgba(255, 255, 255, 0.06);
+}
+
+</style>
+  <style>
+/* slyds theme: default (teal/gold)
+   Matches the existing default theme.css.tmpl */
+
+[data-theme="default"] {
+  --slyds-accent1: #0d4f4f;
+  --slyds-accent2: #1a3a4a;
+  --slyds-accent3: #f0a500;
+  --slyds-bg-highlight: rgba(13, 79, 79, 0.08);
+  --slyds-shadow: 0 20px 40px rgba(0, 0, 0, 0.1);
+  --slyds-title-bg: linear-gradient(135deg, #0d4f4f, #1a3a4a);
+  --slyds-nav-hover: #1a3a4a;
+  --slyds-radius: 20px;
+}
+
+</style>
+  <style>
+/* slyds theme: hacker */
+
+[data-theme="hacker"] {
+  --slyds-bg: #0f1219;
+  --slyds-fg: #e2e4f0;
+  --slyds-accent1: #7b93ff;
+  --slyds-accent2: #4f6eff;
+  --slyds-accent3: #73d1ff;
+  --slyds-fg-muted: #3a3c4e;
+  --slyds-bg-secondary: rgba(123, 147, 255, 0.02);
+  --slyds-bg-highlight: rgba(123, 147, 255, 0.08);
+  --slyds-divider: #1c2133;
+  --slyds-shadow: 0 20px 60px rgba(0, 0, 0, 0.6);
+  --slyds-code-bg: #0a0d14;
+  --slyds-code-fg: #73d1ff;
+  --slyds-code-border: #1c2133;
+  --slyds-heading-font: 'Inter', system-ui, sans-serif;
+  --slyds-body-font: 'Inter', system-ui, sans-serif;
+  --slyds-code-font: 'JetBrains Mono', monospace;
+  --slyds-title-bg: linear-gradient(135deg, rgba(15, 18, 25, 0.85), rgba(30, 35, 48, 0.85));
+  --slyds-nav-hover: #7b93ff;
+  --slyds-chrome-bg: rgba(10, 13, 20, 0.7);
+  --slyds-chrome-border: rgba(123, 147, 255, 0.1);
+}
+
+</style>
+  <style>
+/* slyds theme: minimal */
+
+[data-theme="minimal"] {
+  --slyds-fg: #222222;
+  --slyds-accent1: #111111;
+  --slyds-accent2: #333333;
+  --slyds-accent3: #555555;
+  --slyds-fg-muted: #666666;
+  --slyds-bg-secondary: #fafafa;
+  --slyds-bg-highlight: #f5f5f5;
+  --slyds-shadow: none;
+  --slyds-code-fg: #222222;
+  --slyds-heading-font: 'Georgia', 'Times New Roman', serif;
+  --slyds-body-font: 'Georgia', 'Times New Roman', serif;
+  --slyds-title-bg: #ffffff;
+  --slyds-title-fg: #111111;
+  --slyds-chrome-bg: rgba(0, 0, 0, 0.05);
+  --slyds-chrome-border: rgba(0, 0, 0, 0.08);
+  --slyds-radius: 0;
+  --slyds-line-height: 1.7;
+}
+
+</style>
+  <style>
+/* slyds — Base presentation styles
+   Convention: .slide elements inside .slideshow-container
+   All colors/fonts reference --slyds-* variables from themes.css */
+
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+body {
+    font-family: var(--slyds-body-font);
+    background: var(--slyds-bg);
+    min-height: 100vh;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+}
+
+/* ── Container (border layout: content center, nav south) ── */
+.slideshow-container {
+    width: calc(100vw - 40px);
+    height: calc(100vh - 40px);
+    max-width: none;
+    margin: 20px;
+    position: relative;
+    background: var(--slyds-bg);
+    border-radius: var(--slyds-radius);
+    box-shadow: var(--slyds-shadow);
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+}
+
+/* ── Slides ── */
+.slide {
+    display: none;
+    padding: 60px;
+    flex: 1;
+    overflow: hidden;
+    animation: fadeIn 0.5s;
+    position: relative;
+    flex-direction: column;
+    color: var(--slyds-fg);
+    background: var(--slyds-bg);
+}
+
+/* Content slots scroll; slide itself doesn't (so floaters stay pinned) */
+[data-slot="body"],
+[data-slot="left"],
+[data-slot="right"] {
+    overflow-y: auto;
+    flex: 1;
+}
+
+/* ── Floating slot — pinned overlays (footers, watermarks, logos) ── */
+.slide-floater {
+    position: absolute;
+    pointer-events: none;
+    z-index: 10;
+    color: inherit;
+}
+
+.slide.active {
+    display: flex;
+}
+
+@keyframes fadeIn {
+    from { opacity: 0; transform: translateY(20px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+
+/* ── Typography ── */
+.slide h1 {
+    color: var(--slyds-accent1);
+    font-family: var(--slyds-heading-font);
+    font-size: 2.5em;
+    margin-bottom: 30px;
+    border-bottom: 4px solid var(--slyds-accent1);
+    padding-bottom: 15px;
+}
+
+.slide h2 {
+    color: var(--slyds-fg);
+    font-family: var(--slyds-heading-font);
+    font-size: 2em;
+    margin-bottom: 25px;
+    margin-top: 30px;
+}
+
+.slide h3 {
+    color: var(--slyds-accent1);
+    font-family: var(--slyds-heading-font);
+    font-size: 1.4em;
+    margin-bottom: 15px;
+    margin-top: 25px;
+}
+
+.slide p, .slide li {
+    font-size: 1.2em;
+    line-height: var(--slyds-line-height);
+    margin-bottom: 15px;
+    color: var(--slyds-fg);
+}
+
+.slide ul {
+    margin-left: 30px;
+    margin-bottom: 20px;
+}
+
+.slide li {
+    margin-bottom: 10px;
+}
+
+/* ── Tables ── */
+.slide table {
+    width: 100%;
+    border-collapse: collapse;
+    margin: 20px 0;
+}
+
+.slide th, .slide td {
+    padding: 10px 16px;
+    text-align: left;
+    border-bottom: 1px solid var(--slyds-code-border);
+}
+
+.slide th {
+    font-weight: 600;
+    opacity: 0.85;
+}
+
+.slide tr:hover {
+    background: rgba(128, 128, 128, 0.08);
+}
+
+/* ── Code blocks ── */
+.slide pre {
+    background: var(--slyds-code-bg);
+    border: 1px solid var(--slyds-code-border);
+    border-radius: var(--slyds-radius);
+    padding: 16px;
+    overflow-x: auto;
+    margin: 20px 0;
+}
+
+.slide code {
+    font-family: var(--slyds-code-font);
+    color: var(--slyds-code-fg);
+    background: var(--slyds-code-bg);
+    padding: 2px 6px;
+    border-radius: 4px;
+    font-size: 0.9em;
+}
+
+.slide pre code {
+    background: none;
+    padding: 0;
+    border-radius: 0;
+}
+
+/* ── Components ── */
+.highlight {
+    background: var(--slyds-bg-highlight);
+    padding: 20px;
+    border-radius: 10px;
+    margin: 20px 0;
+    border-left: 5px solid var(--slyds-accent1);
+}
+
+.stats-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+    gap: 20px;
+    margin: 20px 0;
+}
+
+.stat-box {
+    background: var(--slyds-bg-secondary);
+    padding: 20px;
+    border-radius: 10px;
+    text-align: center;
+    border: 2px solid var(--slyds-divider);
+}
+
+.stat-number {
+    font-size: 2.5em;
+    font-weight: bold;
+    color: var(--slyds-accent1);
+    display: block;
+}
+
+.stat-label {
+    font-size: 1em;
+    color: var(--slyds-fg-muted);
+    margin-top: 5px;
+}
+
+.tier-table {
+    width: 100%;
+    border-collapse: collapse;
+    margin: 20px 0;
+    background: var(--slyds-bg);
+    border-radius: 10px;
+    overflow: hidden;
+    box-shadow: var(--slyds-shadow);
+}
+
+.tier-table th, .tier-table td {
+    padding: 15px;
+    text-align: left;
+    border-bottom: 1px solid var(--slyds-divider);
+}
+
+.tier-table th {
+    background: var(--slyds-accent1);
+    color: var(--slyds-nav-fg);
+    font-weight: 600;
+}
+
+.tier-table tr:nth-child(even) {
+    background: var(--slyds-bg-secondary);
+}
+
+/* ── Navigation (south panel, always at bottom) ── */
+.navigation {
+    flex-shrink: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 16px;
+    padding: 12px 30px;
+    border-top: 1px solid var(--slyds-chrome-border);
+    background: var(--slyds-chrome-bg);
+    position: relative;
+}
+
+.nav-button {
+    background: var(--slyds-nav-bg);
+    color: var(--slyds-nav-fg);
+    border: none;
+    padding: 10px 22px;
+    border-radius: 25px;
+    cursor: pointer;
+    font-size: 0.95em;
+    transition: all 0.3s ease;
+}
+
+.nav-button:hover {
+    background: var(--slyds-nav-hover);
+    transform: translateY(-2px);
+}
+
+.nav-button:disabled {
+    background: var(--slyds-divider);
+    cursor: not-allowed;
+    transform: none;
+    opacity: 0.5;
+}
+
+/* ── Slide counter (inline in nav) ── */
+.slide-counter {
+    color: var(--slyds-fg-muted);
+    font-size: 0.9em;
+    white-space: nowrap;
+    user-select: none;
+}
+
+/* ── Icon buttons (notes, export, theme) ── */
+.notes-btn,
+.export-btn,
+.theme-btn {
+    background: none;
+    border: 1px solid var(--slyds-chrome-border);
+    color: var(--slyds-fg-muted);
+    width: 36px;
+    height: 36px;
+    border-radius: 50%;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.3s ease;
+    padding: 0;
+}
+
+.notes-btn:hover,
+.export-btn:hover,
+.theme-btn:hover {
+    background: var(--slyds-bg-secondary);
+    color: var(--slyds-fg);
+    border-color: var(--slyds-divider);
+}
+
+.notes-btn {
+    position: absolute;
+    right: 30px;
+}
+
+.export-btn {
+    position: absolute;
+    right: 80px;
+}
+
+.theme-btn {
+    position: absolute;
+    right: 130px;
+}
+
+/* ── Title slide ── */
+.title-slide {
+    text-align: center;
+    background: var(--slyds-title-bg);
+    color: var(--slyds-title-fg);
+}
+
+.title-slide h1,
+.title-slide h2,
+.title-slide h3,
+.title-slide p,
+.title-slide li {
+    color: var(--slyds-title-fg);
+}
+
+.title-slide h1 {
+    font-size: 3em;
+    border-bottom: none;
+    margin-bottom: 20px;
+}
+
+.author-info {
+    font-size: 1.1em;
+    margin-top: 40px;
+    opacity: 0.9;
+}
+
+.authors-container {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 30px;
+    margin-top: 60px;
+    padding: 0 40px;
+}
+
+.author-card {
+    text-align: center;
+    background: rgba(255, 255, 255, 0.1);
+    padding: 20px;
+    border-radius: 15px;
+    backdrop-filter: blur(10px);
+    border: 1px solid rgba(255, 255, 255, 0.2);
+}
+
+.author-photo {
+    width: 120px;
+    height: 120px;
+    margin: 0 auto 15px auto;
+    border-radius: 50%;
+    overflow: hidden;
+    border: 3px solid rgba(255, 255, 255, 0.3);
+    background: rgba(255, 255, 255, 0.2);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.author-image {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    border-radius: 50%;
+}
+
+.author-name {
+    font-size: 1.2em;
+    font-weight: bold;
+    color: var(--slyds-title-fg);
+    margin-bottom: 8px;
+}
+
+.author-title {
+    font-size: 0.9em;
+    color: var(--slyds-title-fg);
+    opacity: 0.8;
+    line-height: 1.3;
+}
+
+/* ── Conclusion slide ── */
+.conclusion-slide {
+    background: var(--slyds-title-bg);
+    color: var(--slyds-title-fg);
+}
+
+.conclusion-slide h1,
+.conclusion-slide h2,
+.conclusion-slide h3,
+.conclusion-slide p,
+.conclusion-slide li {
+    color: var(--slyds-title-fg);
+}
+
+/* ── Phase box ── */
+.phase-box {
+    background: var(--slyds-bg-secondary);
+    padding: 25px;
+    border-radius: 10px;
+    margin: 15px 0;
+    border-left: 5px solid var(--slyds-accent1);
+}
+
+.phase-box h3 {
+    color: var(--slyds-fg);
+    margin-top: 0;
+}
+
+
+/* ── Layout: Two-column (legacy class — use .layout-two-col instead) ── */
+
+/* ── Layout: Section divider ── */
+.section-slide {
+    text-align: center;
+    display: none;
+    background: var(--slyds-title-bg);
+    color: var(--slyds-title-fg);
+}
+
+.section-slide.active {
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+}
+
+.section-slide h1,
+.section-slide h2,
+.section-slide h3,
+.section-slide p,
+.section-slide li {
+    color: var(--slyds-title-fg);
+}
+
+.section-slide h1 {
+    font-size: 2.8em;
+    border-bottom: none;
+    margin-bottom: 20px;
+}
+
+/* ── Layout system (data-layout attribute) ── */
+
+/* Two-column grid layout */
+.layout-two-col {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 40px;
+    margin-top: 30px;
+    width: 100%;
+}
+
+.layout-two-col .col {
+    min-width: 0;
+}
+
+/* ── Speaker notes (hidden in DOM, read by JS) ── */
+.speaker-notes {
+    display: none;
+}
+
+/* ── Position-aware CSS variables ──
+   Set by slyds.js on each .slide element:
+     --slide-index:    0-based slide position
+     --slide-progress: percentage through deck (0% to 100%)
+     --total-slides:   total slide count
+   Use in theme.css for conditional styling, e.g.:
+     .slide { opacity: calc(0.8 + 0.2 * var(--slide-progress, 0%) / 100%); }
+*/
+
+</style>
+  <style>
+/* Rich Content Showcase — Dark theme
+   Structural overrides that can't be expressed as CSS variables. */
+
+/* Title slide text shadow */
+.title-slide h1 {
+    text-shadow: 0 2px 10px rgba(0, 212, 255, 0.3);
+}
+
+/* Position-aware: alternating subtle tints on content slides only */
+.slide:nth-child(odd):not(.title-slide):not(.conclusion-slide):not(.section-slide) {
+    background-color: var(--slyds-bg-secondary);
+}
+
+.slide:nth-child(even):not(.title-slide):not(.conclusion-slide):not(.section-slide) {
+    background-color: rgba(0, 0, 0, 0.1);
+}
+
+/* Progress-aware accent shift — uses --slide-progress set by slyds.js */
+.slide h1 {
+    border-bottom-color: color-mix(in srgb, var(--slyds-accent1) calc(100% - var(--slide-progress, 0%)), var(--slyds-accent3) var(--slide-progress, 0%));
+}
+
+</style>
+</head>
+<body>
+  <div class="slideshow-container">
+    <div class="slide active title-slide">
+  <h1>Rich Content Showcase</h1>
+  <p style="font-size: 1.3em; margin-top: 20px; opacity: 0.85;">CSS Components Available in slyds</p>
+  <p style="font-size: 0.95em; margin-top: 30px; opacity: 0.6;">Navigate with arrow keys. Press N for speaker notes.</p>
+  <div class="speaker-notes">
+    <h3>Welcome</h3>
+    <p>This presentation demonstrates all the CSS components available in slyds out of the box. Each slide showcases a different component with real usage examples.</p>
+  </div>
+</div>
+
+    <div class="slide">
+  <h1>Code Blocks</h1>
+  <p>Inline code uses <code>monospace styling</code> with a dark background.</p>
+  <h3>Go Example</h3>
+  <pre><code>func Build(root string) (*Result, error) {
+    html, err := resolveIncludes(root, &#34;index.html&#34;)
+    if err != nil {
+        return nil, fmt.Errorf(&#34;include resolution: %w&#34;, err)
+    }
+    inlined, warnings := InlineAssets(html, root)
+    return &amp;Result{HTML: inlined, Warnings: warnings}, nil
+}</code></pre>
+  <h3>Shell Example</h3>
+  <pre><code>$ slyds init &#34;My Talk&#34; --theme dark -n 6
+Created &#34;my-talk&#34; with 6 slides (theme: dark).
+
+$ slyds build my-talk
+Built dist/index.html (42 KB, 6 slides)</code></pre>
+  <div class="speaker-notes">
+    <h3>Code Blocks</h3>
+    <p>Code blocks use the theme&#39;s monospace font and dark background. The dark theme styles them with a GitHub-dark inspired color scheme. Both inline code and pre/code blocks are styled automatically.</p>
+  </div>
+</div>
+
+    <div class="slide">
+  <h1>Highlight Callouts</h1>
+  <p>Use the <code>.highlight</code> class for callout boxes:</p>
+  <div class="highlight">
+    <strong>Tip:</strong> Callout boxes draw attention to key information. They use a colored left border and subtle background tint that adapts to the active theme.
+  </div>
+  <div class="highlight">
+    <strong>How it works:</strong> The dark theme renders highlights with <code>rgba(0, 212, 255, 0.1)</code> background and a cyan left border — keeping the box visible without overwhelming the content.
+  </div>
+  <div class="highlight">
+    <strong>Usage:</strong> Wrap any content in <code>&lt;div class=&#34;highlight&#34;&gt;</code> — paragraphs, lists, even code blocks work inside callouts.
+  </div>
+  <div class="speaker-notes">
+    <h3>Callouts</h3>
+    <p>The highlight class provides a versatile callout component. Each theme styles it differently — the default theme uses a gradient background, while the dark theme uses a semi-transparent cyan tint. The left border provides visual anchoring.</p>
+  </div>
+</div>
+
+    <div class="slide">
+  <h1>Stats at a Glance</h1>
+  <p>The <code>.stats-grid</code> and <code>.stat-box</code> classes create metric displays:</p>
+  <div class="stats-grid">
+    <div class="stat-box">
+      <span class="stat-number">5</span>
+      <span class="stat-label">Built-in Themes</span>
+    </div>
+    <div class="stat-box">
+      <span class="stat-number">5</span>
+      <span class="stat-label">Slide Types</span>
+    </div>
+    <div class="stat-box">
+      <span class="stat-number">1</span>
+      <span class="stat-label">Binary, Zero Dependencies</span>
+    </div>
+    <div class="stat-box">
+      <span class="stat-number">&lt;50KB</span>
+      <span class="stat-label">Typical Built Output</span>
+    </div>
+  </div>
+  <div class="highlight">
+    <strong>Responsive:</strong> The grid automatically adjusts columns based on available width using <code>repeat(auto-fit, minmax(250px, 1fr))</code>.
+  </div>
+  <div class="speaker-notes">
+    <h3>Stats Grid</h3>
+    <p>The stats grid is perfect for dashboards, KPI slides, or any time you need to show numbers at a glance. The stat-number class gets the theme&#39;s accent color (cyan in dark theme), and the grid is responsive by default.</p>
+  </div>
+</div>
+
+    <div class="slide layout-two-column">
+  <h1>Side-by-Side Layout</h1>
+  <div style="display: flex; gap: 40px; margin-top: 30px; text-align: left; width: 100%;">
+    <div class="col-left" style="flex: 1;">
+      <h2>Source HTML</h2>
+      <pre><code>&lt;div class=&#34;highlight&#34;&gt;
+  &lt;strong&gt;Tip:&lt;/strong&gt;
+  Use callouts for
+  key information.
+&lt;/div&gt;</code></pre>
+      <p>Write plain HTML — no custom syntax or preprocessors needed.</p>
+    </div>
+    <div class="col-right" style="flex: 1;">
+      <h2>Rendered Result</h2>
+      <div class="highlight">
+        <strong>Tip:</strong> Use callouts for key information.
+      </div>
+      <p>The theme CSS handles all the visual styling automatically.</p>
+    </div>
+  </div>
+  <div class="speaker-notes">
+    <h3>Two-Column Layout</h3>
+    <p>The two-column layout uses flexbox with a subtle left-column border separator. Perfect for before/after comparisons, source vs. rendered views, or any side-by-side content. The col-left class gets a right border for visual separation.</p>
+  </div>
+</div>
+
+    <div class="slide">
+  <h1>Data Tables</h1>
+  <p>The <code>.tier-table</code> class styles tables with themed headers and alternating rows:</p>
+  <table class="tier-table">
+    <thead>
+      <tr>
+        <th>Component</th>
+        <th>CSS Class</th>
+        <th>Use Case</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td>Callout Box</td>
+        <td><code>.highlight</code></td>
+        <td>Tips, warnings, key takeaways</td>
+      </tr>
+      <tr>
+        <td>Stats Grid</td>
+        <td><code>.stats-grid</code></td>
+        <td>KPIs, metrics, numbers at a glance</td>
+      </tr>
+      <tr>
+        <td>Data Table</td>
+        <td><code>.tier-table</code></td>
+        <td>Comparisons, feature matrices</td>
+      </tr>
+      <tr>
+        <td>Phase Box</td>
+        <td><code>.phase-box</code></td>
+        <td>Timelines, project phases, steps</td>
+      </tr>
+      <tr>
+        <td>Two Column</td>
+        <td><code>.layout-two-column</code></td>
+        <td>Side-by-side comparisons</td>
+      </tr>
+    </tbody>
+  </table>
+  <div class="speaker-notes">
+    <h3>Tables</h3>
+    <p>The tier-table class provides a clean, themed table with colored header row and alternating row backgrounds. The dark theme uses a subtle hover effect on rows. Tables collapse borders and use consistent padding.</p>
+  </div>
+</div>
+
+    <div class="slide">
+  <h1>Phase Boxes</h1>
+  <p>The <code>.phase-box</code> class is ideal for timelines and step-by-step content:</p>
+  <div class="phase-box">
+    <h3>Phase 1 — Scaffold</h3>
+    <p>Run <code>slyds init</code> to create a presentation skeleton with your chosen theme. Each slide gets its own HTML file in the <code>slides/</code> directory.</p>
+  </div>
+  <div class="phase-box">
+    <h3>Phase 2 — Author</h3>
+    <p>Edit each slide as plain HTML. Use the CSS components shown in this deck — callouts, stats, tables, code blocks. Run <code>slyds serve</code> to preview live.</p>
+  </div>
+  <div class="phase-box">
+    <h3>Phase 3 — Publish</h3>
+    <p>Run <code>slyds build</code> to produce a single self-contained HTML file. Host it anywhere — GitHub Pages, S3, or just email the file.</p>
+  </div>
+  <div class="speaker-notes">
+    <h3>Phase Boxes</h3>
+    <p>Phase boxes provide a structured way to show sequential steps, project phases, or timelines. Each box has a colored left border and subtle background. The h3 inside uses the theme&#39;s accent color. Stack them vertically for a natural timeline flow.</p>
+  </div>
+</div>
+
+    <div class="slide conclusion-slide" style="text-align: center;">
+  <h1>Build Your Own</h1>
+  <p style="font-size: 1.2em; margin-top: 20px;">Every component in this deck is available in all slyds themes.</p>
+  <div class="stats-grid" style="margin-top: 30px;">
+    <div class="stat-box">
+      <span class="stat-number">.highlight</span>
+      <span class="stat-label">Callout boxes</span>
+    </div>
+    <div class="stat-box">
+      <span class="stat-number">.stats-grid</span>
+      <span class="stat-label">Metric displays</span>
+    </div>
+    <div class="stat-box">
+      <span class="stat-number">.tier-table</span>
+      <span class="stat-label">Data tables</span>
+    </div>
+    <div class="stat-box">
+      <span class="stat-number">.phase-box</span>
+      <span class="stat-label">Timeline steps</span>
+    </div>
+  </div>
+  <p style="margin-top: 30px; opacity: 0.7;">Slides are just HTML — add your own CSS classes too.</p>
+  <div class="speaker-notes">
+    <h3>Closing</h3>
+    <p>All these components work across every slyds theme. The theme CSS adapts colors and typography, but the component structure stays the same. And since slides are plain HTML, you can always add custom CSS for project-specific components.</p>
+  </div>
+</div>
+
+    <div class="slide" data-layout="content">
+  <h1>Floating Overlays</h1>
+  <div data-slot="body">
+    <p>The <code>floater</code> slot supports pinned overlays that stay fixed within the slide. Use it for footers, watermarks, logos, or any persistent element.</p>
+    <h3>Three patterns shown on this slide:</h3>
+    <table>
+      <thead>
+        <tr>
+          <th>Pattern</th>
+          <th>Position</th>
+          <th>Use case</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td>Footer</td>
+          <td>Bottom, full width</td>
+          <td>Confidentiality notices, copyright</td>
+        </tr>
+        <tr>
+          <td>Watermark</td>
+          <td>Center, rotated</td>
+          <td>Draft stamps, status labels</td>
+        </tr>
+        <tr>
+          <td>Badge</td>
+          <td>Top-right corner</td>
+          <td>Logos, slide tags, status indicators</td>
+        </tr>
+      </tbody>
+    </table>
+    <p>All three are <code>position: absolute</code> within the slide via <code>.slide-floater</code>. Populate with <code>slyds query</code>:</p>
+    <pre><code>slyds query 9 '[data-slot="floater"]' --set '&lt;span style="..."&gt;Content&lt;/span&gt;'</code></pre>
+  </div>
+
+  
+  <div data-slot="floater" class="slide-floater" style="bottom: 0; left: 0; right: 0; padding: 8px 24px; font-size: 0.7em; opacity: 0.5; text-align: center; border-top: 1px solid currentColor;">
+    Acme Corp Confidential &nbsp;&bull;&nbsp; Internal Use Only &nbsp;&bull;&nbsp; 2026
+  </div>
+
+  
+  <div class="slide-floater" style="top: 50%; left: 50%; transform: translate(-50%, -50%) rotate(-25deg); opacity: 0.1; font-size: 5em; font-weight: bold; letter-spacing: 0.1em; white-space: nowrap;">
+    DRAFT
+  </div>
+
+  
+  <div class="slide-floater" style="top: 16px; right: 16px; background: var(--slyds-accent1); color: white; padding: 4px 12px; border-radius: var(--slyds-radius); font-size: 0.75em; font-weight: 600; pointer-events: auto;">
+    NEW
+  </div>
+
+  <div class="speaker-notes">
+    <h3>Floating Overlays</h3>
+    <p>This slide demonstrates three floating overlay patterns. The floater slot uses position:absolute within the slide. Multiple floaters can coexist — the footer, watermark, and badge are all visible simultaneously. The floater slot in the layout template is the primary one addressed by data-slot="floater"; additional floaters use the .slide-floater class directly.</p>
+  </div>
+</div>
+
+    <div class="navigation">
+      <button class="nav-button" onclick="changeSlide(-1)" id="prevBtn">&#10094; Prev</button>
+      <div class="slide-counter"><span id="slideNum">1</span> / <span id="totalSlides"></span></div>
+      <button class="nav-button" onclick="changeSlide(1)" id="nextBtn">Next &#10095;</button>
+      <button class="theme-btn" onclick="cycleTheme()" title="Switch Theme">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="5"/><line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/><line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/></svg>
+      </button>
+      <button class="export-btn" onclick="exportPresentation()" title="Export Slides">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+      </button>
+      <button class="notes-btn" onclick="openNotesWindow()" title="Speaker Notes">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><line x1="10" y1="9" x2="8" y2="9"/></svg>
+      </button>
+    </div>
+  </div>
+  <script>
+/**
+ * slyds — Lightweight HTML presentation engine
+ * Convention: <div class="slide"> elements, .active class, #slideNum/#totalSlides spans
+ */
+(function () {
+    'use strict';
+
+    var totalSlides = document.querySelectorAll('.slide').length;
+    var notesWindow = null;
+
+    // Timer state — lives in main window so closing/reopening notes preserves it
+    var timerStart = null;
+    var timerPaused = false;
+    var timerElapsed = 0;
+    var timerInterval = null;
+
+    // Reading time — computed once on load
+    var slideReadingTimes = [];
+    var WPM = 200;
+
+    // ── Presentation context ──
+    // Persistent context for hook consumers. The `state` bag survives slide
+    // transitions — use it to cache chart instances, track first-visit flags, etc.
+    window.slydsContext = {
+        totalSlides: totalSlides,
+        currentSlide: 1,
+        direction: 'init',
+        state: {}
+    };
+
+    // Write total into counter (if element exists)
+    var totalEl = document.getElementById('totalSlides');
+    if (totalEl) totalEl.textContent = totalSlides;
+
+    // Get initial slide from URL hash (e.g., #5 or #slide-5)
+    function getSlideFromHash() {
+        var hash = window.location.hash;
+        if (hash) {
+            var match = hash.match(/^#(?:slide-)?(\d+)$/);
+            if (match) {
+                var slideNum = parseInt(match[1], 10);
+                if (slideNum >= 1 && slideNum <= totalSlides) {
+                    return slideNum;
+                }
+            }
+        }
+        return 1;
+    }
+
+    var currentSlide = getSlideFromHash();
+
+    // ── Reading time computation ──
+    // Computes word count and estimated reading time for each slide's
+    // visible content (excludes speaker notes). Called once on load.
+    function computeReadingTimes() {
+        var slides = document.querySelectorAll('.slide');
+        slideReadingTimes = [];
+        slides.forEach(function (slide) {
+            var clone = slide.cloneNode(true);
+            var notes = clone.querySelector('.speaker-notes');
+            if (notes) notes.remove();
+            var text = clone.textContent || '';
+            var words = text.trim().split(/\s+/).filter(function (w) { return w.length > 0; });
+            slideReadingTimes.push(Math.ceil(words.length / WPM * 60));
+        });
+    }
+
+    // Returns reading time in seconds for slide n (1-indexed)
+    function getReadingTime(n) {
+        return slideReadingTimes[n - 1] || 0;
+    }
+
+    // Returns total remaining reading time in seconds from current slide onward
+    function getRemainingReadingTime() {
+        var total = 0;
+        for (var i = currentSlide; i < totalSlides; i++) {
+            total += (slideReadingTimes[i] || 0);
+        }
+        return total;
+    }
+
+    // ── Timer functions ──
+
+    function getElapsedMs() {
+        if (timerStart !== null && !timerPaused) {
+            return timerElapsed + (Date.now() - timerStart);
+        }
+        return timerElapsed;
+    }
+
+    function formatTime(ms) {
+        var totalSec = Math.floor(ms / 1000);
+        var h = Math.floor(totalSec / 3600);
+        var m = Math.floor((totalSec % 3600) / 60);
+        var s = totalSec % 60;
+        var pad = function (n) { return n < 10 ? '0' + n : '' + n; };
+        if (h > 0) {
+            return h + ':' + pad(m) + ':' + pad(s);
+        }
+        return m + ':' + pad(s);
+    }
+
+    function formatReadingTime(seconds) {
+        if (seconds < 60) return '< 1 min';
+        var mins = Math.round(seconds / 60);
+        return '~' + mins + ' min';
+    }
+
+    function timerButtonLabel() {
+        if (timerStart === null && timerElapsed === 0) return 'Start';
+        if (timerPaused) return 'Resume';
+        return 'Pause';
+    }
+
+    function updateTimerDisplay() {
+        if (notesWindow && !notesWindow.closed) {
+            var timerEl = notesWindow.document.getElementById('notesTimer');
+            if (timerEl) timerEl.textContent = formatTime(getElapsedMs());
+        }
+    }
+
+    function startTimer() {
+        timerStart = Date.now();
+        timerPaused = false;
+        timerInterval = setInterval(updateTimerDisplay, 1000);
+        updateTimerDisplay();
+        updateNotesTimerUI();
+    }
+
+    function pauseTimer() {
+        timerElapsed += (Date.now() - timerStart);
+        timerStart = null;
+        timerPaused = true;
+        clearInterval(timerInterval);
+        timerInterval = null;
+        updateTimerDisplay();
+        updateNotesTimerUI();
+    }
+
+    function toggleTimer() {
+        if (timerStart === null && !timerPaused && timerElapsed === 0) {
+            startTimer();
+        } else if (timerPaused || timerStart === null) {
+            startTimer();
+        } else {
+            pauseTimer();
+        }
+    }
+
+    function updateNotesTimerUI() {
+        if (!notesWindow || notesWindow.closed) return;
+        var btn = notesWindow.document.getElementById('notesTimerToggle');
+        if (btn) btn.textContent = timerButtonLabel();
+        var readEl = notesWindow.document.getElementById('notesReadingTime');
+        if (readEl) readEl.textContent = formatReadingTime(getReadingTime(currentSlide)) + ' read';
+        var remEl = notesWindow.document.getElementById('notesRemaining');
+        if (remEl) remEl.textContent = formatReadingTime(getRemainingReadingTime()) + ' remaining';
+    }
+
+    // Get speaker notes from the DOM
+    function getNotesForSlide(n) {
+        var slide = document.querySelectorAll('.slide')[n - 1];
+        var notesEl = slide ? slide.querySelector('.speaker-notes') : null;
+        return notesEl ? notesEl.innerHTML : '<p>No notes for this slide.</p>';
+    }
+
+    // Get slide title from the DOM
+    function getSlideTitleForSlide(n) {
+        var slide = document.querySelectorAll('.slide')[n - 1];
+        if (!slide) return 'Slide ' + n;
+        var h1 = slide.querySelector('h1');
+        return h1 ? h1.textContent : 'Slide ' + n;
+    }
+
+    // Build the detail payload for slideEnter/slideLeave events.
+    function buildEventDetail(slideEl, slideIndex, direction) {
+        var h1 = slideEl.querySelector('h1');
+        var title = h1 ? h1.textContent : 'Slide ' + (slideIndex + 1);
+        var layout = slideEl.getAttribute('data-layout') || null;
+
+        var dataset = {};
+        if (slideEl.dataset) {
+            for (var key in slideEl.dataset) {
+                if (slideEl.dataset.hasOwnProperty(key)) {
+                    dataset[key] = slideEl.dataset[key];
+                }
+            }
+        }
+
+        return {
+            index: slideIndex,
+            slideNum: slideIndex + 1,
+            title: title,
+            layout: layout,
+            total: totalSlides,
+            direction: direction,
+            data: dataset
+        };
+    }
+
+    function showSlide(n, from) {
+        var slides = document.querySelectorAll('.slide');
+        // from is the slide we're leaving; undefined on initial load and hash nav
+        var previousSlide = (from !== undefined) ? from : currentSlide;
+
+        if (n > totalSlides) currentSlide = 1;
+        if (n < 1) currentSlide = totalSlides;
+
+        // Compute direction: use raw n (before clamping) so wrap-around is correct
+        var direction;
+        if (previousSlide === currentSlide) {
+            direction = 'init';
+        } else if (n > previousSlide) {
+            direction = 'forward';
+        } else {
+            direction = 'backward';
+        }
+
+        // Dispatch slideLeave on outgoing slide (still .active, has dimensions)
+        var outgoing = slides[previousSlide - 1];
+        if (outgoing && outgoing.classList.contains('active')) {
+            outgoing.dispatchEvent(new CustomEvent('slideLeave', {
+                bubbles: true,
+                detail: buildEventDetail(outgoing, previousSlide - 1, direction)
+            }));
+        }
+
+        slides.forEach(function (slide) { slide.classList.remove('active'); });
+        slides[currentSlide - 1].classList.add('active');
+
+        // Dispatch slideEnter on incoming slide (now .active, has dimensions)
+        slides[currentSlide - 1].dispatchEvent(new CustomEvent('slideEnter', {
+            bubbles: true,
+            detail: buildEventDetail(slides[currentSlide - 1], currentSlide - 1, direction)
+        }));
+
+        // Update presentation context
+        window.slydsContext.currentSlide = currentSlide;
+        window.slydsContext.direction = direction;
+
+        var slideNumEl = document.getElementById('slideNum');
+        if (slideNumEl) slideNumEl.textContent = currentSlide;
+
+        // Update URL hash for bookmarking/refresh
+        history.replaceState(null, null, '#' + currentSlide);
+
+        // Update navigation buttons
+        var prevBtn = document.getElementById('prevBtn');
+        var nextBtn = document.getElementById('nextBtn');
+        if (prevBtn) prevBtn.disabled = currentSlide === 1;
+        if (nextBtn) nextBtn.disabled = currentSlide === totalSlides;
+
+        // Update speaker notes window if it exists
+        updateNotesWindow();
+    }
+
+    function changeSlide(n) {
+        var from = currentSlide;
+        currentSlide += n;
+        showSlide(currentSlide, from);
+    }
+
+    function openNotesWindow() {
+        // Close existing notes window if open
+        if (notesWindow && !notesWindow.closed) {
+            notesWindow.close();
+        }
+
+        // Open new notes window
+        notesWindow = window.open('', 'speakerNotes', 'width=900,height=700,scrollbars=yes,resizable=yes');
+
+        if (notesWindow) {
+            var title = getSlideTitleForSlide(currentSlide);
+            var notes = getNotesForSlide(currentSlide);
+            var readTime = formatReadingTime(getReadingTime(currentSlide));
+            var remaining = formatReadingTime(getRemainingReadingTime());
+
+            // Build notes window HTML — uses document.write because we're
+            // populating a blank popup window (no XSS risk: content is from
+            // the user's own slide DOM, not external input)
+            var html = [
+                '<html>',
+                '<head>',
+                '<title>Speaker Notes - ' + title + '</title>',
+                '<style>',
+                'body { font-family: "Segoe UI", Arial, sans-serif; padding: 30px; background: #2c3e50; color: white; line-height: 1.6; margin: 0; }',
+                '.header { background: #34495e; padding: 20px; margin: -30px -30px 30px -30px; border-bottom: 3px solid #3498db; }',
+                'h1 { color: #3498db; margin: 0; font-size: 1.8em; }',
+                '.slide-info { color: #bdc3c7; margin-top: 5px; font-size: 1.1em; }',
+                '.timer-bar { display: flex; align-items: center; gap: 16px; margin-top: 12px; padding-top: 12px; border-top: 1px solid rgba(255,255,255,0.1); }',
+                '.timer-bar .elapsed { font-family: "SF Mono", "JetBrains Mono", monospace; font-size: 1.4em; color: #2ecc71; font-weight: bold; min-width: 70px; }',
+                '.timer-bar .meta { color: #95a5a6; font-size: 0.9em; }',
+                '.timer-bar .timer-btn { background: #3498db; color: white; border: none; padding: 5px 14px; border-radius: 4px; cursor: pointer; font-size: 0.85em; font-weight: 600; }',
+                '.timer-bar .timer-btn:hover { background: #2980b9; }',
+                'h2 { color: #3498db; margin-top: 30px; margin-bottom: 15px; font-size: 1.4em; }',
+                'h3 { color: #e74c3c; margin-top: 25px; margin-bottom: 10px; font-size: 1.2em; }',
+                'p, li { font-size: 1em; line-height: 1.6; margin-bottom: 12px; }',
+                'ul, ol { margin-left: 20px; margin-bottom: 15px; }',
+                'li { margin-bottom: 8px; }',
+                'strong { color: #f39c12; }',
+                '.content { max-width: 800px; }',
+                'code { background: #1a252f; padding: 2px 6px; border-radius: 3px; font-family: monospace; }',
+                '</style>',
+                '</head>',
+                '<body>',
+                '<div class="header">',
+                '<h1 id="notesTitle">' + title + '</h1>',
+                '<div class="slide-info">Slide <span id="slideNumber">' + currentSlide + '</span> of ' + totalSlides + '</div>',
+                '<div class="timer-bar">',
+                '<span class="elapsed" id="notesTimer">' + formatTime(getElapsedMs()) + '</span>',
+                '<span class="meta" id="notesReadingTime">' + readTime + ' read</span>',
+                '<span class="meta" id="notesRemaining">' + remaining + ' remaining</span>',
+                '<button class="timer-btn" id="notesTimerToggle" onclick="window.opener.toggleTimer()">' + timerButtonLabel() + '</button>',
+                '</div>',
+                '</div>',
+                '<div class="content" id="notesContent">' + notes + '</div>',
+                '</body>',
+                '</html>'
+            ].join('\n');
+
+            notesWindow.document.open();
+            notesWindow.document.write(html);
+            notesWindow.document.close();
+        }
+    }
+
+    function updateNotesWindow() {
+        if (notesWindow && !notesWindow.closed) {
+            var title = getSlideTitleForSlide(currentSlide);
+            var notes = getNotesForSlide(currentSlide);
+
+            var titleElement = notesWindow.document.getElementById('notesTitle');
+            var slideNumberElement = notesWindow.document.getElementById('slideNumber');
+            var contentElement = notesWindow.document.getElementById('notesContent');
+
+            if (titleElement && slideNumberElement && contentElement) {
+                titleElement.textContent = title;
+                slideNumberElement.textContent = currentSlide;
+                contentElement.innerHTML = notes;
+                notesWindow.document.title = 'Speaker Notes - ' + title;
+            }
+
+            // Update timer display and reading times
+            updateTimerDisplay();
+            updateNotesTimerUI();
+        }
+    }
+
+    function closeNotesWindow() {
+        if (notesWindow && !notesWindow.closed) {
+            notesWindow.close();
+        }
+    }
+
+    // Keyboard navigation
+    document.addEventListener('keydown', function (e) {
+        if (e.key === 'ArrowLeft') changeSlide(-1);
+        if (e.key === 'ArrowRight') changeSlide(1);
+        if (e.key === 'Escape') closeNotesWindow();
+        if (e.key === 'n' || e.key === 'N') openNotesWindow();
+        if (e.key === 't' || e.key === 'T') toggleTimer();
+    });
+
+    // Handle browser back/forward buttons
+    window.addEventListener('hashchange', function () {
+        var slideNum = getSlideFromHash();
+        if (slideNum !== currentSlide) {
+            var from = currentSlide;
+            currentSlide = slideNum;
+            showSlide(currentSlide, from);
+        }
+    });
+
+    // Set position-aware CSS custom properties on each slide.
+    // Themes can use these for conditional styling:
+    //   --slide-index:    0-based position (0, 1, 2, ...)
+    //   --slide-progress: percentage through the deck ("0%", "50%", "100%")
+    //   --total-slides:   total number of slides
+    (function setSlidePositionProperties() {
+        var slides = document.querySelectorAll('.slide');
+        slides.forEach(function (slide, i) {
+            slide.style.setProperty('--slide-index', i);
+            var progress = totalSlides > 1 ? (i / (totalSlides - 1) * 100) : 0;
+            slide.style.setProperty('--slide-progress', progress + '%');
+            slide.style.setProperty('--total-slides', totalSlides);
+        });
+    })();
+
+    // ── Theme switcher ──
+
+    // Discover available themes from loaded [data-theme="..."] CSS rules
+    function getAvailableThemes() {
+        var themes = [];
+        var seen = {};
+        try {
+            var sheets = document.styleSheets;
+            for (var i = 0; i < sheets.length; i++) {
+                var rules;
+                try { rules = sheets[i].cssRules || sheets[i].rules; } catch (e) { continue; }
+                if (!rules) continue;
+                for (var j = 0; j < rules.length; j++) {
+                    var sel = rules[j].selectorText || '';
+                    var match = sel.match(/\[data-theme="(\w[\w-]*)"\]/);
+                    if (match && !seen[match[1]]) {
+                        seen[match[1]] = true;
+                        themes.push(match[1]);
+                    }
+                }
+            }
+        } catch (e) { /* cross-origin stylesheet, ignore */ }
+        return themes.length > 0 ? themes : ['default'];
+    }
+
+    function getCurrentTheme() {
+        return document.documentElement.getAttribute('data-theme') || 'default';
+    }
+
+    function setTheme(name) {
+        document.documentElement.setAttribute('data-theme', name);
+        try { localStorage.setItem('slyds-theme', name); } catch (e) { /* ignore */ }
+    }
+
+    function cycleTheme() {
+        var themes = getAvailableThemes();
+        var current = getCurrentTheme();
+        var idx = themes.indexOf(current);
+        var next = themes[(idx + 1) % themes.length];
+        setTheme(next);
+    }
+
+    // Restore theme from localStorage if saved
+    (function restoreTheme() {
+        try {
+            var saved = localStorage.getItem('slyds-theme');
+            if (saved) {
+                document.documentElement.setAttribute('data-theme', saved);
+            }
+        } catch (e) { /* ignore */ }
+    })();
+
+    // Expose to onclick handlers in HTML
+    window.changeSlide = changeSlide;
+    window.openNotesWindow = openNotesWindow;
+    window.toggleTimer = toggleTimer;
+    window.cycleTheme = cycleTheme;
+
+    // Initialize
+    computeReadingTimes();
+    showSlide(currentSlide);
+})();
+
+</script>
+  <script>
+/**
+ * slyds-export — Client-side slide export/download
+ *
+ * Extracts slides from the DOM, wraps each in standalone HTML with styles,
+ * bundles into a ZIP, and triggers a browser download. Works from file://,
+ * static hosts, and slyds serve — no server required.
+ *
+ * Uses a minimal store-only ZIP writer (no external dependencies).
+ */
+(function () {
+    'use strict';
+
+    // ── CRC-32 ──────────────────────────────────────────────────────────
+    var crcTable = (function () {
+        var table = new Uint32Array(256);
+        for (var n = 0; n < 256; n++) {
+            var c = n;
+            for (var k = 0; k < 8; k++) {
+                c = (c & 1) ? (0xEDB88320 ^ (c >>> 1)) : (c >>> 1);
+            }
+            table[n] = c;
+        }
+        return table;
+    })();
+
+    function crc32(bytes) {
+        var crc = 0xFFFFFFFF;
+        for (var i = 0; i < bytes.length; i++) {
+            crc = crcTable[(crc ^ bytes[i]) & 0xFF] ^ (crc >>> 8);
+        }
+        return (crc ^ 0xFFFFFFFF) >>> 0;
+    }
+
+    // ── Minimal ZIP writer (store only, no compression) ─────────────────
+    function MiniZip() {
+        this.files = [];
+    }
+
+    MiniZip.prototype.addFile = function (name, content) {
+        var encoder = new TextEncoder();
+        var nameBytes = encoder.encode(name);
+        var contentBytes = (content instanceof Uint8Array) ? content : encoder.encode(content);
+        this.files.push({
+            name: nameBytes,
+            content: contentBytes,
+            crc: crc32(contentBytes)
+        });
+    };
+
+    MiniZip.prototype.generate = function () {
+        var localHeaders = [];
+        var centralHeaders = [];
+        var offset = 0;
+
+        for (var i = 0; i < this.files.length; i++) {
+            var f = this.files[i];
+
+            // Local file header (30 bytes + name + content)
+            var local = new Uint8Array(30 + f.name.length + f.content.length);
+            var lv = new DataView(local.buffer);
+            lv.setUint32(0, 0x04034b50, true);   // local file header signature
+            lv.setUint16(4, 20, true);            // version needed (2.0)
+            lv.setUint16(6, 0x0800, true);        // general purpose bit flag (bit 11 = UTF-8)
+            lv.setUint16(8, 0, true);             // compression method (store)
+            lv.setUint16(10, 0, true);            // last mod time
+            lv.setUint16(12, 0, true);            // last mod date
+            lv.setUint32(14, f.crc, true);        // crc-32
+            lv.setUint32(18, f.content.length, true); // compressed size
+            lv.setUint32(22, f.content.length, true); // uncompressed size
+            lv.setUint16(26, f.name.length, true);    // filename length
+            lv.setUint16(28, 0, true);            // extra field length
+            local.set(f.name, 30);
+            local.set(f.content, 30 + f.name.length);
+            localHeaders.push(local);
+
+            // Central directory header (46 bytes + name)
+            var central = new Uint8Array(46 + f.name.length);
+            var cv = new DataView(central.buffer);
+            cv.setUint32(0, 0x02014b50, true);   // central directory signature
+            cv.setUint16(4, 20, true);            // version made by
+            cv.setUint16(6, 20, true);            // version needed
+            cv.setUint16(8, 0x0800, true);        // general purpose bit flag (UTF-8)
+            cv.setUint16(10, 0, true);            // compression method (store)
+            cv.setUint16(12, 0, true);            // last mod time
+            cv.setUint16(14, 0, true);            // last mod date
+            cv.setUint32(16, f.crc, true);        // crc-32
+            cv.setUint32(20, f.content.length, true); // compressed size
+            cv.setUint32(24, f.content.length, true); // uncompressed size
+            cv.setUint16(28, f.name.length, true);    // filename length
+            cv.setUint16(30, 0, true);            // extra field length
+            cv.setUint16(32, 0, true);            // file comment length
+            cv.setUint16(34, 0, true);            // disk number start
+            cv.setUint16(36, 0, true);            // internal file attributes
+            cv.setUint32(38, 0, true);            // external file attributes
+            cv.setUint32(42, offset, true);       // relative offset of local header
+            central.set(f.name, 46);
+            centralHeaders.push(central);
+
+            offset += local.length;
+        }
+
+        // End of central directory record (22 bytes)
+        var centralSize = centralHeaders.reduce(function (s, c) { return s + c.length; }, 0);
+        var eocd = new Uint8Array(22);
+        var ev = new DataView(eocd.buffer);
+        ev.setUint32(0, 0x06054b50, true);    // end of central directory signature
+        ev.setUint16(4, 0, true);             // disk number
+        ev.setUint16(6, 0, true);             // disk with central directory
+        ev.setUint16(8, this.files.length, true);  // entries on this disk
+        ev.setUint16(10, this.files.length, true); // total entries
+        ev.setUint32(12, centralSize, true);  // size of central directory
+        ev.setUint32(16, offset, true);       // offset of central directory
+        ev.setUint16(20, 0, true);            // comment length
+
+        // Concatenate all parts
+        var totalSize = offset + centralSize + 22;
+        var result = new Uint8Array(totalSize);
+        var pos = 0;
+        for (var j = 0; j < localHeaders.length; j++) {
+            result.set(localHeaders[j], pos);
+            pos += localHeaders[j].length;
+        }
+        for (var k = 0; k < centralHeaders.length; k++) {
+            result.set(centralHeaders[k], pos);
+            pos += centralHeaders[k].length;
+        }
+        result.set(eocd, pos);
+
+        return result;
+    };
+
+    // ── Slugify (mirrors Go's scaffold.Slugify) ─────────────────────────
+    function slugify(text) {
+        return text
+            .toLowerCase()
+            .replace(/[^a-z0-9]+/g, '-')
+            .replace(/^-+|-+$/g, '')
+            .replace(/-{2,}/g, '-');
+    }
+
+    // ── Asset inlining helpers ────────────────────────────────────────
+    function fetchText(url) {
+        return new Promise(function (resolve) {
+            var xhr = new XMLHttpRequest();
+            xhr.open('GET', url, true);
+            xhr.onload = function () {
+                resolve(xhr.status === 200 ? xhr.responseText : null);
+            };
+            xhr.onerror = function () { resolve(null); };
+            xhr.send();
+        });
+    }
+
+    // Inline all external stylesheets and script references into the DOM
+    // so the exported HTML is self-contained. Returns a cloned document element.
+    function inlineExternalAssets() {
+        var root = document.documentElement.cloneNode(true);
+        var fetches = [];
+
+        // Collect external stylesheets
+        var links = root.querySelectorAll('link[rel="stylesheet"]');
+        for (var i = 0; i < links.length; i++) {
+            (function (link) {
+                var href = link.getAttribute('href');
+                if (!href) return;
+                fetches.push(fetchText(href).then(function (css) {
+                    if (css !== null) {
+                        var style = document.createElement('style');
+                        style.textContent = css;
+                        link.parentNode.replaceChild(style, link);
+                    }
+                }));
+            })(links[i]);
+        }
+
+        // Collect external scripts
+        var scripts = root.querySelectorAll('script[src]');
+        for (var j = 0; j < scripts.length; j++) {
+            (function (script) {
+                var src = script.getAttribute('src');
+                if (!src) return;
+                fetches.push(fetchText(src).then(function (js) {
+                    if (js !== null) {
+                        var inline = document.createElement('script');
+                        inline.textContent = js;
+                        script.parentNode.replaceChild(inline, script);
+                    }
+                }));
+            })(scripts[j]);
+        }
+
+        return Promise.all(fetches).then(function () { return root; });
+    }
+
+    // ── Export logic ────────────────────────────────────────────────────
+    function exportPresentation() {
+        inlineExternalAssets().then(function (inlinedRoot) {
+        var zip = new MiniZip();
+
+        // Collect all <style> blocks for standalone slide wrapping
+        var styles = [];
+        var styleEls = inlinedRoot.querySelectorAll('style');
+        for (var s = 0; s < styleEls.length; s++) {
+            styles.push(styleEls[s].outerHTML);
+        }
+        var styleBlock = styles.join('\n');
+
+        // Add the full deck as index.html
+        var fullHTML = '<!DOCTYPE html>\n' + inlinedRoot.outerHTML;
+        zip.addFile('index.html', fullHTML);
+
+        // Extract individual slides
+        var slides = inlinedRoot.querySelectorAll('.slide');
+        for (var i = 0; i < slides.length; i++) {
+            var slide = slides[i];
+            var num = String(i + 1);
+            if (num.length < 2) num = '0' + num;
+
+            // Get slide name from <h1> or fall back to slide-NN
+            var h1 = slide.querySelector('h1');
+            var name = h1 ? slugify(h1.textContent) : 'slide';
+            var filename = 'slides/' + num + '-' + name + '.html';
+
+            // Build standalone HTML for this slide
+            var slideHTML = '<!DOCTYPE html>\n' +
+                '<html lang="en">\n' +
+                '<head>\n' +
+                '  <meta charset="UTF-8">\n' +
+                '  <meta name="viewport" content="width=device-width, initial-scale=1.0">\n' +
+                '  <title>' + (h1 ? h1.textContent : 'Slide ' + (i + 1)) + '</title>\n' +
+                styleBlock + '\n' +
+                '</head>\n' +
+                '<body>\n' +
+                '  <div class="slideshow-container">\n' +
+                '    <div class="slide active">\n' +
+                slide.innerHTML + '\n' +
+                '    </div>\n' +
+                '  </div>\n' +
+                '</body>\n' +
+                '</html>';
+
+            zip.addFile(filename, slideHTML);
+        }
+
+        // Generate and download
+        var zipData = zip.generate();
+        var blob = new Blob([zipData], { type: 'application/zip' });
+        var url = URL.createObjectURL(blob);
+
+        var title = slugify(document.title || 'presentation');
+        var a = document.createElement('a');
+        a.href = url;
+        a.download = title + '.zip';
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+        }); // end inlineExternalAssets().then
+    }
+
+    // Expose to onclick handler in HTML
+    window.exportPresentation = exportPresentation;
+})();
+
+</script>
+</body>
+</html>

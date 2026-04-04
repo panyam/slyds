@@ -1,0 +1,265 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>slyds — Multi-File HTML Presentations</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      font-family: 'Segoe UI', system-ui, sans-serif;
+      background: #0f1219;
+      color: #e2e4f0;
+      min-height: 100vh;
+    }
+    a { color: #7b93ff; text-decoration: none; }
+    a:hover { text-decoration: underline; }
+    code {
+      background: #1a1d28;
+      padding: 2px 8px;
+      border-radius: 4px;
+      font-family: 'SF Mono', 'JetBrains Mono', monospace;
+      font-size: 0.9em;
+    }
+
+    /* Hero */
+    .hero {
+      text-align: center;
+      padding: 80px 20px 60px;
+      border-bottom: 1px solid #1a1d28;
+    }
+    .hero h1 {
+      font-size: 3.5em;
+      font-weight: 900;
+      margin-bottom: 12px;
+      background: linear-gradient(135deg, #7b93ff, #73d1ff);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+    }
+    .hero .tagline {
+      color: #8888a0;
+      font-size: 1.25em;
+      max-width: 600px;
+      margin: 0 auto 36px;
+      line-height: 1.5;
+    }
+    .install-box {
+      display: inline-block;
+      background: #1a1d28;
+      border: 1px solid #2a2d3a;
+      border-radius: 8px;
+      padding: 14px 28px;
+      font-family: 'SF Mono', 'JetBrains Mono', monospace;
+      font-size: 1em;
+      color: #73d1ff;
+      user-select: all;
+      margin-bottom: 16px;
+    }
+    .hero-links {
+      margin-top: 12px;
+      color: #8888a0;
+      font-size: 0.95em;
+    }
+    .hero-links a { margin: 0 12px; }
+
+    /* Features */
+    .features {
+      max-width: 900px;
+      margin: 0 auto;
+      padding: 50px 20px;
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+      gap: 24px;
+    }
+    .feature {
+      background: #1a1d28;
+      border: 1px solid #2a2d3a;
+      border-radius: 10px;
+      padding: 24px;
+    }
+    .feature h3 {
+      color: #e2e4f0;
+      font-size: 1.1em;
+      margin-bottom: 8px;
+    }
+    .feature p {
+      color: #8888a0;
+      font-size: 0.9em;
+      line-height: 1.5;
+    }
+
+    /* Examples */
+    .examples {
+      max-width: 900px;
+      margin: 0 auto;
+      padding: 40px 20px 60px;
+    }
+    .examples h2 {
+      font-size: 1.8em;
+      font-weight: 800;
+      margin-bottom: 8px;
+      color: #e2e4f0;
+    }
+    .examples .section-sub {
+      color: #8888a0;
+      margin-bottom: 30px;
+      font-size: 1em;
+    }
+    .grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+      gap: 24px;
+    }
+    .card {
+      background: #1a1d28;
+      border: 1px solid #2a2d3a;
+      border-radius: 12px;
+      padding: 28px;
+      text-decoration: none;
+      color: inherit;
+      transition: border-color 0.2s, transform 0.2s;
+      display: block;
+    }
+    .card:hover {
+      border-color: #7b93ff;
+      transform: translateY(-3px);
+      text-decoration: none;
+    }
+    .card h3 {
+      font-size: 1.2em;
+      margin-bottom: 6px;
+      color: #e2e4f0;
+    }
+    .card .theme-badge {
+      display: inline-block;
+      font-size: 0.72em;
+      padding: 3px 10px;
+      border-radius: 20px;
+      background: rgba(123, 147, 255, 0.15);
+      color: #7b93ff;
+      margin-bottom: 10px;
+    }
+    .card p {
+      color: #8888a0;
+      font-size: 0.9em;
+      line-height: 1.5;
+    }
+
+    /* Quick start */
+    .quickstart {
+      max-width: 900px;
+      margin: 0 auto;
+      padding: 40px 20px 60px;
+      border-top: 1px solid #1a1d28;
+    }
+    .quickstart h2 {
+      font-size: 1.8em;
+      font-weight: 800;
+      margin-bottom: 20px;
+      color: #e2e4f0;
+    }
+    .quickstart pre {
+      background: #0a0d14;
+      border: 1px solid #1c2133;
+      border-radius: 8px;
+      padding: 20px 24px;
+      overflow-x: auto;
+      font-family: 'SF Mono', 'JetBrains Mono', monospace;
+      font-size: 0.9em;
+      line-height: 1.7;
+      color: #c5c5d9;
+    }
+    .quickstart pre .comment { color: #555; }
+    .quickstart pre .cmd { color: #73d1ff; }
+
+    /* Footer */
+    footer {
+      text-align: center;
+      padding: 40px 20px;
+      border-top: 1px solid #1a1d28;
+      color: #555;
+      font-size: 0.85em;
+    }
+  </style>
+</head>
+<body>
+
+  <div class="hero">
+    <h1>slyds</h1>
+    <p class="tagline">
+      Multi-file HTML presentations. One slide per file, version-controlled,
+      zero dependencies. A single Go binary does the rest.
+    </p>
+    <div class="install-box">go install github.com/panyam/slyds@latest</div>
+    <div class="hero-links">
+      <a href="https://github.com/panyam/slyds">GitHub</a>
+      <a href="https://github.com/panyam/slyds/releases">Releases</a>
+      <a href="#examples">Examples</a>
+      <a href="#quickstart">Quick Start</a>
+    </div>
+  </div>
+
+  <div class="features">
+    <div class="feature">
+      <h3>One File Per Slide</h3>
+      <p>Each slide is a plain HTML file. Edit independently, diff with git, reorder by renaming. No binary formats, no lock-in.</p>
+    </div>
+    <div class="feature">
+      <h3>Self-Contained Output</h3>
+      <p><code>slyds build</code> inlines CSS, JS, and images into a single HTML file. Works offline, from <code>file://</code>, or any static host.</p>
+    </div>
+    <div class="feature">
+      <h3>5 Built-in Themes</h3>
+      <p>Default, minimal, dark, corporate, and hacker. Each includes styled components — code blocks, callouts, stats grids, tables, and more.</p>
+    </div>
+    <div class="feature">
+      <h3>Full CLI</h3>
+      <p>init, serve, build, add, rm, mv, insert, slugify, check, query. Manage your entire deck from the terminal.</p>
+    </div>
+  </div>
+
+  <div class="examples" id="examples">
+    <h2>Examples</h2>
+    <p class="section-sub">Live demos built with slyds. Navigate with arrow keys. Press N for speaker notes.</p>
+    <div class="grid">
+      <a class="card" href="examples/slyds-intro/index.html">
+        <span class="theme-badge">default theme</span>
+        <h3>What is slyds?</h3>
+        <p>A meta-presentation that introduces slyds itself — the workflow, CLI commands, theming, and philosophy.</p>
+      </a>
+      <a class="card" href="examples/rich-content/index.html">
+        <span class="theme-badge">dark theme</span>
+        <h3>Rich Content</h3>
+        <p>Showcases every CSS component: code blocks, callout boxes, stats grids, data tables, phase boxes, and two-column layouts.</p>
+      </a>
+      <a class="card" href="examples/hacker-showcase/index.html">
+        <span class="theme-badge">hacker theme</span>
+        <h3>Hacker Showcase</h3>
+        <p>Visual showcase of the hacker theme — background images, JetBrains Mono, progress-aware color shifts, and terminal aesthetics.</p>
+      </a>
+    </div>
+  </div>
+
+  <div class="quickstart" id="quickstart">
+    <h2>Quick Start</h2>
+    <pre><span class="comment"># Install</span>
+<span class="cmd">go install github.com/panyam/slyds@latest</span>
+
+<span class="comment"># Create a presentation</span>
+<span class="cmd">slyds init "My Talk" --theme dark -n 8</span>
+
+<span class="comment"># Edit slides, preview live</span>
+<span class="cmd">slyds serve my-talk</span>
+
+<span class="comment"># Build self-contained HTML</span>
+<span class="cmd">slyds build my-talk</span>
+<span class="comment"># → my-talk/dist/index.html</span></pre>
+  </div>
+
+  <footer>
+    Built with <a href="https://github.com/panyam/slyds">slyds</a>. MIT License.
+  </footer>
+
+</body>
+</html>
