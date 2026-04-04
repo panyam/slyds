@@ -2,19 +2,20 @@ package core
 
 import (
 	"os"
-	"path/filepath"
 	"testing"
+
+	"github.com/panyam/templar"
 )
 
 func TestWriteAndReadManifest(t *testing.T) {
 	dir := t.TempDir()
 	m := Manifest{Theme: "dark", Title: "My Talk"}
 
-	if err := WriteManifest(dir, m); err != nil {
+	if err := WriteManifestFS(templar.NewLocalFS(dir), m); err != nil {
 		t.Fatalf("WriteManifest: %v", err)
 	}
 
-	got, err := ReadManifest(dir)
+	got, err := ReadManifestFS(templar.NewLocalFS(dir))
 	if err != nil {
 		t.Fatalf("ReadManifest: %v", err)
 	}
@@ -25,29 +26,22 @@ func TestWriteAndReadManifest(t *testing.T) {
 
 func TestReadManifestNotFound(t *testing.T) {
 	dir := t.TempDir()
-	_, err := ReadManifest(dir)
+	_, err := ReadManifestFS(templar.NewLocalFS(dir))
 	if err != ErrManifestNotFound {
 		t.Errorf("got error %v, want ErrManifestNotFound", err)
 	}
 }
 
-func TestManifestPath(t *testing.T) {
-	got := ManifestPath("/foo/bar")
-	want := filepath.Join("/foo/bar", ".slyds.yaml")
-	if got != want {
-		t.Errorf("got %q, want %q", got, want)
-	}
-}
 
 func TestManifestFileContents(t *testing.T) {
 	dir := t.TempDir()
 	m := Manifest{Theme: "corporate", Title: "Q4 Review"}
 
-	if err := WriteManifest(dir, m); err != nil {
+	if err := WriteManifestFS(templar.NewLocalFS(dir), m); err != nil {
 		t.Fatalf("WriteManifest: %v", err)
 	}
 
-	data, err := os.ReadFile(ManifestPath(dir))
+	data, err := os.ReadFile(dir + "/.slyds.yaml")
 	if err != nil {
 		t.Fatalf("ReadFile: %v", err)
 	}

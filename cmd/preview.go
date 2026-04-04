@@ -86,7 +86,7 @@ Works with any theme directory — built-in or external:
 
 		// Serve the preview
 		group := templar.NewTemplateGroup()
-		group.Loader = (&templar.LoaderList{}).AddLoader(templar.NewFileSystemLoader(tmpDir))
+		group.Loader = (&templar.LoaderList{}).AddLoader(templar.NewFileSystemLoader(templar.LocalFolder(tmpDir)))
 
 		mux := http.NewServeMux()
 		fileServer := http.FileServer(http.Dir(tmpDir))

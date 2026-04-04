@@ -5,6 +5,7 @@ import (
 	"strings"
 
 	"github.com/panyam/slyds/core"
+	"github.com/panyam/templar"
 	"github.com/spf13/cobra"
 )
 
@@ -25,7 +26,7 @@ Examples:
 			return err
 		}
 
-		manifest, err := core.ReadManifest(root)
+		manifest, err := core.ReadManifestFS(templar.NewLocalFS(root))
 		if err == core.ErrManifestNotFound {
 			return fmt.Errorf("no .slyds.yaml found — is this a slyds presentation?")
 		}
@@ -53,13 +54,13 @@ Examples:
 		manifest.Sources[name] = src
 
 		// Write updated manifest
-		if err := core.WriteManifest(root, *manifest); err != nil {
+		if err := core.WriteManifestFS(templar.NewLocalFS(root), *manifest); err != nil {
 			return fmt.Errorf("failed to update .slyds.yaml: %w", err)
 		}
 
 		// Fetch the new source
 		fmt.Printf("Fetching %s...\n", url)
-		if err := core.FetchAll(manifest, root); err != nil {
+		if err := core.FetchAll(templar.NewLocalFS(root), manifest); err != nil {
 			return fmt.Errorf("fetch failed: %w", err)
 		}
 

@@ -26,6 +26,8 @@ github.com/panyam/templar v0.0.35 h1:W2rW0/STmaTSgdI6j6ARxWt0au1s3edgkpkrDAvRRgw
 github.com/panyam/templar v0.0.35/go.mod h1:Pqn7VhOod9MGZ0GqrwoHw16jFjiAxPgWXZBAFou1fZ0=
 github.com/panyam/templar v0.0.36 h1:FHHezS9rHKKabfrfZrHNDUwz9f+J5MT4p8zQHkdWcpI=
 github.com/panyam/templar v0.0.36/go.mod h1:Pqn7VhOod9MGZ0GqrwoHw16jFjiAxPgWXZBAFou1fZ0=
+github.com/panyam/templar v0.1.0 h1:yy4sqois9gvNhIy2xsNyRoI5r/qvz1tVY+YuxnmzbWY=
+github.com/panyam/templar v0.1.0/go.mod h1:Pqn7VhOod9MGZ0GqrwoHw16jFjiAxPgWXZBAFou1fZ0=
 github.com/pmezard/go-difflib v1.0.0 h1:4DBwDE0NGyQoBHbLQYPwSUPoCMWR5BEzIk/f1lZbAQM=
 github.com/pmezard/go-difflib v1.0.0/go.mod h1:iKH77koFhYxTK1pcRnkKkqfTogsbg7gZNVY4sRDYZ/4=
 github.com/russross/blackfriday/v2 v2.1.0/go.mod h1:+Rmxgy9KzJVeS9/2gXHxylqXiyQDYRxCVz55jmeOWTM=

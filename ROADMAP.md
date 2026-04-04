@@ -36,11 +36,14 @@ Generic `data-slot="floater"` with `.slide-floater` CSS for pinned overlays (foo
 ## Phase 8b — Agent tooling & MCP (done)
 `slyds introspect` emits JSON for layouts, slots, themes, and command catalog. `slyds query --batch` applies multiple writes atomically. `add`/`insert` accept `--slots-file` (slot name → HTML fragment). MCP: **`slyds mcp`** (stdio) and **`slyds mcp serve`** (HTTP+SSE per MCP 2024-11-05) as a thin CLI wrapper. See `docs/MCP.md` and `docs/AGENT-THEMES.md`.
 
-## Phase 9 — Slide Folders
-Support `slides/03-name/slide.html` with co-located assets (images, per-slide CSS). Auto-detect folder vs file slides.
+## Phase 9 — MCP migration to mcpkit (done)
+Migrated hand-rolled MCP transport to mcpkit v0.0.6. Streamable HTTP default, SSE via `--sse` flag. Constant-time bearer auth, graceful shutdown via servicekit.
 
-## Phase 9a — MCP migration to mcpkit (planned)
-Migrate hand-rolled MCP transport (`cmd/mcp.go`, `cmd/mcp_http.go`) to mcpkit (github.com/panyam/mcpkit). Fixes known issues: SSE write race condition, timing-vulnerable token comparison, no server timeouts, no subprocess timeout, no logging/metrics. See mcpkit#9.
+## Phase 9a — WritableFS abstraction (done)
+Migrated all core/ production code to use `templar.WritableFS`. Zero `os.*`/`filepath.*` in core/ except `osfs.go` (OS boundary). templar upgraded to v0.1.0 with breaking FSFolder API. modules.go, manifest.go, scaffold.go, builder.go, inline.go all FS-based. examples_test.go migrated to use Deck API.
+
+## Phase 10 — Slide Folders
+Support `slides/03-name/slide.html` with co-located assets (images, per-slide CSS). Auto-detect folder vs file slides.
 
 ## Future
 - Structured slide formats (YAML, JSON, MD) with format-aware query dispatch

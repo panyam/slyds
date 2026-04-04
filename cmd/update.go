@@ -8,6 +8,7 @@ import (
 	"strings"
 
 	"github.com/panyam/slyds/core"
+	"github.com/panyam/templar"
 	"github.com/spf13/cobra"
 )
 
@@ -36,7 +37,7 @@ you will be prompted to enter the theme and title.`,
 			return err
 		}
 
-		manifest, err := core.ReadManifest(root)
+		manifest, err := core.ReadManifestFS(templar.NewLocalFS(root))
 		if err == core.ErrManifestNotFound {
 			manifest, err = promptForManifest()
 			if err != nil {
@@ -61,14 +62,14 @@ you will be prompted to enter the theme and title.`,
 					Path: core.DefaultCorePath,
 				},
 			}
-			if err := core.WriteManifest(root, *manifest); err != nil {
+			if err := core.WriteManifestFS(templar.NewLocalFS(root), *manifest); err != nil {
 				return fmt.Errorf("failed to update manifest: %w", err)
 			}
 		}
 
 		// Fetch module dependencies
 		fmt.Printf("Fetching module dependencies...\n")
-		if err := core.FetchAll(manifest, root); err != nil {
+		if err := core.FetchAll(templar.NewLocalFS(root), manifest); err != nil {
 			fmt.Fprintf(os.Stderr, "Warning: module fetch failed: %v\n", err)
 			fmt.Fprintf(os.Stderr, "Engine files updated from built-in assets. Run 'slyds update' again when network is available.\n")
 		} else {

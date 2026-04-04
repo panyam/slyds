@@ -1,8 +1,6 @@
 package core
 
 import (
-	"os"
-	"path/filepath"
 	"strings"
 	"text/template"
 )
@@ -65,23 +63,4 @@ func renderAgentMD(manifest Manifest) (string, error) {
 		return "", err
 	}
 	return buf.String(), nil
-}
-
-// WriteAgentMD generates AGENT.md + CLAUDE.md symlink on the local filesystem.
-// This is the path-based convenience function for CLI usage.
-func WriteAgentMD(dir string, manifest Manifest) error {
-	content, err := renderAgentMD(manifest)
-	if err != nil {
-		return err
-	}
-
-	agentPath := filepath.Join(dir, "AGENT.md")
-	if err := os.WriteFile(agentPath, []byte(content), 0644); err != nil {
-		return err
-	}
-
-	// Create CLAUDE.md symlink
-	claudeLink := filepath.Join(dir, "CLAUDE.md")
-	os.Remove(claudeLink)
-	return os.Symlink("AGENT.md", claudeLink)
 }

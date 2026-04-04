@@ -1,13 +1,13 @@
 package examples
 
 import (
-	"os"
 	"path/filepath"
 	"runtime"
 	"strings"
 	"testing"
 
 	"github.com/panyam/slyds/core"
+	"github.com/panyam/templar"
 )
 
 // exampleDeck describes an expected example presentation for table-driven tests.
@@ -25,8 +25,7 @@ var decks = []exampleDeck{
 	{"hacker-showcase", "hacker", "Hacker Theme Showcase", 8, "Hacker Theme Showcase"},
 }
 
-// examplesDir returns the absolute path to the examples/ directory
-// (the directory containing this test file).
+// examplesDir returns the absolute path to the examples/ directory.
 func examplesDir(t *testing.T) string {
 	t.Helper()
 	_, filename, _, ok := runtime.Caller(0)
@@ -36,11 +35,20 @@ func examplesDir(t *testing.T) string {
 	return filepath.Dir(filename)
 }
 
+// openDeck opens an example deck by name.
+func openDeck(t *testing.T, name string) *core.Deck {
+	t.Helper()
+	dir := filepath.Join(examplesDir(t), name)
+	d, err := core.OpenDeck(templar.NewLocalFS(dir))
+	if err != nil {
+		t.Fatalf("OpenDeck(%s) failed: %v", name, err)
+	}
+	return d
+}
+
 // TestExampleDirectoryStructure verifies that each example deck contains all
-// required files for a valid slyds presentation: manifest, index, engine
-// assets, theme CSS, and a slides directory with the expected number of files.
+// required files for a valid slyds presentation.
 func TestExampleDirectoryStructure(t *testing.T) {
-	root := examplesDir(t)
 	requiredFiles := []string{
 		".slyds.yaml",
 		"index.html",
@@ -51,18 +59,16 @@ func TestExampleDirectoryStructure(t *testing.T) {
 
 	for _, deck := range decks {
 		t.Run(deck.dir, func(t *testing.T) {
-			base := filepath.Join(root, deck.dir)
+			d := openDeck(t, deck.dir)
 
 			for _, f := range requiredFiles {
-				path := filepath.Join(base, f)
-				if _, err := os.Stat(path); os.IsNotExist(err) {
+				if _, err := d.FS.ReadFile(f); err != nil {
 					t.Errorf("missing required file: %s", f)
 				}
 			}
 
 			// slides/ directory must exist and contain the expected number of files
-			slidesDir := filepath.Join(base, "slides")
-			entries, err := os.ReadDir(slidesDir)
+			entries, err := d.FS.ReadDir("slides")
 			if err != nil {
 				t.Fatalf("cannot read slides/ directory: %v", err)
 			}
@@ -74,16 +80,14 @@ func TestExampleDirectoryStructure(t *testing.T) {
 }
 
 // TestExampleManifest verifies that each example's .slyds.yaml manifest
-// contains the correct theme and title, ensuring the deck was scaffolded
-// with the intended configuration.
+// contains the correct theme and title.
 func TestExampleManifest(t *testing.T) {
-	root := examplesDir(t)
-
 	for _, deck := range decks {
 		t.Run(deck.dir, func(t *testing.T) {
-			m, err := core.ReadManifest(filepath.Join(root, deck.dir))
+			dir := filepath.Join(examplesDir(t), deck.dir)
+			m, err := core.ReadManifestFS(templar.NewLocalFS(dir))
 			if err != nil {
-				t.Fatalf("ReadManifest failed: %v", err)
+				t.Fatalf("ReadManifestFS failed: %v", err)
 			}
 			if m.Theme != deck.theme {
 				t.Errorf("theme = %q, want %q", m.Theme, deck.theme)
@@ -96,14 +100,12 @@ func TestExampleManifest(t *testing.T) {
 }
 
 // TestExampleSlideCount verifies that each example's index.html contains
-// the expected number of templar include directives, confirming all slides
-// are composed into the presentation.
+// the expected number of templar include directives.
 func TestExampleSlideCount(t *testing.T) {
-	root := examplesDir(t)
-
 	for _, deck := range decks {
 		t.Run(deck.dir, func(t *testing.T) {
-			data, err := os.ReadFile(filepath.Join(root, deck.dir, "index.html"))
+			d := openDeck(t, deck.dir)
+			data, err := d.FS.ReadFile("index.html")
 			if err != nil {
 				t.Fatalf("cannot read index.html: %v", err)
 			}
@@ -116,34 +118,25 @@ func TestExampleSlideCount(t *testing.T) {
 }
 
 // TestExampleBuild verifies that each example deck builds successfully into
-// a self-contained HTML file. Checks that templar includes are resolved,
-// CSS and JS are inlined (no external references remain), and the built
-// output contains the expected number of slide elements.
+// a self-contained HTML file.
 func TestExampleBuild(t *testing.T) {
-	root := examplesDir(t)
-
 	for _, deck := range decks {
 		t.Run(deck.dir, func(t *testing.T) {
-			deckDir := filepath.Join(root, deck.dir)
-			result, err := core.Build(deckDir)
+			d := openDeck(t, deck.dir)
+			result, err := d.Build()
 			if err != nil {
 				t.Fatalf("Build failed: %v", err)
 			}
 
-			// All templar includes must be resolved
 			if strings.Contains(result.HTML, "{{#") {
 				t.Error("built HTML still contains unresolved templar directives")
 			}
-
-			// CSS must be inlined (no <link> stylesheet tags)
 			if strings.Contains(result.HTML, `<link rel="stylesheet"`) {
 				t.Error("built HTML still contains <link> stylesheet tags")
 			}
 			if !strings.Contains(result.HTML, "<style>") {
 				t.Error("built HTML missing inlined <style> tags")
 			}
-
-			// JS must be inlined (no <script src> tags)
 			if strings.Contains(result.HTML, `<script src=`) {
 				t.Error("built HTML still contains <script src> tags")
 			}
@@ -151,7 +144,6 @@ func TestExampleBuild(t *testing.T) {
 				t.Error("built HTML missing inlined JS (showSlide function)")
 			}
 
-			// Correct number of slide elements in output
 			slideCount := strings.Count(result.HTML, `class="slide`)
 			if slideCount < deck.slides {
 				t.Errorf("expected at least %d slide elements, got %d", deck.slides, slideCount)
@@ -161,16 +153,12 @@ func TestExampleBuild(t *testing.T) {
 }
 
 // TestExampleContentNotPlaceholder verifies that each example's title slide
-// contains real authored content rather than the default scaffold placeholder
-// text. This ensures examples were actually customized after scaffolding.
+// contains real authored content rather than scaffold placeholders.
 func TestExampleContentNotPlaceholder(t *testing.T) {
-	root := examplesDir(t)
-
 	for _, deck := range decks {
 		t.Run(deck.dir, func(t *testing.T) {
-			// Find the title slide (first file in slides/ sorted alphabetically)
-			slidesDir := filepath.Join(root, deck.dir, "slides")
-			entries, err := os.ReadDir(slidesDir)
+			d := openDeck(t, deck.dir)
+			entries, err := d.FS.ReadDir("slides")
 			if err != nil {
 				t.Fatalf("cannot read slides/: %v", err)
 			}
@@ -178,18 +166,15 @@ func TestExampleContentNotPlaceholder(t *testing.T) {
 				t.Fatal("no slide files found")
 			}
 
-			titleSlide, err := os.ReadFile(filepath.Join(slidesDir, entries[0].Name()))
+			titleSlide, err := d.FS.ReadFile("slides/" + entries[0].Name())
 			if err != nil {
 				t.Fatalf("cannot read title slide: %v", err)
 			}
 			content := string(titleSlide)
 
-			// Must contain the expected h1 text
 			if !strings.Contains(content, deck.h1Text) {
 				t.Errorf("title slide missing expected h1 text %q", deck.h1Text)
 			}
-
-			// Must NOT contain default scaffold placeholder
 			if strings.Contains(content, "Your subtitle here") {
 				t.Error("title slide still contains scaffold placeholder text")
 			}
@@ -198,13 +183,8 @@ func TestExampleContentNotPlaceholder(t *testing.T) {
 }
 
 // TestExampleBuildContainsTimer verifies that each example deck's built
-// output includes the presenter timer and reading time features. Checks
-// for the toggleTimer function, the notes window timer UI elements, and
-// the reading time computation — ensuring the timer feature is present
-// in all shipped examples.
+// output includes the presenter timer and reading time features.
 func TestExampleBuildContainsTimer(t *testing.T) {
-	root := examplesDir(t)
-
 	timerMarkers := []string{
 		"toggleTimer",
 		"computeReadingTimes",
@@ -215,7 +195,8 @@ func TestExampleBuildContainsTimer(t *testing.T) {
 
 	for _, deck := range decks {
 		t.Run(deck.dir, func(t *testing.T) {
-			result, err := core.Build(filepath.Join(root, deck.dir))
+			d := openDeck(t, deck.dir)
+			result, err := d.Build()
 			if err != nil {
 				t.Fatalf("Build failed: %v", err)
 			}
@@ -229,21 +210,18 @@ func TestExampleBuildContainsTimer(t *testing.T) {
 }
 
 // TestExampleSpeakerNotes verifies that every slide in each example deck
-// contains a speaker-notes section. This ensures presenters always have
-// notes available and validates consistent slide authoring.
+// contains a speaker-notes section.
 func TestExampleSpeakerNotes(t *testing.T) {
-	root := examplesDir(t)
-
 	for _, deck := range decks {
 		t.Run(deck.dir, func(t *testing.T) {
-			slidesDir := filepath.Join(root, deck.dir, "slides")
-			entries, err := os.ReadDir(slidesDir)
+			d := openDeck(t, deck.dir)
+			entries, err := d.FS.ReadDir("slides")
 			if err != nil {
 				t.Fatalf("cannot read slides/: %v", err)
 			}
 
 			for _, entry := range entries {
-				data, err := os.ReadFile(filepath.Join(slidesDir, entry.Name()))
+				data, err := d.FS.ReadFile("slides/" + entry.Name())
 				if err != nil {
 					t.Errorf("cannot read %s: %v", entry.Name(), err)
 					continue

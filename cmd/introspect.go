@@ -6,6 +6,7 @@ import (
 	"sort"
 
 	"github.com/panyam/slyds/core"
+	"github.com/panyam/templar"
 	"github.com/spf13/cobra"
 )
 
@@ -112,7 +113,7 @@ func buildIntrospectDocument(dir string) (*IntrospectDocument, error) {
 		return doc, nil
 	}
 	absDir, _ := filepath.Abs(dir)
-	manifest, manErr := core.ReadManifest(root)
+	manifest, manErr := core.ReadManifestFS(templar.NewLocalFS(root))
 	var im *IntrospectManifest
 	if manErr == nil && manifest != nil {
 		im = &IntrospectManifest{

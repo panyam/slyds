@@ -1,22 +1,14 @@
-// Package modules bridges slyds's .slyds.yaml manifest with templar's
-// module system (VendorConfig, SourceLoader, FetchSource, lock files).
-//
-// slyds constructs templar.VendorConfig programmatically from .slyds.yaml
-// rather than using templar.yaml. This keeps slyds as the config surface
-// owner while leveraging templar's fetch/vendor/lock machinery.
+// Package core bridges slyds's .slyds.yaml manifest with templar's
+// module system via WritableFS. All I/O goes through the FS.
 package core
 
 import (
 	"fmt"
-	"os"
-	"path/filepath"
 
 	"github.com/panyam/templar"
 )
 
-// SlydsToolInfo provides slyds-specific branding for templar-generated content
-// (lock file headers, vendor README). This ensures generated artifacts reference
-// slyds commands and file names rather than templar's defaults.
+// SlydsToolInfo provides slyds-specific branding for templar-generated content.
 var SlydsToolInfo = templar.ToolInfo{
 	Name:        "slyds",
 	ConfigNames: []string{".slyds.yaml"},
@@ -27,9 +19,9 @@ var SlydsToolInfo = templar.ToolInfo{
 }
 
 // ToVendorConfig converts a slyds Manifest's sources into a templar VendorConfig.
-// The returned config uses slyds-specific directory names (.slyds-modules/).
-func ToVendorConfig(manifest *Manifest, root string) *templar.VendorConfig {
-	modulesDir := manifest.ResolveModulesDir(root)
+// The FS is used for all template resolution and vendored module access.
+func ToVendorConfig(fsys templar.WritableFS, manifest *Manifest) *templar.VendorConfig {
+	modulesDir := manifest.ResolvedModulesDir()
 
 	sources := make(map[string]templar.SourceConfig, len(manifest.Sources))
 	for name, src := range manifest.Sources {
@@ -46,34 +38,33 @@ func ToVendorConfig(manifest *Manifest, root string) *templar.VendorConfig {
 	return &templar.VendorConfig{
 		Sources:   sources,
 		VendorDir: modulesDir,
+		FS:        fsys,
 		SearchPaths: []string{
-			root,
+			".",
 			modulesDir,
 		},
 	}
 }
 
-// FetchAll fetches all sources declared in the manifest.
-// It downloads dependencies into .slyds-modules/ and writes .slyds.lock.
-func FetchAll(manifest *Manifest, root string) error {
+// FetchAll fetches all sources declared in the manifest via WritableFS.
+// Downloads dependencies into .slyds-modules/ and writes .slyds.lock.
+func FetchAll(fsys templar.WritableFS, manifest *Manifest) error {
 	if !manifest.HasSources() {
 		return nil
 	}
 
-	config := ToVendorConfig(manifest, root)
+	config := ToVendorConfig(fsys, manifest)
 
 	// Ensure modules directory exists
-	if err := os.MkdirAll(config.VendorDir, 0755); err != nil {
-		return fmt.Errorf("failed to create modules directory: %w", err)
-	}
+	fsys.MkdirAll(config.VendorDir, 0755)
 
-	// Fetch all sources
-	results, err := templar.FetchAllSources(config)
+	// Fetch all sources via FS
+	results, err := templar.FetchAllSourcesFS(fsys, config)
 	if err != nil {
 		return fmt.Errorf("failed to fetch sources: %w", err)
 	}
 
-	// Build lock file from fetch results
+	// Build lock file
 	lock := &templar.VendorLock{
 		Version: 1,
 		Sources: make(map[string]templar.LockedSource),
@@ -88,72 +79,42 @@ func FetchAll(manifest *Manifest, root string) error {
 		}
 	}
 
-	// Write lock file
-	lockPath := LockPath(root)
-	if err := templar.WriteLockFileFor(lockPath, lock, SlydsToolInfo); err != nil {
+	// Write lock file via FS
+	if err := templar.WriteLockFileFS(fsys, ".slyds.lock", lock, SlydsToolInfo); err != nil {
 		return fmt.Errorf("failed to write lock file: %w", err)
 	}
 
-	// Write vendor readme
-	if err := templar.WriteVendorReadmeFor(config.VendorDir, SlydsToolInfo); err != nil {
-		// Non-fatal
-	}
+	// Write vendor readme via FS
+	templar.WriteVendorReadmeFS(fsys, config.VendorDir, SlydsToolInfo)
 
 	return nil
 }
 
-// NewLoaderForDeck creates a templar LoaderList configured for a deck directory.
-// If the deck has modules (.slyds-modules/), it uses a SourceLoader that can
-// resolve @sourcename/path references. Otherwise, it falls back to a plain
-// FileSystemLoader.
-func NewLoaderForDeck(root string) templar.TemplateLoader {
-	manifest, err := ReadManifest(root)
+// NewLoaderForDeck creates a templar LoaderList configured for a deck's FS.
+func NewLoaderForDeck(fsys templar.WritableFS) templar.TemplateLoader {
+	manifest, err := ReadManifestFS(fsys)
 	if err != nil || !manifest.HasSources() {
-		// No manifest or no sources — use plain filesystem loader
-		return (&templar.LoaderList{}).AddLoader(templar.NewFileSystemLoader(root))
+		return (&templar.LoaderList{}).AddLoader(
+			templar.NewFileSystemLoader(templar.FSFolder{FS: fsys, Path: "."}))
 	}
 
-	modulesDir := manifest.ResolveModulesDir(root)
-	if _, err := os.Stat(modulesDir); os.IsNotExist(err) {
-		// Sources declared but not fetched — fall back to filesystem
-		return (&templar.LoaderList{}).AddLoader(templar.NewFileSystemLoader(root))
-	}
-
-	// Build loader chain: SourceLoader (handles @source/ paths) + FileSystemLoader (local files)
-	config := ToVendorConfig(manifest, root)
+	config := ToVendorConfig(fsys, manifest)
 	sourceLoader := templar.NewSourceLoader(config)
 
 	return (&templar.LoaderList{}).
-		AddLoader(templar.NewFileSystemLoader(root)).
+		AddLoader(templar.NewFileSystemLoader(templar.FSFolder{FS: fsys, Path: "."})).
 		AddLoader(sourceLoader)
 }
 
-// ModulesExist checks if the modules directory is populated.
-func ModulesExist(root string) bool {
-	manifest, err := ReadManifest(root)
+// ModulesExist checks if the modules directory is populated via FS.
+func ModulesExist(fsys templar.WritableFS) bool {
+	manifest, err := ReadManifestFS(fsys)
 	if err != nil {
 		return false
 	}
-	modulesDir := manifest.ResolveModulesDir(root)
-	entries, err := os.ReadDir(modulesDir)
+	entries, err := fsys.ReadDir(manifest.ResolvedModulesDir())
 	if err != nil {
 		return false
 	}
 	return len(entries) > 0
-}
-
-// SourcePath resolves a source-relative path to an absolute filesystem path.
-// For example, SourcePath(root, "core", "themes/dark.css") returns the absolute
-// path to dark.css within the vendored "core" source.
-func SourcePath(root, sourceName, relativePath string) (string, error) {
-	manifest, err := ReadManifest(root)
-	if err != nil {
-		return "", fmt.Errorf("failed to read manifest: %w", err)
-	}
-	modulesDir := manifest.ResolveModulesDir(root)
-	path := filepath.Join(modulesDir, sourceName, relativePath)
-	if _, err := os.Stat(path); err != nil {
-		return "", fmt.Errorf("source path not found: %s/%s: %w", sourceName, relativePath, err)
-	}
-	return path, nil
 }

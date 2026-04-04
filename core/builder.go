@@ -3,7 +3,6 @@ package core
 import (
 	"bytes"
 	"fmt"
-	"io/fs"
 	"strings"
 
 	"github.com/panyam/templar"
@@ -22,9 +21,8 @@ func (d *Deck) Build() (*Result, error) {
 	// Set up templar loader backed by the deck's FS
 	group := templar.NewTemplateGroup()
 	group.Loader = &templar.FileSystemLoader{
-		Folders:     []string{"."},
-		FileSystems: []fs.FS{d.FS},
-		Extensions:  []string{"html"},
+		Folders:    []templar.FSFolder{{FS: d.FS, Path: "."}},
+		Extensions: []string{"html"},
 	}
 
 	templates, err := group.Loader.Load("index.html", "")

@@ -32,7 +32,7 @@ var serveCmd = &cobra.Command{
 		// Set up templar for on-the-fly include resolution.
 		// Uses SourceLoader if .slyds.yaml declares sources, otherwise FileSystemLoader.
 		group := templar.NewTemplateGroup()
-		group.Loader = core.NewLoaderForDeck(root)
+		group.Loader = core.NewLoaderForDeck(templar.NewLocalFS(root))
 
 		mux := http.NewServeMux()
 

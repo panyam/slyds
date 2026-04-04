@@ -31,7 +31,9 @@
 - [x] ~~`.slyds.yaml` manifest for tracking theme and title~~
 - [x] ~~Bottom navigation bar with border layout (Prev | counter | Next + Notes icon)~~
 - [x] ~~Floating overlays — generic floater slot for footers, watermarks, logos (issue #46)~~
-- [ ] Migrate MCP to mcpkit — replace hand-rolled transport with github.com/panyam/mcpkit (mcpkit#9)
+- [x] ~~Migrate MCP to mcpkit — replace hand-rolled transport with github.com/panyam/mcpkit (mcpkit#9)~~
+- [x] ~~core/ FS abstraction — zero os.*/filepath.* in production code except osfs.go~~
+- [x] ~~templar v0.1.0 migration — FSFolder API, WritableFS for modules/vendoring~~
 - [ ] Slide folders with co-located assets (e.g., `slides/03-architecture/slide.html` + `diagram.png`)
 - [ ] Live reload on file changes during `slyds serve`
 - [ ] Theme composability via templar `extend`/`namespace` directives

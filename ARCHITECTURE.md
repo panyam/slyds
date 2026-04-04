@@ -129,14 +129,7 @@ This is the approved path for all programmatic slide content access. Regex-based
 
 The CLI exposes machine-readable **`slyds introspect`** (layouts from `core/layouts/layouts.yaml`, built-in themes, command catalog) and per-deck **`slyds describe`**. These avoid agents scraping `AGENT.md` for structure.
 
-**Model Context Protocol** (`cmd/mcp.go`, `cmd/mcp_http.go`): a **thin transport** — one tool, `slyds`, runs `os.Executable()` with user-supplied `cwd` and args. No presentation logic in the MCP layer.
-
-- **stdio** (`slyds mcp`): Content-Length–framed JSON-RPC on stdin/stdout for editor-spawned clients.
-- **HTTP + SSE** (`slyds mcp serve`): MCP 2024-11-05 pattern — GET SSE stream, `endpoint` event with POST URL, responses as SSE `message` events. See [docs/MCP.md](docs/MCP.md).
-
-Integration tests (`cmd/mcp_http_test.go`) drive **`httptest.Server`** so responses flush like production (SSE depends on **`http.Flusher`**).
-
-**Planned migration**: The current hand-rolled MCP implementation will be replaced by [mcpkit](https://github.com/panyam/mcpkit) (`github.com/panyam/mcpkit`), which provides production-grade transports (SSE via servicekit's `SSEConn`/`SSEHub`, stdio, Streamable HTTP), constant-time bearer auth, tool timeout, allowed-roots, and observability. See mcpkit#9.
+**Model Context Protocol** (`cmd/mcp.go`): uses **mcpkit** v0.0.6 with Streamable HTTP (default) or SSE (`--sse` flag). One tool, `slyds`, runs `os.Executable()` with user-supplied `cwd` and args. No presentation logic in the MCP layer. Bearer token auth with constant-time comparison. See [docs/MCP.md](docs/MCP.md).
 
 Theme/manifest notes for remote agents: [docs/AGENT-THEMES.md](docs/AGENT-THEMES.md).
 
@@ -162,6 +155,14 @@ Built presentations include `slyds-export.js` which provides a download button i
 5. Triggers a browser download via `Blob` URL
 
 This works entirely client-side — no server required, including from `file://` protocol. The ZIP writer is ~120 lines of vanilla JS implementing the ZIP format with store-only compression (no deflate needed for small HTML files).
+
+## Filesystem Abstraction
+
+All core/ production code uses `templar.WritableFS` for I/O. The only file with `os.*`/`filepath.*` is `core/osfs.go`, which provides OS-boundary convenience functions (`Create`, `CreateInDir`, `FindDeckRoot`, etc.) that create a `LocalFS` and delegate to FS-based implementations.
+
+- `templar.WritableFS` — interface: ReadFile, ReadDir, WriteFile, MkdirAll, Remove, Rename
+- `templar.LocalFS` — OS disk adapter (CLI usage)
+- `templar.MemFS` — in-memory (tests, future WASM)
 
 ## Dependency Management
 

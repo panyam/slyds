@@ -3,9 +3,8 @@ package core
 import (
 	"errors"
 	"fmt"
-	"os"
-	"path/filepath"
 
+	"github.com/panyam/templar"
 	"gopkg.in/yaml.v3"
 )
 
@@ -13,45 +12,39 @@ import (
 var ErrManifestNotFound = errors.New("manifest not found")
 
 // SourceConfig represents an external template/theme dependency.
-// Maps directly to templar's SourceConfig structure.
 type SourceConfig struct {
-	URL     string   `yaml:"url"`               // Repository URL (e.g., github.com/user/repo)
-	Path    string   `yaml:"path,omitempty"`     // Directory within repo to fetch
-	Version string   `yaml:"version,omitempty"`  // Semantic version tag (e.g., v1.2.0)
-	Ref     string   `yaml:"ref,omitempty"`      // Git ref — branch or commit (fallback if no version)
-	Include []string `yaml:"include,omitempty"`  // Glob patterns to include
-	Exclude []string `yaml:"exclude,omitempty"`  // Glob patterns to exclude
+	URL     string   `yaml:"url"`
+	Path    string   `yaml:"path,omitempty"`
+	Version string   `yaml:"version,omitempty"`
+	Ref     string   `yaml:"ref,omitempty"`
+	Include []string `yaml:"include,omitempty"`
+	Exclude []string `yaml:"exclude,omitempty"`
 }
 
 // Manifest represents the .slyds.yaml file stored in a presentation directory.
 type Manifest struct {
-	Theme            string                  `yaml:"theme"`
-	Title            string                  `yaml:"title"`
-	Sources          map[string]SourceConfig `yaml:"sources,omitempty"`
-	ModulesDir       string                  `yaml:"modules_dir,omitempty"`
-	AgentIncludeMCP  *bool                   `yaml:"agent_include_mcp,omitempty"` // nil or true: include MCP section in AGENT.md; false: omit
+	Theme           string                  `yaml:"theme"`
+	Title           string                  `yaml:"title"`
+	Sources         map[string]SourceConfig `yaml:"sources,omitempty"`
+	ModulesDir      string                  `yaml:"modules_dir,omitempty"`
+	AgentIncludeMCP *bool                   `yaml:"agent_include_mcp,omitempty"`
 }
 
-// DefaultModulesDir is the default directory name for vendored 
+// DefaultModulesDir is the default directory name for vendored modules.
 const DefaultModulesDir = ".slyds-modules"
 
 // DefaultCoreURL is the default GitHub URL for the slyds-core engine package.
-// Currently lives in the slyds repo itself; will move to a separate repo later.
 const DefaultCoreURL = "github.com/panyam/slyds"
 
 // DefaultCorePath is the subdirectory within the core URL that contains engine assets.
 const DefaultCorePath = "core"
 
-// ResolveModulesDir returns the modules directory path, using the default if not set.
-func (m *Manifest) ResolveModulesDir(root string) string {
-	dir := m.ModulesDir
-	if dir == "" {
-		dir = DefaultModulesDir
+// ResolvedModulesDir returns the modules directory name (relative path).
+func (m *Manifest) ResolvedModulesDir() string {
+	if m.ModulesDir != "" {
+		return m.ModulesDir
 	}
-	if filepath.IsAbs(dir) {
-		return dir
-	}
-	return filepath.Join(root, dir)
+	return DefaultModulesDir
 }
 
 // HasSources returns true if the manifest declares any external sources.
@@ -59,8 +52,7 @@ func (m *Manifest) HasSources() bool {
 	return len(m.Sources) > 0
 }
 
-// IncludeMCPInAgentDocs returns whether AGENT.md should include the MCP setup section.
-// Absent or true in YAML means include; false omits the section for authors who do not use MCP.
+// IncludeMCPInAgentDocs returns whether AGENT.md should include the MCP section.
 func (m *Manifest) IncludeMCPInAgentDocs() bool {
 	if m.AgentIncludeMCP == nil {
 		return true
@@ -68,27 +60,12 @@ func (m *Manifest) IncludeMCPInAgentDocs() bool {
 	return *m.AgentIncludeMCP
 }
 
-// ManifestPath returns the path to .slyds.yaml in the given directory.
-func ManifestPath(dir string) string {
-	return filepath.Join(dir, ".slyds.yaml")
-}
-
-// LockPath returns the path to .slyds.lock in the given directory.
-func LockPath(dir string) string {
-	return filepath.Join(dir, ".slyds.lock")
-}
-
-// ReadManifest reads and parses .slyds.yaml from dir.
-// Returns ErrManifestNotFound if the file does not exist.
-func ReadManifest(dir string) (*Manifest, error) {
-	data, err := os.ReadFile(ManifestPath(dir))
+// ReadManifestFS reads and parses .slyds.yaml from a WritableFS.
+func ReadManifestFS(fsys templar.WritableFS) (*Manifest, error) {
+	data, err := fsys.ReadFile(".slyds.yaml")
 	if err != nil {
-		if os.IsNotExist(err) {
-			return nil, ErrManifestNotFound
-		}
-		return nil, fmt.Errorf("failed to read .slyds.yaml: %w", err)
+		return nil, ErrManifestNotFound
 	}
-
 	var m Manifest
 	if err := yaml.Unmarshal(data, &m); err != nil {
 		return nil, fmt.Errorf("failed to parse .slyds.yaml: %w", err)
@@ -96,11 +73,11 @@ func ReadManifest(dir string) (*Manifest, error) {
 	return &m, nil
 }
 
-// WriteManifest writes a .slyds.yaml file to the given directory.
-func WriteManifest(dir string, m Manifest) error {
+// WriteManifestFS writes .slyds.yaml to a WritableFS.
+func WriteManifestFS(fsys templar.WritableFS, m Manifest) error {
 	data, err := yaml.Marshal(&m)
 	if err != nil {
 		return fmt.Errorf("failed to marshal manifest: %w", err)
 	}
-	return os.WriteFile(ManifestPath(dir), data, 0644)
+	return fsys.WriteFile(".slyds.yaml", data, 0644)
 }
