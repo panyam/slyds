@@ -7,8 +7,8 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/panyam/slyds/internal/modules"
-	"github.com/panyam/slyds/internal/scaffold"
+	"github.com/panyam/slyds/core"
+	"github.com/panyam/templar"
 	"github.com/spf13/cobra"
 )
 
@@ -33,12 +33,12 @@ you will be prompted to enter the theme and title.`,
 			return err
 		}
 
-		if _, err := findRootIn(dir); err != nil {
+		if _, err := core.FindDeckRoot(dir); err != nil {
 			return err
 		}
 
-		manifest, err := scaffold.ReadManifest(root)
-		if err == scaffold.ErrManifestNotFound {
+		manifest, err := core.ReadManifestFS(templar.NewLocalFS(root))
+		if err == core.ErrManifestNotFound {
 			manifest, err = promptForManifest()
 			if err != nil {
 				return err
@@ -49,31 +49,31 @@ you will be prompted to enter the theme and title.`,
 
 		// Refresh engine files from go:embed
 		fmt.Printf("Refreshing engine files from built-in assets...\n")
-		if err := scaffold.Update(root, manifest.Theme, manifest.Title); err != nil {
+		if err := core.Update(root, manifest.Theme, manifest.Title); err != nil {
 			return fmt.Errorf("update failed: %w", err)
 		}
 
 		// Add default core source if no sources configured yet
 		if !manifest.HasSources() {
 			fmt.Printf("Adding default core engine source...\n")
-			manifest.Sources = map[string]scaffold.SourceConfig{
+			manifest.Sources = map[string]core.SourceConfig{
 				"core": {
-					URL:  scaffold.DefaultCoreURL,
-					Path: scaffold.DefaultCorePath,
+					URL:  core.DefaultCoreURL,
+					Path: core.DefaultCorePath,
 				},
 			}
-			if err := scaffold.WriteManifest(root, *manifest); err != nil {
+			if err := core.WriteManifestFS(templar.NewLocalFS(root), *manifest); err != nil {
 				return fmt.Errorf("failed to update manifest: %w", err)
 			}
 		}
 
 		// Fetch module dependencies
 		fmt.Printf("Fetching module dependencies...\n")
-		if err := modules.FetchAll(manifest, root); err != nil {
+		if err := core.FetchAll(templar.NewLocalFS(root), manifest); err != nil {
 			fmt.Fprintf(os.Stderr, "Warning: module fetch failed: %v\n", err)
 			fmt.Fprintf(os.Stderr, "Engine files updated from built-in assets. Run 'slyds update' again when network is available.\n")
 		} else {
-			fmt.Printf("Modules fetched into %s/\n", scaffold.DefaultModulesDir)
+			fmt.Printf("Modules fetched into %s/\n", core.DefaultModulesDir)
 		}
 
 		fmt.Printf("Updated %q (theme: %s).\n", dir, manifest.Theme)
@@ -81,10 +81,10 @@ you will be prompted to enter the theme and title.`,
 	},
 }
 
-func promptForManifest() (*scaffold.Manifest, error) {
+func promptForManifest() (*core.Manifest, error) {
 	reader := bufio.NewReader(os.Stdin)
 
-	themes, _ := scaffold.ListThemes()
+	themes, _ := core.ListThemes()
 	fmt.Printf("No .slyds.yaml found. Please provide presentation details.\n")
 	fmt.Printf("Theme (%s) [default]: ", strings.Join(themes, ", "))
 	theme, _ := reader.ReadString('\n')
@@ -92,7 +92,7 @@ func promptForManifest() (*scaffold.Manifest, error) {
 	if theme == "" {
 		theme = "default"
 	}
-	if !scaffold.ThemeExists(theme) {
+	if !core.ThemeExists(theme) {
 		return nil, fmt.Errorf("unknown theme %q", theme)
 	}
 
@@ -103,7 +103,7 @@ func promptForManifest() (*scaffold.Manifest, error) {
 		return nil, fmt.Errorf("title is required")
 	}
 
-	return &scaffold.Manifest{Theme: theme, Title: title}, nil
+	return &core.Manifest{Theme: theme, Title: title}, nil
 }
 
 func init() {

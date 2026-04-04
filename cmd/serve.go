@@ -8,7 +8,7 @@ import (
 	"net/http"
 	"path/filepath"
 
-	"github.com/panyam/slyds/internal/modules"
+	"github.com/panyam/slyds/core"
 	"github.com/panyam/templar"
 	"github.com/spf13/cobra"
 )
@@ -24,7 +24,7 @@ var serveCmd = &cobra.Command{
 		if len(args) > 0 {
 			dir = args[0]
 		}
-		root, err := findRootIn(dir)
+		root, err := core.FindDeckRoot(dir)
 		if err != nil {
 			return err
 		}
@@ -32,7 +32,7 @@ var serveCmd = &cobra.Command{
 		// Set up templar for on-the-fly include resolution.
 		// Uses SourceLoader if .slyds.yaml declares sources, otherwise FileSystemLoader.
 		group := templar.NewTemplateGroup()
-		group.Loader = modules.NewLoaderForDeck(root)
+		group.Loader = core.NewLoaderForDeck(templar.NewLocalFS(root))
 
 		mux := http.NewServeMux()
 

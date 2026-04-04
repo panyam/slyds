@@ -1,10 +1,12 @@
-package scaffold
+package core
 
 import (
 	"os"
 	"path/filepath"
 	"strings"
 	"testing"
+
+	"github.com/panyam/templar"
 )
 
 func TestSlugify(t *testing.T) {
@@ -227,7 +229,7 @@ func TestCreateInDirAgentMCPInAgentMD(t *testing.T) {
 	if !strings.Contains(string(agentOn), "## MCP (Model Context Protocol)") {
 		t.Error("AGENT.md should include MCP section when includeMCPInAgent is true")
 	}
-	manOn, err := ReadManifest(dir)
+	manOn, err := ReadManifestFS(templar.NewLocalFS(dir))
 	if err != nil {
 		t.Fatalf("ReadManifest: %v", err)
 	}
@@ -243,7 +245,7 @@ func TestCreateInDirAgentMCPInAgentMD(t *testing.T) {
 	if strings.Contains(string(agentOff), "## MCP (Model Context Protocol)") {
 		t.Error("AGENT.md should omit MCP section when includeMCPInAgent is false")
 	}
-	manOff, err := ReadManifest(dirOff)
+	manOff, err := ReadManifestFS(templar.NewLocalFS(dirOff))
 	if err != nil {
 		t.Fatalf("ReadManifest: %v", err)
 	}
@@ -265,7 +267,7 @@ func TestUpdatePreservesAgentIncludeMCPFalse(t *testing.T) {
 	if err := Update(dir, "default", "Preserve"); err != nil {
 		t.Fatalf("Update: %v", err)
 	}
-	m, err := ReadManifest(dir)
+	m, err := ReadManifestFS(templar.NewLocalFS(dir))
 	if err != nil {
 		t.Fatalf("ReadManifest: %v", err)
 	}
@@ -290,7 +292,7 @@ func TestCreateWritesManifest(t *testing.T) {
 	}
 
 	dir := filepath.Join(tmp, "manifest-test")
-	m, err := ReadManifest(dir)
+	m, err := ReadManifestFS(templar.NewLocalFS(dir))
 	if err != nil {
 		t.Fatalf("ReadManifest: %v", err)
 	}
@@ -406,7 +408,7 @@ func TestUpdate(t *testing.T) {
 	}
 
 	// Verify manifest updated
-	m, err := ReadManifest(dir)
+	m, err := ReadManifestFS(templar.NewLocalFS(dir))
 	if err != nil {
 		t.Fatalf("ReadManifest after update: %v", err)
 	}

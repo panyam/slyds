@@ -5,8 +5,8 @@ import (
 	"path/filepath"
 	"sort"
 
-	"github.com/panyam/slyds/internal/layout"
-	"github.com/panyam/slyds/internal/scaffold"
+	"github.com/panyam/slyds/core"
+	"github.com/panyam/templar"
 	"github.com/spf13/cobra"
 )
 
@@ -85,11 +85,11 @@ func buildIntrospectDocument(dir string) (*IntrospectDocument, error) {
 		SchemaVersion:  IntrospectSchemaVersion,
 		RootResolution: `A presentation root is a directory containing index.html. Commands that accept [dir] find the nearest ancestor with index.html starting from the given path.`,
 		Layouts:        nil,
-		ThemesBuiltin:  availableThemeNames(),
+		ThemesBuiltin:  core.AvailableThemeNames(),
 		Commands:       agentCommandCatalog(),
 	}
 
-	reg, err := layout.LoadRegistry()
+	reg, err := core.LoadRegistry()
 	if err != nil {
 		return nil, err
 	}
@@ -108,12 +108,12 @@ func buildIntrospectDocument(dir string) (*IntrospectDocument, error) {
 		})
 	}
 
-	root, err := findRootIn(dir)
+	root, err := core.FindDeckRoot(dir)
 	if err != nil {
 		return doc, nil
 	}
 	absDir, _ := filepath.Abs(dir)
-	manifest, manErr := scaffold.ReadManifest(root)
+	manifest, manErr := core.ReadManifestFS(templar.NewLocalFS(root))
 	var im *IntrospectManifest
 	if manErr == nil && manifest != nil {
 		im = &IntrospectManifest{
@@ -122,7 +122,7 @@ func buildIntrospectDocument(dir string) (*IntrospectDocument, error) {
 			HasSources: manifest.HasSources(),
 			ModulesDir: manifest.ModulesDir,
 		}
-	} else if manErr != nil && manErr != scaffold.ErrManifestNotFound {
+	} else if manErr != nil && manErr != core.ErrManifestNotFound {
 		return nil, manErr
 	}
 	doc.Deck = &DeckContext{

@@ -1,4 +1,4 @@
-package builder
+package core
 
 import (
 	"os"
@@ -6,7 +6,6 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/panyam/slyds/internal/scaffold"
 )
 
 // scaffoldAndBuild creates a test presentation in a temp directory, builds it,
@@ -18,9 +17,9 @@ func scaffoldAndBuild(t *testing.T) string {
 	os.Chdir(tmp)
 	defer os.Chdir(origDir)
 
-	slug, err := scaffold.Create("Timer Test", 4)
+	slug, err := Create("Timer Test", 4)
 	if err != nil {
-		t.Fatalf("scaffold.Create failed: %v", err)
+		t.Fatalf("Create failed: %v", err)
 	}
 	root := filepath.Join(tmp, slug)
 

@@ -1,4 +1,4 @@
-package layout
+package core
 
 import (
 	"strings"

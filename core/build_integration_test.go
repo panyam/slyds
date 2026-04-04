@@ -1,4 +1,4 @@
-package builder
+package core
 
 import (
 	"os"
@@ -6,7 +6,6 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/panyam/slyds/internal/scaffold"
 )
 
 func TestBuildEndToEnd(t *testing.T) {
@@ -16,9 +15,9 @@ func TestBuildEndToEnd(t *testing.T) {
 	defer os.Chdir(origDir)
 
 	// Scaffold a presentation
-	slug, err := scaffold.Create("Build Test", 3)
+	slug, err := Create("Build Test", 3)
 	if err != nil {
-		t.Fatalf("scaffold.Create failed: %v", err)
+		t.Fatalf("Create failed: %v", err)
 	}
 	root := filepath.Join(tmp, slug)
 
