@@ -15,11 +15,12 @@ make audit       # govulncheck + gosec + gitleaks
 ## Project Layout
 
 - `core/` — all business logic as methods on `*Deck`. Zero `os.*` except `osfs.go` (OS boundary).
-- `cmd/` — thin CLI wiring (~2100 lines). Never touches FS directly.
+- `assets/` — embedded static files (themes, layouts, templates, engine CSS/JS). Separate from core/ so module system can vendor assets without Go code.
+- `cmd/` — CLI wiring + MCP server (tools, resources). Never touches FS directly.
 - `examples/` — demo presentations with tests.
 - `docs/` — MCP setup, agent themes, CSS contract, design docs.
 
-Key files: `core/deck.go` (Deck API), `core/scaffold.go` + `core/scaffold_fs.go` (scaffolding), `core/osfs.go` (OS boundary: Create, FindDeckRoot), `core/builder.go` (build pipeline), `core/query.go` (CSS selector access).
+Key files: `core/deck.go` (Deck API), `core/osfs.go` (OS boundary), `cmd/mcp.go` (MCP server), `cmd/mcp_tools.go` (10 semantic tools), `cmd/mcp_resources.go` (7 browsable resources).
 
 ## FS Abstraction
 
@@ -32,7 +33,7 @@ All Deck I/O goes through `templar.WritableFS` (v0.1.0). No `os.*`/`filepath.*` 
 ## Conventions
 
 - **Deck is the single API** — cmd/ calls Deck methods, never touches FS internals
-- **No hardcoded HTML** — use embedded `.tmpl` files under `core/templates/`
+- **No hardcoded HTML** — use embedded `.tmpl` files under `assets/templates/`
 - **No regex HTML mutation** — use `d.Query()` (goquery/CSS selectors). See [CONSTRAINTS.md](CONSTRAINTS.md)
 - **Index.html is source of truth** for slide ordering
 - **Local deps via locallinks/** — `replace => ./locallinks/...` in go.mod; comment out before push
@@ -40,16 +41,16 @@ All Deck I/O goes through `templar.WritableFS` (v0.1.0). No `os.*`/`filepath.*` 
 ## Gotchas
 
 - **macOS /private symlinks**: temp dirs resolve `/var/...` vs `/private/var/...`. Don't compare paths in tests.
-- **`go:embed` paths relative to Go file** — `core/embed.go` must live alongside embedded files.
+- **`go:embed` paths relative to Go file** — `assets/embed.go` lives alongside the embedded files; `core/embed.go` re-exports.
 - **Theme render fallback** — `InsertSlide` uses layout system first; falls back to theme templates.
-- **MCP uses mcpkit v0.0.6** — Streamable HTTP default. Bearer token uses constant-time comparison.
+- **MCP** — 10 semantic tools + 7 resources via mcpkit. See [docs/MCP.md](docs/MCP.md). `--deck-root` sets discovery root.
 
 ## Stack
 
 | Component | Version | Notes |
 |-----------|---------|-------|
 | templar | v0.1.0 | WritableFS, FSFolder, MemFS, module system |
-| mcpkit | v0.0.6 | SSE + Streamable HTTP transports |
+| mcpkit | v0.0.7 | SSE + Streamable HTTP transports, Go client + testutil |
 
 See [Stackfile.md](Stackfile.md) for full dependency list.
 

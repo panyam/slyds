@@ -8,7 +8,7 @@
 | Component | Module | Version | Updated |
 |-----------|--------|---------|---------|
 | templar | github.com/panyam/templar | v0.1.0 | 2026-04-04 |
-| mcpkit | github.com/panyam/mcpkit | v0.0.6 | 2026-04-03 |
+| mcpkit | github.com/panyam/mcpkit | v0.0.7 | 2026-04-05 |
 | goutils | github.com/panyam/goutils | v0.1.13 | 2026-04-01 |
 
 ## Third-Party Dependencies

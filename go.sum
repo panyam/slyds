@@ -16,6 +16,8 @@ github.com/panyam/goutils v0.1.13 h1:V819IdZTEJ3rpu33ZqohC6O9ou7KOu6cxfigoYT12OQ
 github.com/panyam/goutils v0.1.13/go.mod h1:vd3iFcv1DjaeV6h8tslIJh9d09RLndg8UYNSGROBrM4=
 github.com/panyam/mcpkit v0.0.6 h1:YB/Q70QbHYyrEZFqV9OWYAdhgpEE0ekvYgFatCFY2YM=
 github.com/panyam/mcpkit v0.0.6/go.mod h1:T1B7LewLv6f5lVZ1s+dqtMODS54KnPE1hB2EXpDGtfw=
+github.com/panyam/mcpkit v0.0.7 h1:dlkMF1oTQ6jO9Z/O9OTsdT6UtsHUKVTS/xHIjahXUwQ=
+github.com/panyam/mcpkit v0.0.7/go.mod h1:T1B7LewLv6f5lVZ1s+dqtMODS54KnPE1hB2EXpDGtfw=
 github.com/panyam/servicekit v0.0.14 h1:EISt1YzfFnuAgkVmFZwhNpijSMDauhuGfo1tXHCo56E=
 github.com/panyam/servicekit v0.0.14/go.mod h1:zK2rZAMSladqAJIwn3sytRqs2RF3OtN9OeYFV2NZPAc=
 github.com/panyam/templar v0.0.33 h1:YurN1ahsQyLlZ+GIriYYMR19JP0sH0XqcjftGqzTsuw=

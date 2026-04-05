@@ -19,6 +19,10 @@ install:
 test:
 	go test ./...
 
+# Run MCP e2e tests only (full agent workflow via httptest)
+e2e:
+	go test ./cmd/... -run E2E -v
+
 # Print the version that would be injected
 version:
 	@echo $(VERSION)

@@ -127,9 +127,13 @@ This is the approved path for all programmatic slide content access. Regex-based
 
 ## MCP and agent-facing surfaces
 
-The CLI exposes machine-readable **`slyds introspect`** (layouts from `core/layouts/layouts.yaml`, built-in themes, command catalog) and per-deck **`slyds describe`**. These avoid agents scraping `AGENT.md` for structure.
+The CLI exposes machine-readable **`slyds introspect`** (layouts, themes, command catalog) and per-deck **`slyds describe`** for non-MCP agents.
 
-**Model Context Protocol** (`cmd/mcp.go`): uses **mcpkit** v0.0.6 with Streamable HTTP (default) or SSE (`--sse` flag). One tool, `slyds`, runs `os.Executable()` with user-supplied `cwd` and args. No presentation logic in the MCP layer. Bearer token auth with constant-time comparison. See [docs/MCP.md](docs/MCP.md).
+**Model Context Protocol** (`cmd/mcp.go`, `cmd/mcp_tools.go`, `cmd/mcp_resources.go`): uses **mcpkit** v0.0.6. Exposes **10 semantic tools** that call the Deck API directly (no subprocess) and **7 browsable resources** for reading deck content. Transports: Streamable HTTP (default) or SSE (`--sse`). `--deck-root` sets the directory where decks are discovered. See [docs/MCP.md](docs/MCP.md).
+
+**Tools**: `create_deck`, `describe_deck`, `list_slides`, `read_slide`, `edit_slide`, `query_slide`, `add_slide`, `remove_slide`, `check_deck`, `build_deck`.
+
+**Resources**: `slyds://decks`, `slyds://decks/{name}`, `slyds://decks/{name}/slides/{n}`, `slyds://decks/{name}/config`, `slyds://decks/{name}/agent`, etc.
 
 Theme/manifest notes for remote agents: [docs/AGENT-THEMES.md](docs/AGENT-THEMES.md).
 
