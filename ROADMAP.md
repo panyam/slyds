@@ -42,6 +42,9 @@ Migrated hand-rolled MCP transport to mcpkit v0.0.6. Streamable HTTP default, SS
 ## Phase 9a — WritableFS abstraction (done)
 Migrated all core/ production code to use `templar.WritableFS`. Zero `os.*`/`filepath.*` in core/ except `osfs.go` (OS boundary). templar upgraded to v0.1.0 with breaking FSFolder API. modules.go, manifest.go, scaffold.go, builder.go, inline.go all FS-based. examples_test.go migrated to use Deck API.
 
+## Phase 9b — MCP Resources + Semantic Tools (done)
+Replaced subprocess-based MCP tool with 10 semantic tools calling the Deck API directly (no subprocess, structured JSON returns). Added 7 browsable MCP resources for deck/slide content discovery. Extracted `assets/` package separating Go code from static files. Migrated e2e tests to mcpkit/testutil.TestClient. mcpkit upgraded to v0.0.7 (Go MCP client with Streamable HTTP + SSE transports).
+
 ## Phase 10 — Slide Folders
 Support `slides/03-name/slide.html` with co-located assets (images, per-slide CSS). Auto-detect folder vs file slides.
 

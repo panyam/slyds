@@ -50,7 +50,7 @@ All Deck I/O goes through `templar.WritableFS` (v0.1.0). No `os.*`/`filepath.*` 
 | Component | Version | Notes |
 |-----------|---------|-------|
 | templar | v0.1.0 | WritableFS, FSFolder, MemFS, module system |
-| mcpkit | v0.0.6 | SSE + Streamable HTTP transports |
+| mcpkit | v0.0.7 | SSE + Streamable HTTP transports, Go client + testutil |
 
 See [Stackfile.md](Stackfile.md) for full dependency list.
 

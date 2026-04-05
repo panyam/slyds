@@ -10,6 +10,8 @@ import (
 	"github.com/panyam/slyds/core"
 )
 
+// TestDiscoverDecks verifies that discoverDecks finds all subdirectories
+// containing index.html under the given root.
 func TestDiscoverDecks(t *testing.T) {
 	root := t.TempDir()
 	core.CreateInDir("Alpha", 2, "default", filepath.Join(root, "alpha"), true)
@@ -21,6 +23,7 @@ func TestDiscoverDecks(t *testing.T) {
 	}
 }
 
+// TestDiscoverDecksEmpty verifies that an empty directory yields no decks.
 func TestDiscoverDecksEmpty(t *testing.T) {
 	decks := discoverDecks(t.TempDir())
 	if len(decks) != 0 {
@@ -28,12 +31,12 @@ func TestDiscoverDecksEmpty(t *testing.T) {
 	}
 }
 
+// TestDiscoverDecksRootIsDeck verifies that when the root directory itself
+// contains index.html, it is discovered as deck ".".
 func TestDiscoverDecksRootIsDeck(t *testing.T) {
 	root := t.TempDir()
 	core.CreateInDir("Root Deck", 2, "default", root, true)
 
-	// root itself won't be discovered because CreateInDir creates into existing empty dir
-	// But root has index.html now, so discoverDecks should find "."
 	decks := discoverDecks(root)
 	found := false
 	for _, d := range decks {
@@ -46,6 +49,8 @@ func TestDiscoverDecksRootIsDeck(t *testing.T) {
 	}
 }
 
+// TestOpenDeck verifies that openDeck resolves a deck name to a Deck
+// instance with the correct title and slide count.
 func TestOpenDeck(t *testing.T) {
 	root := t.TempDir()
 	core.CreateInDir("Test", 3, "default", filepath.Join(root, "my-deck"), true)
@@ -63,6 +68,8 @@ func TestOpenDeck(t *testing.T) {
 	}
 }
 
+// TestResourceRegistration verifies that registerResources succeeds and
+// the registered deck is readable through the Deck API.
 func TestResourceRegistration(t *testing.T) {
 	root := t.TempDir()
 	core.CreateInDir("Deck", 2, "default", filepath.Join(root, "test-deck"), true)
@@ -70,7 +77,6 @@ func TestResourceRegistration(t *testing.T) {
 	srv := mcpkit.NewServer(mcpkit.ServerInfo{Name: "test", Version: "0.0.1"})
 	registerResources(srv, root)
 
-	// Verify resources are registered by checking the underlying deck can be opened
 	d, err := openDeck(root, "test-deck")
 	if err != nil {
 		t.Fatalf("openDeck: %v", err)
@@ -84,6 +90,8 @@ func TestResourceRegistration(t *testing.T) {
 	}
 }
 
+// TestJsonResultRoundTrip verifies that jsonResult produces valid JSON
+// that round-trips correctly through marshal/unmarshal.
 func TestJsonResultRoundTrip(t *testing.T) {
 	result, _ := jsonResult(map[string]any{"key": "value"})
 	text := toolText(result)

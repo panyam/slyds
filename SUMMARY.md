@@ -15,7 +15,7 @@ slyds is a Go CLI for creating, serving, and building self-contained HTML presen
 - **`query`**: CSS selector interface for reading/writing slide HTML content (goquery); optional **`--batch`** JSON for atomic multi-slide writes
 - **`introspect`**: Machine-readable JSON listing layouts (with `data-slot` names), built-in themes, and CLI catalog — for agents and MCP clients
 - **`describe`**: Per-deck structured summary (`--json` for tools)
-- **`mcp` / `mcp serve`**: Model Context Protocol — stdio (local) or HTTP+SSE (remote) thin wrapper around the CLI; see `docs/MCP.md`
+- **`mcp`**: MCP server with 10 semantic tools + 7 browsable resources. Streamable HTTP (default) or SSE. See `docs/MCP.md`
 - **Export button**: Client-side download in built presentations — extracts slides from DOM, zips, triggers browser download (works from `file://`)
 - **`version`**: Print version (injected from git tags at build time)
 
@@ -25,7 +25,7 @@ The Go rewrite is complete with all core commands working, 130+ tests passing, C
 
 ## Key Patterns
 
-- Theme templates embedded via `go:embed` under `core/templates/` (shared) and `core/templates/<theme>/` (overrides)
+- Theme templates embedded via `go:embed` under `assets/templates/` (shared) and `assets/templates/<theme>/` (overrides)
 - Templar used as a Go library (programmatic config, no YAML files)
 - Slide files are pure HTML fragments — no template syntax
 - Only `index.html` uses templar's `{{# include #}}` directives
@@ -33,5 +33,5 @@ The Go rewrite is complete with all core commands working, 130+ tests passing, C
 - `.slyds.yaml` manifest tracks theme and title for `slyds update`
 - HTML content access via goquery/CSS selectors (`slyds query` and `query --batch`), not regex
 - Agent onboarding: `introspect`, `describe`, optional `--slots-file` on `add`/`insert`, and docs under `docs/AGENT-THEMES.md` and `docs/MCP.md`
-- MCP HTTP transport: integration tests in `cmd/mcp_http_test.go` (`go test ./cmd/... -run MCP`) exercise SSE `endpoint` → POST → `message` and auth/origin paths
+- MCP e2e tests via mcpkit/testutil (`go test ./cmd/... -run E2E`) exercise full agent workflow: discover, create, read, edit, query, build
 - Version injected from git tags via ldflags at build time

@@ -11,7 +11,7 @@ v0.0.10
 - **slide-management**: Add, remove, reorder, insert slides via CLI commands
 - **slide-query**: CSS selector-based read/write access to slide HTML content (goquery), including atomic batch writes
 - **slide-introspect**: JSON discovery of layouts, `data-slot` names, themes, and CLI catalog — for agents and automation
-- **slide-mcp**: MCP server (stdio and HTTP+SSE) exposing the CLI as a single tool — see `docs/MCP.md`; HTTP+SSE contract covered by `cmd/mcp_http_test.go` (`go test ./cmd/... -run MCP`)
+- **slide-mcp**: MCP server with 10 semantic tools (create, describe, read, edit, query, add, remove, check, build, list) + 7 browsable resources. Streamable HTTP default, SSE via `--sse`. E2e tests via mcpkit/testutil (`go test ./cmd/... -run E2E`). See `docs/MCP.md`
 - **slide-export**: Client-side ZIP export/download of built presentations
 - **theme-system**: Config-driven theme templates with shared fallback, runtime theme switching
 - **slide-hooks**: Client-side `slideEnter`/`slideLeave` lifecycle events + `window.slydsContext` persistent state
@@ -26,7 +26,7 @@ github.com/panyam/slyds
 
 ## Stack Dependencies
 - templar (github.com/panyam/templar) v0.1.0 — template composition, WritableFS, module system
-- mcpkit (github.com/panyam/mcpkit) v0.0.6 — MCP server (Streamable HTTP + SSE)
+- mcpkit (github.com/panyam/mcpkit) v0.0.7 — MCP server + client (Streamable HTTP + SSE)
 - goutils (github.com/panyam/goutils) — indirect, via templar
 
 *(Align versions with `go.mod`; Stackfile.md lists pinned stack versions.)*
@@ -52,7 +52,7 @@ replace github.com/panyam/templar => ./locallinks/newstack/templar/main
 Active
 
 ## Conventions
-- No hardcoded HTML in Go code — use embedded `.tmpl` files under `core/templates/`
+- No hardcoded HTML in Go code — use embedded `.tmpl` files under `assets/templates/`
 - Configure templar programmatically — no `.templar.yaml` files
 - Slide files are pure HTML — only `index.html` uses templar include syntax
 - No regex-based HTML mutation — use `slyds query` (goquery/CSS selectors)

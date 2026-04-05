@@ -34,6 +34,9 @@
 - [x] ~~Migrate MCP to mcpkit — replace hand-rolled transport with github.com/panyam/mcpkit (mcpkit#9)~~
 - [x] ~~core/ FS abstraction — zero os.*/filepath.* in production code except osfs.go~~
 - [x] ~~templar v0.1.0 migration — FSFolder API, WritableFS for modules/vendoring~~
+- [x] ~~MCP resources + semantic tools — 10 tools, 7 resources, drop subprocess tool (#52)~~
+- [x] ~~Extract assets/ package — separate Go code from static files for clean module vendoring~~
+- [x] ~~core/ tests to MemFS — 73% os.* reduction, shared test helpers~~
 - [ ] Slide folders with co-located assets (e.g., `slides/03-architecture/slide.html` + `diagram.png`)
 - [ ] Live reload on file changes during `slyds serve`
 - [ ] Theme composability via templar `extend`/`namespace` directives
