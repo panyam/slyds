@@ -1,140 +1,39 @@
 package cmd
 
 import (
-	"bytes"
 	"encoding/json"
 	"fmt"
-	"io"
-	"net/http"
-	"net/http/httptest"
 	"strings"
 	"testing"
 
 	"github.com/panyam/mcpkit"
+	"github.com/panyam/mcpkit/testutil"
 	"github.com/panyam/slyds/core"
 )
 
-// mcpClient wraps an httptest.Server for MCP e2e tests.
-type mcpClient struct {
-	t         *testing.T
-	server    *httptest.Server
-	sessionID string
-	nextID    int
-}
-
-func newMCPClient(t *testing.T, root string) *mcpClient {
+// newSlydsMCPClient creates a TestClient connected to a slyds MCP server
+// with the given deck root. Uses mcpkit/testutil for automatic httptest
+// server lifecycle, session management, and t.Fatal on errors.
+func newSlydsMCPClient(t *testing.T, root string) *testutil.TestClient {
 	t.Helper()
-
 	srv := mcpkit.NewServer(mcpkit.ServerInfo{Name: "slyds-test", Version: "0.0.1"})
 	registerResources(srv, root)
 	registerTools(srv, root)
-
-	handler := srv.Handler(mcpkit.WithStreamableHTTP(true))
-	ts := httptest.NewServer(handler)
-	t.Cleanup(ts.Close)
-
-	c := &mcpClient{t: t, server: ts, nextID: 1}
-	c.initialize()
-	return c
+	return testutil.NewTestClient(t, srv)
 }
 
-func (c *mcpClient) initialize() {
-	resp := c.rawPost(`{"jsonrpc":"2.0","id":0,"method":"initialize","params":{"protocolVersion":"2024-11-05","capabilities":{},"clientInfo":{"name":"test","version":"1"}}}`)
-	c.sessionID = resp.Header.Get("Mcp-Session-Id")
-	if c.sessionID == "" {
-		c.t.Fatal("no session ID from initialize")
-	}
-	// Send initialized notification
-	c.rawPostWithSession(`{"jsonrpc":"2.0","method":"notifications/initialized"}`)
-}
-
-func (c *mcpClient) rawPost(body string) *http.Response {
-	resp, err := http.Post(c.server.URL+"/mcp", "application/json", strings.NewReader(body))
-	if err != nil {
-		c.t.Fatalf("POST failed: %v", err)
-	}
-	return resp
-}
-
-func (c *mcpClient) rawPostWithSession(body string) *http.Response {
-	req, _ := http.NewRequest("POST", c.server.URL+"/mcp", strings.NewReader(body))
-	req.Header.Set("Content-Type", "application/json")
-	req.Header.Set("Mcp-Session-Id", c.sessionID)
-	resp, err := http.DefaultClient.Do(req)
-	if err != nil {
-		c.t.Fatalf("POST failed: %v", err)
-	}
-	return resp
-}
-
-func (c *mcpClient) call(method string, params any) map[string]any {
-	c.t.Helper()
-	c.nextID++
-	reqBody := map[string]any{
-		"jsonrpc": "2.0",
-		"id":      c.nextID,
-		"method":  method,
-	}
-	if params != nil {
-		reqBody["params"] = params
-	}
-	data, _ := json.Marshal(reqBody)
-
-	req, _ := http.NewRequest("POST", c.server.URL+"/mcp", bytes.NewReader(data))
-	req.Header.Set("Content-Type", "application/json")
-	req.Header.Set("Mcp-Session-Id", c.sessionID)
-	resp, err := http.DefaultClient.Do(req)
-	if err != nil {
-		c.t.Fatalf("%s: POST failed: %v", method, err)
-	}
-	defer resp.Body.Close()
-	body, _ := io.ReadAll(resp.Body)
-
-	var result map[string]any
-	if err := json.Unmarshal(body, &result); err != nil {
-		c.t.Fatalf("%s: invalid JSON response: %s", method, string(body))
-	}
-	return result
-}
-
-func (c *mcpClient) toolCall(name string, args any) string {
-	c.t.Helper()
-	result := c.call("tools/call", map[string]any{"name": name, "arguments": args})
-	r, _ := result["result"].(map[string]any)
-	if r == nil {
-		c.t.Fatalf("tools/call %s: no result: %v", name, result)
-	}
-	if isErr, _ := r["isError"].(bool); isErr {
-		content := r["content"].([]any)
-		text := content[0].(map[string]any)["text"].(string)
-		c.t.Fatalf("tools/call %s error: %s", name, text)
-	}
-	content := r["content"].([]any)
-	return content[0].(map[string]any)["text"].(string)
-}
-
-func (c *mcpClient) readResource(uri string) string {
-	c.t.Helper()
-	result := c.call("resources/read", map[string]string{"uri": uri})
-	r, _ := result["result"].(map[string]any)
-	if r == nil {
-		c.t.Fatalf("resources/read %s: no result: %v", uri, result)
-	}
-	contents := r["contents"].([]any)
-	return contents[0].(map[string]any)["text"].(string)
-}
-
-// --- E2E Tests ---
-
+// TestE2E_FullAgentWorkflow exercises the complete MCP agent lifecycle:
+// discover decks → read metadata → read slide → create deck → query →
+// edit → verify edit → add slide → check → build. All via HTTP against
+// a real mcpkit server with slyds tools and resources registered.
 func TestE2E_FullAgentWorkflow(t *testing.T) {
 	root := t.TempDir()
-	// Scaffold an existing deck
 	core.CreateInDir("Existing Deck", 3, "default", fmt.Sprintf("%s/existing", root), true)
 
-	c := newMCPClient(t, root)
+	c := newSlydsMCPClient(t, root)
 
 	// 1. Discover decks via resource
-	decksJSON := c.readResource("slyds://decks")
+	decksJSON := c.ReadResource("slyds://decks")
 	var decks []map[string]any
 	json.Unmarshal([]byte(decksJSON), &decks)
 	if len(decks) != 1 || decks[0]["name"] != "existing" {
@@ -142,7 +41,7 @@ func TestE2E_FullAgentWorkflow(t *testing.T) {
 	}
 
 	// 2. Read deck metadata via resource
-	metaJSON := c.readResource("slyds://decks/existing")
+	metaJSON := c.ReadResource("slyds://decks/existing")
 	var meta map[string]any
 	json.Unmarshal([]byte(metaJSON), &meta)
 	if meta["title"] != "Existing Deck" {
@@ -150,13 +49,13 @@ func TestE2E_FullAgentWorkflow(t *testing.T) {
 	}
 
 	// 3. Read slide content via resource
-	slideHTML := c.readResource("slyds://decks/existing/slides/1")
+	slideHTML := c.ReadResource("slyds://decks/existing/slides/1")
 	if !strings.Contains(slideHTML, `class="slide`) {
 		t.Error("slide 1 missing slide class")
 	}
 
 	// 4. Create a new deck via tool
-	createResult := c.toolCall("create_deck", map[string]any{
+	createResult := c.ToolCall("create_deck", map[string]any{
 		"name": "new-deck", "title": "Agent Created", "theme": "dark", "slides": 2,
 	})
 	if !strings.Contains(createResult, "Agent Created") {
@@ -164,14 +63,14 @@ func TestE2E_FullAgentWorkflow(t *testing.T) {
 	}
 
 	// 5. Verify new deck appears in resource list
-	decksJSON = c.readResource("slyds://decks")
+	decksJSON = c.ReadResource("slyds://decks")
 	json.Unmarshal([]byte(decksJSON), &decks)
 	if len(decks) != 2 {
 		t.Errorf("expected 2 decks after create, got %d", len(decks))
 	}
 
 	// 6. Query slide h1 via tool
-	queryResult := c.toolCall("query_slide", map[string]any{
+	queryResult := c.ToolCall("query_slide", map[string]any{
 		"deck": "new-deck", "slide": "1", "selector": "h1",
 	})
 	if !strings.Contains(queryResult, "Agent Created") {
@@ -179,13 +78,13 @@ func TestE2E_FullAgentWorkflow(t *testing.T) {
 	}
 
 	// 7. Edit slide via tool
-	c.toolCall("edit_slide", map[string]any{
+	c.ToolCall("edit_slide", map[string]any{
 		"deck": "new-deck", "position": 1,
 		"content": `<div class="slide"><h1>Modified</h1></div>`,
 	})
 
 	// 8. Verify edit via read_slide tool
-	readResult := c.toolCall("read_slide", map[string]any{
+	readResult := c.ToolCall("read_slide", map[string]any{
 		"deck": "new-deck", "position": 1,
 	})
 	if !strings.Contains(readResult, "Modified") {
@@ -193,10 +92,10 @@ func TestE2E_FullAgentWorkflow(t *testing.T) {
 	}
 
 	// 9. Add slide via tool
-	c.toolCall("add_slide", map[string]any{
+	c.ToolCall("add_slide", map[string]any{
 		"deck": "new-deck", "position": 2, "name": "extra", "layout": "content", "title": "Extra",
 	})
-	listResult := c.toolCall("list_slides", map[string]any{"deck": "new-deck"})
+	listResult := c.ToolCall("list_slides", map[string]any{"deck": "new-deck"})
 	var slides []map[string]any
 	json.Unmarshal([]byte(listResult), &slides)
 	if len(slides) != 3 {
@@ -204,13 +103,13 @@ func TestE2E_FullAgentWorkflow(t *testing.T) {
 	}
 
 	// 10. Check deck via tool
-	checkResult := c.toolCall("check_deck", map[string]any{"deck": "new-deck"})
+	checkResult := c.ToolCall("check_deck", map[string]any{"deck": "new-deck"})
 	if !strings.Contains(checkResult, "InSync") {
 		t.Error("check_deck missing InSync field")
 	}
 
 	// 11. Build deck via tool
-	buildResult := c.toolCall("build_deck", map[string]any{"deck": "new-deck"})
+	buildResult := c.ToolCall("build_deck", map[string]any{"deck": "new-deck"})
 	if !strings.Contains(buildResult, "<style>") {
 		t.Error("build missing inlined CSS")
 	}
@@ -219,17 +118,15 @@ func TestE2E_FullAgentWorkflow(t *testing.T) {
 	}
 }
 
+// TestE2E_ResourceTemplatesList verifies that all 6 resource templates
+// are registered and discoverable via resources/templates/list.
 func TestE2E_ResourceTemplatesList(t *testing.T) {
-	c := newMCPClient(t, t.TempDir())
+	c := newSlydsMCPClient(t, t.TempDir())
 
-	result := c.call("resources/templates/list", nil)
-	r := result["result"].(map[string]any)
-	templates := r["resourceTemplates"].([]any)
-
+	templates := c.ListResourceTemplates()
 	names := make(map[string]bool)
 	for _, tmpl := range templates {
-		m := tmpl.(map[string]any)
-		names[m["uriTemplate"].(string)] = true
+		names[tmpl.URITemplate] = true
 	}
 
 	expected := []string{
@@ -247,17 +144,15 @@ func TestE2E_ResourceTemplatesList(t *testing.T) {
 	}
 }
 
+// TestE2E_ToolsList verifies that all 10 semantic tools are registered
+// and discoverable via tools/list.
 func TestE2E_ToolsList(t *testing.T) {
-	c := newMCPClient(t, t.TempDir())
+	c := newSlydsMCPClient(t, t.TempDir())
 
-	result := c.call("tools/list", nil)
-	r := result["result"].(map[string]any)
-	tools := r["tools"].([]any)
-
+	tools := c.ListTools()
 	names := make(map[string]bool)
 	for _, tool := range tools {
-		m := tool.(map[string]any)
-		names[m["name"].(string)] = true
+		names[tool.Name] = true
 	}
 
 	expected := []string{
@@ -272,10 +167,12 @@ func TestE2E_ToolsList(t *testing.T) {
 	}
 }
 
+// TestE2E_ServerInfo verifies the slyds://server/info static resource
+// returns server version, available themes, and available layouts.
 func TestE2E_ServerInfo(t *testing.T) {
-	c := newMCPClient(t, t.TempDir())
+	c := newSlydsMCPClient(t, t.TempDir())
 
-	text := c.readResource("slyds://server/info")
+	text := c.ReadResource("slyds://server/info")
 	var info map[string]any
 	json.Unmarshal([]byte(text), &info)
 
