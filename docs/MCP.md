@@ -9,11 +9,12 @@
 ### 1. Install slyds
 
 ```bash
-# From source
+# Via go install (recommended — fetches the latest release)
+go install github.com/panyam/slyds@latest
+
+# Or from source
 git clone https://github.com/panyam/slyds.git
-cd slyds
-make build
-make install   # installs to $GOBIN
+cd slyds && make install
 
 # Verify
 slyds version
@@ -37,7 +38,7 @@ slyds mcp --deck-root ~/presentations/
 
 ### 4. Connect your agent
 
-See the agent-specific sections below for Claude, Cursor, and Copilot.
+See setup for [Claude](#agent-setup-claude), [Cursor](#agent-setup-cursor), or [GitHub Copilot](#agent-setup-github-copilot--vs-code).
 
 ---
 
@@ -109,14 +110,9 @@ slyds mcp [flags]
 
 ### Claude Desktop (macOS)
 
-1. Build slyds: `cd /path/to/slyds && make build && make install`
+With the server running (see [Getting Started](#getting-started)):
 
-2. Start the server in a terminal:
-   ```bash
-   slyds mcp --deck-root ~/presentations/
-   ```
-
-3. Configure Claude Desktop. Edit `~/Library/Application Support/Claude/claude_desktop_config.json`:
+1. Edit `~/Library/Application Support/Claude/claude_desktop_config.json`:
    ```json
    {
      "mcpServers": {
@@ -127,9 +123,9 @@ slyds mcp [flags]
    }
    ```
 
-4. Restart Claude Desktop. You should see "slyds" in Settings > MCP.
+2. Restart Claude Desktop. You should see "slyds" in Settings > MCP.
 
-5. Try it: *"List my presentations"* → agent calls `resources/read slyds://decks`
+3. Try it: *"List my presentations"* → agent calls `resources/read slyds://decks`
 
 ### Claude Code
 
@@ -151,9 +147,9 @@ Start the server separately: `slyds mcp --deck-root ~/presentations/`
 
 ## Agent Setup: Cursor
 
-1. Build slyds and start the server as above.
+With the server running (see [Getting Started](#getting-started)):
 
-2. Add to `.cursor/mcp.json` (project) or `~/.cursor/mcp.json` (global):
+1. Add to `.cursor/mcp.json` (project) or `~/.cursor/mcp.json` (global):
    ```json
    {
      "mcpServers": {
@@ -166,7 +162,7 @@ Start the server separately: `slyds mcp --deck-root ~/presentations/`
 
 3. Restart Cursor. Check Settings > MCP for the "slyds" server.
 
-4. In chat: *"Create a new presentation about AI agents with 5 slides using the dark theme"*
+4. Try it: *"Create a new presentation about AI agents with 5 slides using the dark theme"*
 
 ### Troubleshooting (Cursor)
 
