@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"path/filepath"
 
 	"github.com/panyam/mcpkit"
 	"github.com/panyam/slyds/core"
@@ -11,6 +12,7 @@ import (
 
 // registerTools registers all semantic MCP tools on the server.
 func registerTools(srv *mcpkit.Server, root string) {
+	srv.RegisterTool(createDeckTool(root))
 	srv.RegisterTool(describeDeckTool(root))
 	srv.RegisterTool(listSlidesTool(root))
 	srv.RegisterTool(readSlideTool(root))
@@ -23,6 +25,54 @@ func registerTools(srv *mcpkit.Server, root string) {
 }
 
 // --- Tool definitions and handlers ---
+
+func createDeckTool(root string) (mcpkit.ToolDef, mcpkit.ToolHandler) {
+	return mcpkit.ToolDef{
+			Name:        "create_deck",
+			Description: "Create a new presentation deck with the given name, title, theme, and slide count.",
+			InputSchema: map[string]any{
+				"type": "object",
+				"properties": map[string]any{
+					"name":   propString("Deck name (becomes the directory name under deck root)"),
+					"title":  propString("Presentation title"),
+					"theme":  propString("Theme: default, dark, minimal, corporate, hacker"),
+					"slides": propInt("Number of slides to scaffold (default: 3)"),
+				},
+				"required": []string{"name", "title"},
+			},
+		}, func(ctx context.Context, req mcpkit.ToolRequest) (mcpkit.ToolResult, error) {
+			var p struct {
+				Name   string `json:"name"`
+				Title  string `json:"title"`
+				Theme  string `json:"theme"`
+				Slides int    `json:"slides"`
+			}
+			if err := req.Bind(&p); err != nil {
+				return mcpkit.ErrorResult(err.Error()), nil
+			}
+			if p.Theme == "" {
+				p.Theme = "default"
+			}
+			if p.Slides < 1 {
+				p.Slides = 3
+			}
+			outDir := filepath.Join(root, p.Name)
+			_, err := core.CreateInDir(p.Title, p.Slides, p.Theme, outDir, true)
+			if err != nil {
+				return mcpkit.ErrorResult(err.Error()), nil
+			}
+			// Return the new deck's metadata
+			d, err := openDeck(root, p.Name)
+			if err != nil {
+				return mcpkit.TextResult(fmt.Sprintf("Deck %q created.", p.Name)), nil
+			}
+			desc, err := d.Describe()
+			if err != nil {
+				return mcpkit.TextResult(fmt.Sprintf("Deck %q created.", p.Name)), nil
+			}
+			return jsonResult(desc)
+		}
+}
 
 func describeDeckTool(root string) (mcpkit.ToolDef, mcpkit.ToolHandler) {
 	return mcpkit.ToolDef{
