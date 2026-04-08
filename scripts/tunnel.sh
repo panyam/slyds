@@ -1,41 +1,27 @@
 #!/usr/bin/env bash
 # tunnel.sh — start a localhost tunnel for slyds MCP server.
-# Detects ngrok or cloudflared, prints the public URL and ready-to-paste
-# MCP config snippets for Claude Desktop, Claude Code, and Cursor.
 #
 # Usage:
-#   bash scripts/tunnel.sh                     # no auth
-#   SLYDS_MCP_TOKEN=secret bash scripts/tunnel.sh  # with auth
+#   TOOL=ngrok bash scripts/tunnel.sh
+#   TOOL=cf bash scripts/tunnel.sh
+#   TOOL=cf SLYDS_MCP_TOKEN=secret bash scripts/tunnel.sh
 #
-# Prerequisites:
-#   brew install ngrok     # or https://ngrok.com/download
-#   brew install cloudflared  # or https://developers.cloudflare.com/cloudflare-one/connections/connect-networks/downloads/
+# TOOL is required:
+#   ngrok  — requires ngrok on PATH (brew install ngrok)
+#   cf     — requires cloudflared on PATH (brew install cloudflared)
 
 set -euo pipefail
 
 PORT="${SLYDS_MCP_PORT:-6274}"
 TOKEN="${SLYDS_MCP_TOKEN:-}"
-
-# --- Detect tunnel tool ---
-
-if command -v ngrok &>/dev/null; then
-    TOOL="ngrok"
-elif command -v cloudflared &>/dev/null; then
-    TOOL="cloudflared"
-else
-    echo "Error: neither ngrok nor cloudflared found on PATH."
-    echo ""
-    echo "Install one:"
-    echo "  brew install ngrok        # https://ngrok.com"
-    echo "  brew install cloudflared  # https://developers.cloudflare.com"
-    exit 1
-fi
+TOOL="${TOOL:-cf}"
 
 echo "Starting $TOOL tunnel to 127.0.0.1:$PORT..."
 
 # --- Start tunnel and extract URL ---
 
 if [ "$TOOL" = "ngrok" ]; then
+    command -v ngrok &>/dev/null || { echo "Error: ngrok not found on PATH. Install: brew install ngrok"; exit 1; }
     ngrok http "$PORT" --log=stdout > /tmp/ngrok-slyds.log 2>&1 &
     TUNNEL_PID=$!
     # Wait for ngrok API to be ready.
@@ -50,8 +36,8 @@ if [ "$TOOL" = "ngrok" ]; then
         kill $TUNNEL_PID 2>/dev/null || true
         exit 1
     fi
-else
-    # cloudflared prints the URL to stderr.
+elif [ "$TOOL" = "cf" ]; then
+    command -v cloudflared &>/dev/null || { echo "Error: cloudflared not found on PATH. Install: brew install cloudflared"; exit 1; }
     cloudflared tunnel --url "http://127.0.0.1:$PORT" 2>&1 | tee /tmp/cloudflared-slyds.log &
     TUNNEL_PID=$!
     for i in $(seq 1 30); do
@@ -64,6 +50,9 @@ else
         kill $TUNNEL_PID 2>/dev/null || true
         exit 1
     fi
+else
+    echo "Error: unknown TOOL=$TOOL. Use 'ngrok' or 'cf'."
+    exit 1
 fi
 
 # --- Print config snippets ---
