@@ -2,19 +2,25 @@
 # tunnel.sh — start a localhost tunnel for slyds MCP server.
 #
 # Usage:
-#   TOOL=ngrok bash scripts/tunnel.sh
-#   TOOL=cf bash scripts/tunnel.sh
-#   TOOL=cf SLYDS_MCP_TOKEN=secret bash scripts/tunnel.sh
+#   make tunnel                                          # ngrok, ephemeral URL
+#   NGROK_DOMAIN=your-name.ngrok-free.app make tunnel    # ngrok, stable URL
+#   TOOL=cf make tunnel                                  # cloudflared
+#   SLYDS_MCP_TOKEN=secret make tunnel                   # with auth
 #
-# TOOL is required:
+# TOOL (default: ngrok):
 #   ngrok  — requires ngrok on PATH (brew install ngrok)
 #   cf     — requires cloudflared on PATH (brew install cloudflared)
+#
+# NGROK_DOMAIN (optional):
+#   Set to your free static domain from https://dashboard.ngrok.com/domains
+#   to get a stable URL that doesn't change between restarts.
 
 set -euo pipefail
 
 PORT="${SLYDS_MCP_PORT:-6274}"
 TOKEN="${SLYDS_MCP_TOKEN:-}"
-TOOL="${TOOL:-cf}"
+TOOL="${TOOL:-ngrok}"
+NGROK_DOMAIN="${NGROK_DOMAIN:-}"
 
 echo "Starting $TOOL tunnel to 127.0.0.1:$PORT..."
 
@@ -22,7 +28,12 @@ echo "Starting $TOOL tunnel to 127.0.0.1:$PORT..."
 
 if [ "$TOOL" = "ngrok" ]; then
     command -v ngrok &>/dev/null || { echo "Error: ngrok not found on PATH. Install: brew install ngrok"; exit 1; }
-    ngrok http "$PORT" --log=stdout > /tmp/ngrok-slyds.log 2>&1 &
+    NGROK_ARGS="http $PORT"
+    if [ -n "$NGROK_DOMAIN" ]; then
+        NGROK_ARGS="http --url $NGROK_DOMAIN $PORT"
+        echo "Using static domain: $NGROK_DOMAIN"
+    fi
+    ngrok $NGROK_ARGS --log=stdout > /tmp/ngrok-slyds.log 2>&1 &
     TUNNEL_PID=$!
     # Wait for ngrok API to be ready.
     for i in $(seq 1 30); do
