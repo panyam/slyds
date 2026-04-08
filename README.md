@@ -25,6 +25,15 @@ slyds serve scaling-at-the-edge
 # → http://localhost:3000
 ```
 
+## For AI Agents
+
+slyds works with Claude, Cursor, Copilot, and other AI agents in two modes:
+
+- **CLI-direct** — agent runs `slyds` commands via shell (no MCP server needed)
+- **MCP** — full protocol server with 10 tools + 7 resources (stdio, HTTP, SSE)
+
+See [AGENT-SETUP.md](AGENT-SETUP.md) for the agent-readable setup guide, or [docs/SETUP.md](docs/SETUP.md) for the human-readable version.
+
 ## Examples
 
 **[Live demos](https://panyam.github.io/slyds/)** — or browse the source in `examples/`:
@@ -180,13 +189,13 @@ The speaker notes window includes an elapsed timer, per-slide reading time estim
 
 slyds ships with five built-in themes:
 
-| Theme | Description |
-|-------|-------------|
-| `default` | Purple gradient, white cards — conference talks |
-| `minimal` | White background, serif font — academic, maximum readability |
-| `dark` | Dark backgrounds, cyan accents — code talks, demos |
-| `corporate` | Navy blues, clean grays — business presentations |
-| `hacker` | Terminal aesthetics, nerdy but fun — backend engineers, tech demos |
+| Theme       | Description                                                        |
+|-------------|--------------------------------------------------------------------|
+| `default`   | Purple gradient, white cards — conference talks                    |
+| `minimal`   | White background, serif font — academic, maximum readability       |
+| `dark`      | Dark backgrounds, cyan accents — code talks, demos                 |
+| `corporate` | Navy blues, clean grays — business presentations                   |
+| `hacker`    | Terminal aesthetics, nerdy but fun — backend engineers, tech demos |
 
 Each theme includes position-aware CSS: slides automatically get `--slide-index` and `--slide-progress` CSS custom properties, enabling effects like alternating backgrounds and progress-based color shifts.
 

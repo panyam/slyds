@@ -13,6 +13,7 @@ import (
 
 // registerTools registers all semantic MCP tools on the server.
 func registerTools(srv *server.Server, root string) {
+	srv.RegisterTool(listDecksTool(root))
 	srv.RegisterTool(createDeckTool(root))
 	srv.RegisterTool(describeDeckTool(root))
 	srv.RegisterTool(listSlidesTool(root))
@@ -26,6 +27,34 @@ func registerTools(srv *server.Server, root string) {
 }
 
 // --- Tool definitions and handlers ---
+
+func listDecksTool(root string) (mcpcore.ToolDef, mcpcore.ToolHandler) {
+	return mcpcore.ToolDef{
+			Name:        "list_decks",
+			Description: "List all presentation decks under the deck root with name, title, theme, and slide count.",
+			InputSchema: map[string]any{
+				"type":       "object",
+				"properties": map[string]any{},
+			},
+		}, func(ctx context.Context, req mcpcore.ToolRequest) (mcpcore.ToolResult, error) {
+			names := discoverDecks(root)
+			var decks []map[string]any
+			for _, name := range names {
+				d, err := openDeck(root, name)
+				if err != nil {
+					continue
+				}
+				count, _ := d.SlideCount()
+				decks = append(decks, map[string]any{
+					"name":   name,
+					"title":  d.Title(),
+					"theme":  d.Theme(),
+					"slides": count,
+				})
+			}
+			return jsonResult(decks)
+		}
+}
 
 func createDeckTool(root string) (mcpcore.ToolDef, mcpcore.ToolHandler) {
 	return mcpcore.ToolDef{

@@ -109,8 +109,8 @@ func TestE2E_FullAgentWorkflow(t *testing.T) {
 
 	// 10. Check deck via tool
 	checkResult := c.ToolCall("check_deck", map[string]any{"deck": "new-deck"})
-	if !strings.Contains(checkResult, "InSync") {
-		t.Error("check_deck missing InSync field")
+	if !strings.Contains(checkResult, "in_sync") {
+		t.Error("check_deck missing in_sync field")
 	}
 
 	// 11. Build deck via tool
@@ -161,7 +161,7 @@ func TestE2E_ToolsList(t *testing.T) {
 	}
 
 	expected := []string{
-		"create_deck", "describe_deck", "list_slides", "read_slide",
+		"list_decks", "create_deck", "describe_deck", "list_slides", "read_slide",
 		"edit_slide", "query_slide", "add_slide", "remove_slide",
 		"check_deck", "build_deck",
 	}
@@ -254,7 +254,7 @@ func TestE2E_StdioTransport(t *testing.T) {
 		names[tool.Name] = true
 	}
 	expected := []string{
-		"create_deck", "describe_deck", "list_slides", "read_slide",
+		"list_decks", "create_deck", "describe_deck", "list_slides", "read_slide",
 		"edit_slide", "query_slide", "add_slide", "remove_slide",
 		"check_deck", "build_deck",
 	}

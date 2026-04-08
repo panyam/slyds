@@ -2,6 +2,8 @@
 
 [slyds](https://github.com/panyam/slyds) includes a [Model Context Protocol](https://modelcontextprotocol.io/) server that lets AI agents create, browse, edit, and build presentations. Powered by [mcpkit](https://github.com/panyam/mcpkit).
 
+> **Quick setup:** See [AGENT-SETUP.md](../AGENT-SETUP.md) (agent-readable decision tree) or [docs/SETUP.md](SETUP.md) (human-readable guide with explanations and troubleshooting).
+
 ---
 
 ## Getting Started

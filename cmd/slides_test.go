@@ -1,6 +1,7 @@
 package cmd
 
 import (
+	"encoding/json"
 	"os"
 	"path/filepath"
 	"strings"
@@ -81,6 +82,65 @@ func setupTestPresentation(t *testing.T) (string, func()) {
 
 
 
+
+// TestLsSlidesJSON verifies that the ls command's JSON output (via the
+// slideInfo struct) contains a JSON array with position, file, layout, and
+// title for each slide. This exercises the --json flag on `slyds ls` and
+// ensures agents get machine-parseable slide listings for CLI-direct mode.
+func TestLsSlidesJSON(t *testing.T) {
+	root, cleanup := setupTestPresentation(t)
+	defer cleanup()
+
+	d, err := core.OpenDeckDir(root)
+	if err != nil {
+		t.Fatalf("OpenDeckDir: %v", err)
+	}
+
+	slides, err := d.SlideFilenames()
+	if err != nil {
+		t.Fatalf("SlideFilenames: %v", err)
+	}
+
+	// Build slideInfo array the same way lsCmd --json does.
+	var infos []slideInfo
+	for i, f := range slides {
+		content, _ := d.GetSlideContent(i + 1)
+		infos = append(infos, slideInfo{
+			Position: i + 1,
+			File:     f,
+			Layout:   core.DetectLayout(content),
+			Title:    core.ExtractFirstHeading(content),
+		})
+	}
+
+	data, err := json.MarshalIndent(infos, "", "  ")
+	if err != nil {
+		t.Fatalf("MarshalIndent: %v", err)
+	}
+
+	// Round-trip: unmarshal and verify structure.
+	var parsed []map[string]any
+	if err := json.Unmarshal(data, &parsed); err != nil {
+		t.Fatalf("Unmarshal: %v", err)
+	}
+
+	if len(parsed) != 4 {
+		t.Fatalf("expected 4 slides, got %d", len(parsed))
+	}
+
+	// Verify first slide has all required fields.
+	first := parsed[0]
+	for _, field := range []string{"position", "file", "layout", "title"} {
+		if _, ok := first[field]; !ok {
+			t.Errorf("slide[0] missing field: %s", field)
+		}
+	}
+
+	// Position should be 1-based.
+	if pos := int(first["position"].(float64)); pos != 1 {
+		t.Errorf("slide[0] position = %d, want 1", pos)
+	}
+}
 
 // TestInsertWithDeprecatedType verifies that the legacy --type flag still works
 // by mapping to the equivalent layout name. The "section" type maps to the

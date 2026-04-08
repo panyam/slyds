@@ -44,6 +44,8 @@ All Deck I/O goes through `templar.WritableFS` (v0.1.0). No `os.*`/`filepath.*` 
 - **`go:embed` paths relative to Go file** — `assets/embed.go` lives alongside the embedded files; `core/embed.go` re-exports.
 - **Theme render fallback** — `InsertSlide` uses layout system first; falls back to theme templates.
 - **MCP** — 10 semantic tools + 7 resources via mcpkit (split packages: `core/`, `server/`). Transports: Streamable HTTP, SSE, stdio. See [docs/MCP.md](docs/MCP.md). `--deck-root` sets discovery root.
+- **CLI-direct agent mode** — `describe --json`, `ls --json`, `check --json`, `build --json` for agents using shell commands instead of MCP. See [AGENT-SETUP.md](AGENT-SETUP.md).
+- **`SLYDS_MCP_TOKEN`** env var — fallback for `--token` flag in container/CI deployments.
 
 ## Stack
 
