@@ -7,7 +7,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/panyam/mcpkit"
+	mcpcore "github.com/panyam/mcpkit/core"
 	"github.com/panyam/slyds/core"
 )
 
@@ -26,10 +26,10 @@ func scaffoldTestDeck(t *testing.T, name, title, theme string, slides int) strin
 
 // callTool invokes a tool handler directly with JSON-marshalled arguments
 // and returns the ToolResult. Fails the test on handler errors.
-func callTool(t *testing.T, handler mcpkit.ToolHandler, args any) mcpkit.ToolResult {
+func callTool(t *testing.T, handler mcpcore.ToolHandler, args any) mcpcore.ToolResult {
 	t.Helper()
 	data, _ := json.Marshal(args)
-	result, err := handler(context.Background(), mcpkit.ToolRequest{
+	result, err := handler(context.Background(), mcpcore.ToolRequest{
 		Arguments: data,
 	})
 	if err != nil {
@@ -39,7 +39,7 @@ func callTool(t *testing.T, handler mcpkit.ToolHandler, args any) mcpkit.ToolRes
 }
 
 // toolText extracts the first text content from a ToolResult.
-func toolText(result mcpkit.ToolResult) string {
+func toolText(result mcpcore.ToolResult) string {
 	if len(result.Content) == 0 {
 		return ""
 	}

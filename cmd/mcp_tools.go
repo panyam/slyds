@@ -6,12 +6,13 @@ import (
 	"fmt"
 	"path/filepath"
 
-	"github.com/panyam/mcpkit"
+	mcpcore "github.com/panyam/mcpkit/core"
+	"github.com/panyam/mcpkit/server"
 	"github.com/panyam/slyds/core"
 )
 
 // registerTools registers all semantic MCP tools on the server.
-func registerTools(srv *mcpkit.Server, root string) {
+func registerTools(srv *server.Server, root string) {
 	srv.RegisterTool(createDeckTool(root))
 	srv.RegisterTool(describeDeckTool(root))
 	srv.RegisterTool(listSlidesTool(root))
@@ -26,8 +27,8 @@ func registerTools(srv *mcpkit.Server, root string) {
 
 // --- Tool definitions and handlers ---
 
-func createDeckTool(root string) (mcpkit.ToolDef, mcpkit.ToolHandler) {
-	return mcpkit.ToolDef{
+func createDeckTool(root string) (mcpcore.ToolDef, mcpcore.ToolHandler) {
+	return mcpcore.ToolDef{
 			Name:        "create_deck",
 			Description: "Create a new presentation deck with the given name, title, theme, and slide count.",
 			InputSchema: map[string]any{
@@ -40,7 +41,7 @@ func createDeckTool(root string) (mcpkit.ToolDef, mcpkit.ToolHandler) {
 				},
 				"required": []string{"name", "title"},
 			},
-		}, func(ctx context.Context, req mcpkit.ToolRequest) (mcpkit.ToolResult, error) {
+		}, func(ctx context.Context, req mcpcore.ToolRequest) (mcpcore.ToolResult, error) {
 			var p struct {
 				Name   string `json:"name"`
 				Title  string `json:"title"`
@@ -48,7 +49,7 @@ func createDeckTool(root string) (mcpkit.ToolDef, mcpkit.ToolHandler) {
 				Slides int    `json:"slides"`
 			}
 			if err := req.Bind(&p); err != nil {
-				return mcpkit.ErrorResult(err.Error()), nil
+				return mcpcore.ErrorResult(err.Error()), nil
 			}
 			if p.Theme == "" {
 				p.Theme = "default"
@@ -59,67 +60,67 @@ func createDeckTool(root string) (mcpkit.ToolDef, mcpkit.ToolHandler) {
 			outDir := filepath.Join(root, p.Name)
 			_, err := core.CreateInDir(p.Title, p.Slides, p.Theme, outDir, true)
 			if err != nil {
-				return mcpkit.ErrorResult(err.Error()), nil
+				return mcpcore.ErrorResult(err.Error()), nil
 			}
 			// Return the new deck's metadata
 			d, err := openDeck(root, p.Name)
 			if err != nil {
-				return mcpkit.TextResult(fmt.Sprintf("Deck %q created.", p.Name)), nil
+				return mcpcore.TextResult(fmt.Sprintf("Deck %q created.", p.Name)), nil
 			}
 			desc, err := d.Describe()
 			if err != nil {
-				return mcpkit.TextResult(fmt.Sprintf("Deck %q created.", p.Name)), nil
+				return mcpcore.TextResult(fmt.Sprintf("Deck %q created.", p.Name)), nil
 			}
 			return jsonResult(desc)
 		}
 }
 
-func describeDeckTool(root string) (mcpkit.ToolDef, mcpkit.ToolHandler) {
-	return mcpkit.ToolDef{
+func describeDeckTool(root string) (mcpcore.ToolDef, mcpcore.ToolHandler) {
+	return mcpcore.ToolDef{
 			Name:        "describe_deck",
 			Description: "Get structured metadata for a deck: title, theme, slide list with layouts, word counts, and notes status.",
 			InputSchema: deckOnlySchema(),
-		}, func(ctx context.Context, req mcpkit.ToolRequest) (mcpkit.ToolResult, error) {
+		}, func(ctx context.Context, req mcpcore.ToolRequest) (mcpcore.ToolResult, error) {
 			p, err := bindDeckParam(req)
 			if err != nil {
-				return mcpkit.ErrorResult(err.Error()), nil
+				return mcpcore.ErrorResult(err.Error()), nil
 			}
 			d, err := openDeck(root, p.Deck)
 			if err != nil {
-				return mcpkit.ErrorResult(err.Error()), nil
+				return mcpcore.ErrorResult(err.Error()), nil
 			}
 			desc, err := d.Describe()
 			if err != nil {
-				return mcpkit.ErrorResult(err.Error()), nil
+				return mcpcore.ErrorResult(err.Error()), nil
 			}
 			return jsonResult(desc)
 		}
 }
 
-func listSlidesTool(root string) (mcpkit.ToolDef, mcpkit.ToolHandler) {
-	return mcpkit.ToolDef{
+func listSlidesTool(root string) (mcpcore.ToolDef, mcpcore.ToolHandler) {
+	return mcpcore.ToolDef{
 			Name:        "list_slides",
 			Description: "List all slides in a deck with filenames, layouts, titles, and word counts.",
 			InputSchema: deckOnlySchema(),
-		}, func(ctx context.Context, req mcpkit.ToolRequest) (mcpkit.ToolResult, error) {
+		}, func(ctx context.Context, req mcpcore.ToolRequest) (mcpcore.ToolResult, error) {
 			p, err := bindDeckParam(req)
 			if err != nil {
-				return mcpkit.ErrorResult(err.Error()), nil
+				return mcpcore.ErrorResult(err.Error()), nil
 			}
 			d, err := openDeck(root, p.Deck)
 			if err != nil {
-				return mcpkit.ErrorResult(err.Error()), nil
+				return mcpcore.ErrorResult(err.Error()), nil
 			}
 			desc, err := d.Describe()
 			if err != nil {
-				return mcpkit.ErrorResult(err.Error()), nil
+				return mcpcore.ErrorResult(err.Error()), nil
 			}
 			return jsonResult(desc.Slides)
 		}
 }
 
-func readSlideTool(root string) (mcpkit.ToolDef, mcpkit.ToolHandler) {
-	return mcpkit.ToolDef{
+func readSlideTool(root string) (mcpcore.ToolDef, mcpcore.ToolHandler) {
+	return mcpcore.ToolDef{
 			Name:        "read_slide",
 			Description: "Read the raw HTML content of a slide by position (1-based).",
 			InputSchema: map[string]any{
@@ -130,28 +131,28 @@ func readSlideTool(root string) (mcpkit.ToolDef, mcpkit.ToolHandler) {
 				},
 				"required": []string{"deck", "position"},
 			},
-		}, func(ctx context.Context, req mcpkit.ToolRequest) (mcpkit.ToolResult, error) {
+		}, func(ctx context.Context, req mcpcore.ToolRequest) (mcpcore.ToolResult, error) {
 			var p struct {
 				Deck     string `json:"deck"`
 				Position int    `json:"position"`
 			}
 			if err := req.Bind(&p); err != nil {
-				return mcpkit.ErrorResult(err.Error()), nil
+				return mcpcore.ErrorResult(err.Error()), nil
 			}
 			d, err := openDeck(root, p.Deck)
 			if err != nil {
-				return mcpkit.ErrorResult(err.Error()), nil
+				return mcpcore.ErrorResult(err.Error()), nil
 			}
 			content, err := d.GetSlideContent(p.Position)
 			if err != nil {
-				return mcpkit.ErrorResult(err.Error()), nil
+				return mcpcore.ErrorResult(err.Error()), nil
 			}
-			return mcpkit.TextResult(content), nil
+			return mcpcore.TextResult(content), nil
 		}
 }
 
-func editSlideTool(root string) (mcpkit.ToolDef, mcpkit.ToolHandler) {
-	return mcpkit.ToolDef{
+func editSlideTool(root string) (mcpcore.ToolDef, mcpcore.ToolHandler) {
+	return mcpcore.ToolDef{
 			Name:        "edit_slide",
 			Description: "Replace the HTML content of a slide at the given position.",
 			InputSchema: map[string]any{
@@ -163,28 +164,28 @@ func editSlideTool(root string) (mcpkit.ToolDef, mcpkit.ToolHandler) {
 				},
 				"required": []string{"deck", "position", "content"},
 			},
-		}, func(ctx context.Context, req mcpkit.ToolRequest) (mcpkit.ToolResult, error) {
+		}, func(ctx context.Context, req mcpcore.ToolRequest) (mcpcore.ToolResult, error) {
 			var p struct {
 				Deck     string `json:"deck"`
 				Position int    `json:"position"`
 				Content  string `json:"content"`
 			}
 			if err := req.Bind(&p); err != nil {
-				return mcpkit.ErrorResult(err.Error()), nil
+				return mcpcore.ErrorResult(err.Error()), nil
 			}
 			d, err := openDeck(root, p.Deck)
 			if err != nil {
-				return mcpkit.ErrorResult(err.Error()), nil
+				return mcpcore.ErrorResult(err.Error()), nil
 			}
 			if err := d.EditSlideContent(p.Position, p.Content); err != nil {
-				return mcpkit.ErrorResult(err.Error()), nil
+				return mcpcore.ErrorResult(err.Error()), nil
 			}
-			return mcpkit.TextResult(fmt.Sprintf("Slide %d updated.", p.Position)), nil
+			return mcpcore.TextResult(fmt.Sprintf("Slide %d updated.", p.Position)), nil
 		}
 }
 
-func querySlideTool(root string) (mcpkit.ToolDef, mcpkit.ToolHandler) {
-	return mcpkit.ToolDef{
+func querySlideTool(root string) (mcpcore.ToolDef, mcpcore.ToolHandler) {
+	return mcpcore.ToolDef{
 			Name:        "query_slide",
 			Description: "Query or modify slide HTML using CSS selectors (goquery). Read text, attributes, inner HTML, or mutate content.",
 			InputSchema: map[string]any{
@@ -205,7 +206,7 @@ func querySlideTool(root string) (mcpkit.ToolDef, mcpkit.ToolHandler) {
 				},
 				"required": []string{"deck", "slide", "selector"},
 			},
-		}, func(ctx context.Context, req mcpkit.ToolRequest) (mcpkit.ToolResult, error) {
+		}, func(ctx context.Context, req mcpcore.ToolRequest) (mcpcore.ToolResult, error) {
 			var p struct {
 				Deck     string  `json:"deck"`
 				Slide    string  `json:"slide"`
@@ -221,11 +222,11 @@ func querySlideTool(root string) (mcpkit.ToolDef, mcpkit.ToolHandler) {
 				All      bool    `json:"all"`
 			}
 			if err := req.Bind(&p); err != nil {
-				return mcpkit.ErrorResult(err.Error()), nil
+				return mcpcore.ErrorResult(err.Error()), nil
 			}
 			d, err := openDeck(root, p.Deck)
 			if err != nil {
-				return mcpkit.ErrorResult(err.Error()), nil
+				return mcpcore.ErrorResult(err.Error()), nil
 			}
 			opts := core.QueryOpts{
 				HTML:    p.HTML,
@@ -240,14 +241,14 @@ func querySlideTool(root string) (mcpkit.ToolDef, mcpkit.ToolHandler) {
 			}
 			results, err := d.Query(p.Slide, p.Selector, opts)
 			if err != nil {
-				return mcpkit.ErrorResult(err.Error()), nil
+				return mcpcore.ErrorResult(err.Error()), nil
 			}
 			return jsonResult(results)
 		}
 }
 
-func addSlideTool(root string) (mcpkit.ToolDef, mcpkit.ToolHandler) {
-	return mcpkit.ToolDef{
+func addSlideTool(root string) (mcpcore.ToolDef, mcpcore.ToolHandler) {
+	return mcpcore.ToolDef{
 			Name:        "add_slide",
 			Description: "Insert a new slide at the given position using a layout template.",
 			InputSchema: map[string]any{
@@ -261,7 +262,7 @@ func addSlideTool(root string) (mcpkit.ToolDef, mcpkit.ToolHandler) {
 				},
 				"required": []string{"deck", "position", "name"},
 			},
-		}, func(ctx context.Context, req mcpkit.ToolRequest) (mcpkit.ToolResult, error) {
+		}, func(ctx context.Context, req mcpcore.ToolRequest) (mcpcore.ToolResult, error) {
 			var p struct {
 				Deck     string `json:"deck"`
 				Position int    `json:"position"`
@@ -270,24 +271,24 @@ func addSlideTool(root string) (mcpkit.ToolDef, mcpkit.ToolHandler) {
 				Title    string `json:"title"`
 			}
 			if err := req.Bind(&p); err != nil {
-				return mcpkit.ErrorResult(err.Error()), nil
+				return mcpcore.ErrorResult(err.Error()), nil
 			}
 			if p.Layout == "" {
 				p.Layout = "content"
 			}
 			d, err := openDeck(root, p.Deck)
 			if err != nil {
-				return mcpkit.ErrorResult(err.Error()), nil
+				return mcpcore.ErrorResult(err.Error()), nil
 			}
 			if err := d.InsertSlide(p.Position, p.Name, p.Layout, p.Title); err != nil {
-				return mcpkit.ErrorResult(err.Error()), nil
+				return mcpcore.ErrorResult(err.Error()), nil
 			}
-			return mcpkit.TextResult(fmt.Sprintf("Slide %q inserted at position %d.", p.Name, p.Position)), nil
+			return mcpcore.TextResult(fmt.Sprintf("Slide %q inserted at position %d.", p.Name, p.Position)), nil
 		}
 }
 
-func removeSlideTool(root string) (mcpkit.ToolDef, mcpkit.ToolHandler) {
-	return mcpkit.ToolDef{
+func removeSlideTool(root string) (mcpcore.ToolDef, mcpcore.ToolHandler) {
+	return mcpcore.ToolDef{
 			Name:        "remove_slide",
 			Description: "Remove a slide by filename or position number. Remaining slides are renumbered.",
 			InputSchema: map[string]any{
@@ -298,69 +299,69 @@ func removeSlideTool(root string) (mcpkit.ToolDef, mcpkit.ToolHandler) {
 				},
 				"required": []string{"deck", "slide"},
 			},
-		}, func(ctx context.Context, req mcpkit.ToolRequest) (mcpkit.ToolResult, error) {
+		}, func(ctx context.Context, req mcpcore.ToolRequest) (mcpcore.ToolResult, error) {
 			var p struct {
 				Deck  string `json:"deck"`
 				Slide string `json:"slide"`
 			}
 			if err := req.Bind(&p); err != nil {
-				return mcpkit.ErrorResult(err.Error()), nil
+				return mcpcore.ErrorResult(err.Error()), nil
 			}
 			d, err := openDeck(root, p.Deck)
 			if err != nil {
-				return mcpkit.ErrorResult(err.Error()), nil
+				return mcpcore.ErrorResult(err.Error()), nil
 			}
 			// Resolve slide reference to filename
 			filename, err := d.ResolveSlide(p.Slide)
 			if err != nil {
-				return mcpkit.ErrorResult(err.Error()), nil
+				return mcpcore.ErrorResult(err.Error()), nil
 			}
 			if err := d.RemoveSlide(filename); err != nil {
-				return mcpkit.ErrorResult(err.Error()), nil
+				return mcpcore.ErrorResult(err.Error()), nil
 			}
-			return mcpkit.TextResult(fmt.Sprintf("Slide %q removed.", filename)), nil
+			return mcpcore.TextResult(fmt.Sprintf("Slide %q removed.", filename)), nil
 		}
 }
 
-func checkDeckTool(root string) (mcpkit.ToolDef, mcpkit.ToolHandler) {
-	return mcpkit.ToolDef{
+func checkDeckTool(root string) (mcpcore.ToolDef, mcpcore.ToolHandler) {
+	return mcpcore.ToolDef{
 			Name:        "check_deck",
 			Description: "Validate a deck: check for missing files, broken includes, missing speaker notes, and other issues.",
 			InputSchema: deckOnlySchema(),
-		}, func(ctx context.Context, req mcpkit.ToolRequest) (mcpkit.ToolResult, error) {
+		}, func(ctx context.Context, req mcpcore.ToolRequest) (mcpcore.ToolResult, error) {
 			p, err := bindDeckParam(req)
 			if err != nil {
-				return mcpkit.ErrorResult(err.Error()), nil
+				return mcpcore.ErrorResult(err.Error()), nil
 			}
 			d, err := openDeck(root, p.Deck)
 			if err != nil {
-				return mcpkit.ErrorResult(err.Error()), nil
+				return mcpcore.ErrorResult(err.Error()), nil
 			}
 			issues, err := d.Check()
 			if err != nil {
-				return mcpkit.ErrorResult(err.Error()), nil
+				return mcpcore.ErrorResult(err.Error()), nil
 			}
 			return jsonResult(issues)
 		}
 }
 
-func buildDeckTool(root string) (mcpkit.ToolDef, mcpkit.ToolHandler) {
-	return mcpkit.ToolDef{
+func buildDeckTool(root string) (mcpcore.ToolDef, mcpcore.ToolHandler) {
+	return mcpcore.ToolDef{
 			Name:        "build_deck",
 			Description: "Build a self-contained HTML file from the deck. Resolves all includes, inlines CSS/JS/images.",
 			InputSchema: deckOnlySchema(),
-		}, func(ctx context.Context, req mcpkit.ToolRequest) (mcpkit.ToolResult, error) {
+		}, func(ctx context.Context, req mcpcore.ToolRequest) (mcpcore.ToolResult, error) {
 			p, err := bindDeckParam(req)
 			if err != nil {
-				return mcpkit.ErrorResult(err.Error()), nil
+				return mcpcore.ErrorResult(err.Error()), nil
 			}
 			d, err := openDeck(root, p.Deck)
 			if err != nil {
-				return mcpkit.ErrorResult(err.Error()), nil
+				return mcpcore.ErrorResult(err.Error()), nil
 			}
 			result, err := d.Build()
 			if err != nil {
-				return mcpkit.ErrorResult(err.Error()), nil
+				return mcpcore.ErrorResult(err.Error()), nil
 			}
 			// Return build result with warnings if any
 			if len(result.Warnings) > 0 {
@@ -370,7 +371,7 @@ func buildDeckTool(root string) (mcpkit.ToolDef, mcpkit.ToolHandler) {
 				}
 				return jsonResult(out)
 			}
-			return mcpkit.TextResult(result.HTML), nil
+			return mcpcore.TextResult(result.HTML), nil
 		}
 }
 
@@ -391,7 +392,7 @@ type deckParam struct {
 	Deck string `json:"deck"`
 }
 
-func bindDeckParam(req mcpkit.ToolRequest) (deckParam, error) {
+func bindDeckParam(req mcpcore.ToolRequest) (deckParam, error) {
 	var p deckParam
 	if err := req.Bind(&p); err != nil {
 		return p, err
@@ -402,12 +403,12 @@ func bindDeckParam(req mcpkit.ToolRequest) (deckParam, error) {
 	return p, nil
 }
 
-func jsonResult(v any) (mcpkit.ToolResult, error) {
+func jsonResult(v any) (mcpcore.ToolResult, error) {
 	data, err := json.MarshalIndent(v, "", "  ")
 	if err != nil {
-		return mcpkit.ErrorResult(err.Error()), nil
+		return mcpcore.ErrorResult(err.Error()), nil
 	}
-	return mcpkit.TextResult(string(data)), nil
+	return mcpcore.TextResult(string(data)), nil
 }
 
 func propString(desc string) map[string]any {

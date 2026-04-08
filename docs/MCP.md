@@ -93,7 +93,7 @@ slyds mcp [flags]
 --token string        Bearer token for authentication
 --public-url string   Public URL for reverse proxy deployments
 --sse                 Use legacy HTTP+SSE transport instead of Streamable HTTP
---stdio               Use stdio transport (not yet implemented — requires mcpkit#3)
+--stdio               Use stdio transport (Content-Length framed JSON-RPC on stdin/stdout)
 ```
 
 ## Transports
@@ -102,7 +102,7 @@ slyds mcp [flags]
 |-----------|------|------|---------|
 | **Streamable HTTP** | (default) | 6274 | Any HTTP client, remote agents |
 | **SSE** | `--sse` | 6274 | Legacy SSE clients |
-| **stdio** | `--stdio` | — | Local editors (planned) |
+| **stdio** | `--stdio` | — | Local editors (Cursor, Claude Desktop, VS Code) |
 
 ---
 
@@ -110,9 +110,26 @@ slyds mcp [flags]
 
 ### Claude Desktop (macOS)
 
-With the server running (see [Getting Started](#getting-started)):
+**Option A: stdio (recommended)** — Claude Desktop spawns slyds directly, no separate server:
 
 1. Edit `~/Library/Application Support/Claude/claude_desktop_config.json`:
+   ```json
+   {
+     "mcpServers": {
+       "slyds": {
+         "command": "slyds",
+         "args": ["mcp", "--stdio", "--deck-root", "/Users/you/presentations"]
+       }
+     }
+   }
+   ```
+
+2. Restart Claude Desktop. You should see "slyds" in Settings > MCP.
+
+**Option B: HTTP** — run the server separately:
+
+1. Start the server: `slyds mcp --deck-root ~/presentations/`
+2. Edit `~/Library/Application Support/Claude/claude_desktop_config.json`:
    ```json
    {
      "mcpServers": {
@@ -123,13 +140,26 @@ With the server running (see [Getting Started](#getting-started)):
    }
    ```
 
-2. Restart Claude Desktop. You should see "slyds" in Settings > MCP.
+3. Restart Claude Desktop.
 
-3. Try it: *"List my presentations"* → agent calls `resources/read slyds://decks`
+Try it: *"List my presentations"* → agent calls `resources/read slyds://decks`
 
 ### Claude Code
 
-Add to your project's `.mcp.json` or user settings:
+**Option A: stdio (recommended)**:
+
+```json
+{
+  "mcpServers": {
+    "slyds": {
+      "command": "slyds",
+      "args": ["mcp", "--stdio", "--deck-root", "/path/to/presentations"]
+    }
+  }
+}
+```
+
+**Option B: HTTP** — start the server separately (`slyds mcp --deck-root ~/presentations/`):
 
 ```json
 {
@@ -141,28 +171,38 @@ Add to your project's `.mcp.json` or user settings:
 }
 ```
 
-Start the server separately: `slyds mcp --deck-root ~/presentations/`
-
 ---
 
 ## Agent Setup: Cursor
 
-With the server running (see [Getting Started](#getting-started)):
+**Option A: stdio (recommended)** — add to `.cursor/mcp.json`:
 
-1. Add to `.cursor/mcp.json` (project) or `~/.cursor/mcp.json` (global):
-   ```json
-   {
-     "mcpServers": {
-       "slyds": {
-         "url": "http://127.0.0.1:6274/mcp"
-       }
-     }
-   }
-   ```
+```json
+{
+  "mcpServers": {
+    "slyds": {
+      "command": "slyds",
+      "args": ["mcp", "--stdio", "--deck-root", "/path/to/presentations"]
+    }
+  }
+}
+```
 
-3. Restart Cursor. Check Settings > MCP for the "slyds" server.
+**Option B: HTTP** — with the server running, add to `.cursor/mcp.json`:
 
-4. Try it: *"Create a new presentation about AI agents with 5 slides using the dark theme"*
+```json
+{
+  "mcpServers": {
+    "slyds": {
+      "url": "http://127.0.0.1:6274/mcp"
+    }
+  }
+}
+```
+
+Restart Cursor. Check Settings > MCP for the "slyds" server.
+
+Try it: *"Create a new presentation about AI agents with 5 slides using the dark theme"*
 
 ### Troubleshooting (Cursor)
 

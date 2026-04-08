@@ -1,12 +1,17 @@
 package cmd
 
 import (
+	"bufio"
+	"context"
 	"encoding/json"
 	"fmt"
+	"io"
 	"strings"
 	"testing"
+	"time"
 
-	"github.com/panyam/mcpkit"
+	mcpcore "github.com/panyam/mcpkit/core"
+	"github.com/panyam/mcpkit/server"
 	"github.com/panyam/mcpkit/testutil"
 	"github.com/panyam/slyds/core"
 )
@@ -16,7 +21,7 @@ import (
 // server lifecycle, session management, and t.Fatal on errors.
 func newSlydsMCPClient(t *testing.T, root string) *testutil.TestClient {
 	t.Helper()
-	srv := mcpkit.NewServer(mcpkit.ServerInfo{Name: "slyds-test", Version: "0.0.1"})
+	srv := server.NewServer(mcpcore.ServerInfo{Name: "slyds-test", Version: "0.0.1"})
 	registerResources(srv, root)
 	registerTools(srv, root)
 	return testutil.NewTestClient(t, srv)
@@ -183,4 +188,147 @@ func TestE2E_ServerInfo(t *testing.T) {
 	if len(themes) < 3 {
 		t.Errorf("expected >=3 themes, got %d", len(themes))
 	}
+}
+
+// TestE2E_StdioTransport verifies that the slyds MCP server works over the
+// stdio transport (Content-Length framed JSON-RPC over stdin/stdout). This test
+// creates a server with all tools and resources registered, wires it to a pair
+// of io.Pipes simulating stdin/stdout, performs the MCP initialize handshake,
+// then calls tools/list and verifies all 10 slyds tools are returned.
+//
+// This test exercises the full dispatch pipeline over stdio — the same code path
+// used when an editor (Cursor, Claude Desktop) spawns `slyds mcp --stdio`.
+func TestE2E_StdioTransport(t *testing.T) {
+	root := t.TempDir()
+	core.CreateInDir("Stdio Test", 2, "default", fmt.Sprintf("%s/test-deck", root), true)
+
+	srv := server.NewServer(mcpcore.ServerInfo{Name: "slyds-stdio", Version: "0.0.1"})
+	registerResources(srv, root)
+	registerTools(srv, root)
+
+	// Create pipe pairs: server reads from sr, client writes to cw;
+	// client reads from cr, server writes to sw.
+	sr, cw := io.Pipe()
+	cr, sw := io.Pipe()
+
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	done := make(chan error, 1)
+	go func() {
+		done <- srv.RunStdio(ctx, server.WithStdioInput(sr), server.WithStdioOutput(sw))
+	}()
+
+	reader := bufio.NewReader(cr)
+
+	// 1. Initialize handshake.
+	writeStdioFrame(t, cw, `{"jsonrpc":"2.0","id":"1","method":"initialize","params":{"protocolVersion":"2025-03-26","capabilities":{},"clientInfo":{"name":"test","version":"1.0"}}}`)
+	initResp := readStdioFrame(t, reader)
+	var resp mcpcore.Response
+	if err := json.Unmarshal(initResp, &resp); err != nil {
+		t.Fatalf("unmarshal init response: %v", err)
+	}
+	if resp.Error != nil {
+		t.Fatalf("initialize error: %v", resp.Error)
+	}
+
+	// 2. Send initialized notification.
+	writeStdioFrame(t, cw, `{"jsonrpc":"2.0","method":"notifications/initialized"}`)
+
+	// 3. List tools.
+	writeStdioFrame(t, cw, `{"jsonrpc":"2.0","id":"2","method":"tools/list","params":{}}`)
+	toolsResp := readStdioFrame(t, reader)
+	if err := json.Unmarshal(toolsResp, &resp); err != nil {
+		t.Fatalf("unmarshal tools/list response: %v", err)
+	}
+	if resp.Error != nil {
+		t.Fatalf("tools/list error: %v", resp.Error)
+	}
+
+	var toolsResult struct {
+		Tools []struct{ Name string } `json:"tools"`
+	}
+	json.Unmarshal(resp.Result, &toolsResult)
+	names := make(map[string]bool)
+	for _, tool := range toolsResult.Tools {
+		names[tool.Name] = true
+	}
+	expected := []string{
+		"create_deck", "describe_deck", "list_slides", "read_slide",
+		"edit_slide", "query_slide", "add_slide", "remove_slide",
+		"check_deck", "build_deck",
+	}
+	for _, name := range expected {
+		if !names[name] {
+			t.Errorf("stdio: missing tool %q", name)
+		}
+	}
+
+	// 4. Call describe_deck via stdio to verify tool dispatch.
+	writeStdioFrame(t, cw, `{"jsonrpc":"2.0","id":"3","method":"tools/call","params":{"name":"describe_deck","arguments":{"deck":"test-deck"}}}`)
+	descResp := readStdioFrame(t, reader)
+	if err := json.Unmarshal(descResp, &resp); err != nil {
+		t.Fatalf("unmarshal describe_deck response: %v", err)
+	}
+	if resp.Error != nil {
+		t.Fatalf("describe_deck error: %v", resp.Error)
+	}
+	var toolResult struct {
+		Content []struct{ Text string } `json:"content"`
+	}
+	json.Unmarshal(resp.Result, &toolResult)
+	if len(toolResult.Content) == 0 || !strings.Contains(toolResult.Content[0].Text, "Stdio Test") {
+		t.Error("stdio describe_deck didn't return deck title")
+	}
+
+	// Clean shutdown.
+	cw.Close()
+	select {
+	case err := <-done:
+		if err != nil {
+			t.Fatalf("RunStdio: %v", err)
+		}
+	case <-time.After(5 * time.Second):
+		cancel()
+		t.Fatal("RunStdio did not exit")
+	}
+}
+
+// writeStdioFrame writes a Content-Length framed JSON-RPC message to a writer.
+func writeStdioFrame(t *testing.T, w io.Writer, msg string) {
+	t.Helper()
+	frame := fmt.Sprintf("Content-Length: %d\r\n\r\n%s", len(msg), msg)
+	if _, err := io.WriteString(w, frame); err != nil {
+		t.Fatalf("writeStdioFrame: %v", err)
+	}
+}
+
+// readStdioFrame reads a Content-Length framed JSON-RPC message from a reader.
+// Parses the Content-Length header and reads exactly that many bytes of body.
+func readStdioFrame(t *testing.T, r *bufio.Reader) []byte {
+	t.Helper()
+	// Read headers until blank line.
+	contentLength := -1
+	for {
+		line, err := r.ReadString('\n')
+		if err != nil {
+			t.Fatalf("readStdioFrame header: %v", err)
+		}
+		line = strings.TrimRight(line, "\r\n")
+		if line == "" {
+			break
+		}
+		parts := strings.SplitN(line, ":", 2)
+		if len(parts) == 2 && strings.TrimSpace(parts[0]) == "Content-Length" {
+			fmt.Sscanf(strings.TrimSpace(parts[1]), "%d", &contentLength)
+		}
+	}
+	if contentLength < 0 {
+		t.Fatal("readStdioFrame: missing Content-Length")
+	}
+	body := make([]byte, contentLength)
+	if _, err := io.ReadFull(r, body); err != nil {
+		t.Fatalf("readStdioFrame body: %v", err)
+	}
+	return body
 }

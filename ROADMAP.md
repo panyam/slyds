@@ -45,6 +45,9 @@ Migrated all core/ production code to use `templar.WritableFS`. Zero `os.*`/`fil
 ## Phase 9b — MCP Resources + Semantic Tools (done)
 Replaced subprocess-based MCP tool with 10 semantic tools calling the Deck API directly (no subprocess, structured JSON returns). Added 7 browsable MCP resources for deck/slide content discovery. Extracted `assets/` package separating Go code from static files. Migrated e2e tests to mcpkit/testutil.TestClient. mcpkit upgraded to v0.0.7 (Go MCP client with Streamable HTTP + SSE transports).
 
+## Phase 9c — mcpkit split-package upgrade + stdio (done)
+Upgraded mcpkit from v0.0.7 (flat package) to v0.1.5 (split packages: `core/`, `server/`, `client/`). Enabled stdio transport (`--stdio` flag) for editor-spawned MCP servers (Cursor, Claude Desktop, VS Code). Added stdio E2E test. Updated agent setup docs with stdio configuration examples.
+
 ## Phase 10 — Slide Folders
 Support `slides/03-name/slide.html` with co-located assets (images, per-slide CSS). Auto-detect folder vs file slides.
 

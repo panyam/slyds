@@ -1,11 +1,14 @@
 package cmd
 
 import (
+	"context"
 	"fmt"
 	"os"
+	"os/signal"
 	"path/filepath"
 
-	"github.com/panyam/mcpkit"
+	mcpcore "github.com/panyam/mcpkit/core"
+	"github.com/panyam/mcpkit/server"
 	"github.com/panyam/slyds/core"
 	"github.com/spf13/cobra"
 )
@@ -52,14 +55,14 @@ func runMCPServer() error {
 	}
 
 	// Build server
-	var serverOpts []mcpkit.Option
-	serverOpts = append(serverOpts, mcpkit.WithListen(mcpListen))
+	var serverOpts []server.Option
+	serverOpts = append(serverOpts, server.WithListen(mcpListen))
 	if mcpToken != "" {
-		serverOpts = append(serverOpts, mcpkit.WithBearerToken(mcpToken))
+		serverOpts = append(serverOpts, server.WithBearerToken(mcpToken))
 	}
 
-	srv := mcpkit.NewServer(
-		mcpkit.ServerInfo{
+	srv := server.NewServer(
+		mcpcore.ServerInfo{
 			Name:    "slyds",
 			Version: Version,
 		},
@@ -70,20 +73,23 @@ func runMCPServer() error {
 	registerResources(srv, root)
 	registerTools(srv, root)
 
-	// Transport options
+	// Transport selection
 	if mcpUseStdio {
-		return fmt.Errorf("stdio transport not yet implemented (requires mcpkit#3) — use Streamable HTTP (default) or --sse")
+		fmt.Fprintf(os.Stderr, "MCP server (stdio) — deck root: %s\n", root)
+		ctx, cancel := signal.NotifyContext(context.Background(), os.Interrupt)
+		defer cancel()
+		return srv.RunStdio(ctx)
 	}
 
-	var transportOpts []mcpkit.TransportOption
+	var transportOpts []server.TransportOption
 	if mcpPublicURL != "" {
-		transportOpts = append(transportOpts, mcpkit.WithPublicURL(mcpPublicURL))
+		transportOpts = append(transportOpts, server.WithPublicURL(mcpPublicURL))
 	}
 	if mcpUseSSE {
-		transportOpts = append(transportOpts, mcpkit.WithSSE(true), mcpkit.WithStreamableHTTP(false))
+		transportOpts = append(transportOpts, server.WithSSE(true), server.WithStreamableHTTP(false))
 		fmt.Fprintf(os.Stderr, "MCP server (SSE) on %s — deck root: %s\n", mcpListen, root)
 	} else {
-		transportOpts = append(transportOpts, mcpkit.WithStreamableHTTP(true), mcpkit.WithSSE(false))
+		transportOpts = append(transportOpts, server.WithStreamableHTTP(true), server.WithSSE(false))
 		fmt.Fprintf(os.Stderr, "MCP server (Streamable HTTP) on %s — deck root: %s\n", mcpListen, root)
 	}
 
