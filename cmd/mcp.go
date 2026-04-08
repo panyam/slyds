@@ -85,6 +85,10 @@ func runMCPServer() error {
 	// Transport selection
 	if mcpUseStdio {
 		fmt.Fprintf(os.Stderr, "MCP server (stdio) — deck root: %s\n", root)
+		if mcpToken != "" {
+			fmt.Fprintf(os.Stderr, "  Auth: bearer token (%s)\n", maskToken(mcpToken))
+		}
+		printStdioConfig(root, mcpToken)
 		ctx, cancel := signal.NotifyContext(context.Background(), os.Interrupt)
 		defer cancel()
 		return srv.RunStdio(ctx)
@@ -114,6 +118,7 @@ func runMCPServer() error {
 		fmt.Fprintf(os.Stderr, "  Auth: bearer token (%s)\n", maskToken(mcpToken))
 	}
 	fmt.Fprintf(os.Stderr, "  http://%s/\n", mcpListen)
+	printHTTPConfig(mcpListen, mcpToken)
 
 	httpSrv := &http.Server{
 		Addr:         mcpListen,
@@ -228,6 +233,58 @@ func listenAndServeGraceful(srv *http.Server) error {
 	case <-ctx.Done():
 		return srv.Close()
 	}
+}
+
+// printHTTPConfig prints a ready-to-paste MCP config snippet for HTTP transports.
+func printHTTPConfig(listen, token string) {
+	url := fmt.Sprintf("http://%s/mcp", listen)
+	fmt.Fprintf(os.Stderr, "\n  Add to Claude Desktop / Claude Code / Cursor config:\n\n")
+	if token != "" {
+		fmt.Fprintf(os.Stderr, `  {
+    "mcpServers": {
+      "slyds": {
+        "url": "%s",
+        "headers": {
+          "Authorization": "Bearer %s"
+        }
+      }
+    }
+  }
+`, url, token)
+	} else {
+		fmt.Fprintf(os.Stderr, `  {
+    "mcpServers": {
+      "slyds": {
+        "url": "%s"
+      }
+    }
+  }
+`, url)
+	}
+	fmt.Fprintln(os.Stderr)
+}
+
+// printStdioConfig prints a ready-to-paste MCP config snippet for stdio transport.
+func printStdioConfig(root, token string) {
+	slydsPath, _ := os.Executable()
+	if slydsPath == "" {
+		slydsPath = "slyds"
+	}
+	args := fmt.Sprintf(`"mcp", "--stdio", "--deck-root", "%s"`, root)
+	if token != "" {
+		args += fmt.Sprintf(`, "--token", "%s"`, token)
+	}
+	fmt.Fprintf(os.Stderr, "\n  Add to Claude Desktop / Claude Code / Cursor config:\n\n")
+	fmt.Fprintf(os.Stderr, `  {
+    "mcpServers": {
+      "slyds": {
+        "command": "%s",
+        "args": [%s]
+      }
+    }
+  }
+`, slydsPath, args)
+	fmt.Fprintln(os.Stderr)
 }
 
 // openDeck resolves a deck name to a Deck instance.
