@@ -26,7 +26,7 @@ github.com/panyam/slyds
 
 ## Stack Dependencies
 - templar (github.com/panyam/templar) v0.1.0 — template composition, WritableFS, module system
-- mcpkit (github.com/panyam/mcpkit) v0.0.7 — MCP server + client (Streamable HTTP + SSE)
+- mcpkit (github.com/panyam/mcpkit) v0.1.5 — MCP server (core/server split), Streamable HTTP + SSE + stdio
 - goutils (github.com/panyam/goutils) — indirect, via templar
 
 *(Align versions with `go.mod`; Stackfile.md lists pinned stack versions.)*

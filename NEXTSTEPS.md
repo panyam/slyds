@@ -37,6 +37,7 @@
 - [x] ~~MCP resources + semantic tools — 10 tools, 7 resources, drop subprocess tool (#52)~~
 - [x] ~~Extract assets/ package — separate Go code from static files for clean module vendoring~~
 - [x] ~~core/ tests to MemFS — 73% os.* reduction, shared test helpers~~
+- [x] ~~mcpkit split-package upgrade + stdio transport — v0.1.5, `--stdio` flag, editor-spawned servers (mcpkit#9)~~
 - [ ] Slide folders with co-located assets (e.g., `slides/03-architecture/slide.html` + `diagram.png`)
 - [ ] Live reload on file changes during `slyds serve`
 - [ ] Theme composability via templar `extend`/`namespace` directives

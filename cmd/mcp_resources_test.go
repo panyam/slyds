@@ -6,7 +6,8 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/panyam/mcpkit"
+	mcpcore "github.com/panyam/mcpkit/core"
+	"github.com/panyam/mcpkit/server"
 	"github.com/panyam/slyds/core"
 )
 
@@ -74,7 +75,7 @@ func TestResourceRegistration(t *testing.T) {
 	root := t.TempDir()
 	core.CreateInDir("Deck", 2, "default", filepath.Join(root, "test-deck"), true)
 
-	srv := mcpkit.NewServer(mcpkit.ServerInfo{Name: "test", Version: "0.0.1"})
+	srv := server.NewServer(mcpcore.ServerInfo{Name: "test", Version: "0.0.1"})
 	registerResources(srv, root)
 
 	d, err := openDeck(root, "test-deck")

@@ -129,7 +129,7 @@ This is the approved path for all programmatic slide content access. Regex-based
 
 The CLI exposes machine-readable **`slyds introspect`** (layouts, themes, command catalog) and per-deck **`slyds describe`** for non-MCP agents.
 
-**Model Context Protocol** (`cmd/mcp.go`, `cmd/mcp_tools.go`, `cmd/mcp_resources.go`): uses **mcpkit** v0.0.6. Exposes **10 semantic tools** that call the Deck API directly (no subprocess) and **7 browsable resources** for reading deck content. Transports: Streamable HTTP (default) or SSE (`--sse`). `--deck-root` sets the directory where decks are discovered. See [docs/MCP.md](docs/MCP.md).
+**Model Context Protocol** (`cmd/mcp.go`, `cmd/mcp_tools.go`, `cmd/mcp_resources.go`): uses **mcpkit** v0.1.5 (split packages: `core/`, `server/`). Exposes **10 semantic tools** that call the Deck API directly (no subprocess) and **7 browsable resources** for reading deck content. Transports: Streamable HTTP (default), SSE (`--sse`), or stdio (`--stdio`). `--deck-root` sets the directory where decks are discovered. See [docs/MCP.md](docs/MCP.md).
 
 **Tools**: `create_deck`, `describe_deck`, `list_slides`, `read_slide`, `edit_slide`, `query_slide`, `add_slide`, `remove_slide`, `check_deck`, `build_deck`.
 

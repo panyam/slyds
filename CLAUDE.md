@@ -43,14 +43,14 @@ All Deck I/O goes through `templar.WritableFS` (v0.1.0). No `os.*`/`filepath.*` 
 - **macOS /private symlinks**: temp dirs resolve `/var/...` vs `/private/var/...`. Don't compare paths in tests.
 - **`go:embed` paths relative to Go file** — `assets/embed.go` lives alongside the embedded files; `core/embed.go` re-exports.
 - **Theme render fallback** — `InsertSlide` uses layout system first; falls back to theme templates.
-- **MCP** — 10 semantic tools + 7 resources via mcpkit. See [docs/MCP.md](docs/MCP.md). `--deck-root` sets discovery root.
+- **MCP** — 10 semantic tools + 7 resources via mcpkit (split packages: `core/`, `server/`). Transports: Streamable HTTP, SSE, stdio. See [docs/MCP.md](docs/MCP.md). `--deck-root` sets discovery root.
 
 ## Stack
 
 | Component | Version | Notes |
 |-----------|---------|-------|
 | templar | v0.1.0 | WritableFS, FSFolder, MemFS, module system |
-| mcpkit | v0.0.7 | SSE + Streamable HTTP transports, Go client + testutil |
+| mcpkit | v0.1.5 | Split packages (core/server/client), SSE + Streamable HTTP + stdio transports, testutil |
 
 See [Stackfile.md](Stackfile.md) for full dependency list.
 
