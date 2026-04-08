@@ -139,6 +139,15 @@ var mvCmd = &cobra.Command{
 	},
 }
 
+var lsJSON bool
+
+type slideInfo struct {
+	Position int    `json:"position"`
+	File     string `json:"file"`
+	Layout   string `json:"layout"`
+	Title    string `json:"title"`
+}
+
 var lsCmd = &cobra.Command{
 	Use:   "ls [dir]",
 	Short: "List slides in order",
@@ -158,7 +167,30 @@ var lsCmd = &cobra.Command{
 			return err
 		}
 		if len(slides) == 0 {
-			fmt.Println("No slides found.")
+			if lsJSON {
+				fmt.Println("[]")
+			} else {
+				fmt.Println("No slides found.")
+			}
+			return nil
+		}
+
+		if lsJSON {
+			var infos []slideInfo
+			for i, f := range slides {
+				content, _ := d.GetSlideContent(i + 1)
+				infos = append(infos, slideInfo{
+					Position: i + 1,
+					File:     f,
+					Layout:   core.DetectLayout(content),
+					Title:    core.ExtractFirstHeading(content),
+				})
+			}
+			data, err := json.MarshalIndent(infos, "", "  ")
+			if err != nil {
+				return err
+			}
+			fmt.Println(string(data))
 			return nil
 		}
 
@@ -266,6 +298,7 @@ func init() {
 	rootCmd.AddCommand(addCmd)
 	rootCmd.AddCommand(rmCmd)
 	rootCmd.AddCommand(mvCmd)
+	lsCmd.Flags().BoolVar(&lsJSON, "json", false, "output as JSON")
 	rootCmd.AddCommand(lsCmd)
 	rootCmd.AddCommand(insertCmd)
 	rootCmd.AddCommand(slugifyCmd)

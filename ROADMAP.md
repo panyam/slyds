@@ -48,6 +48,9 @@ Replaced subprocess-based MCP tool with 10 semantic tools calling the Deck API d
 ## Phase 9c — mcpkit split-package upgrade + stdio (done)
 Upgraded mcpkit from v0.0.7 (flat package) to v0.1.5 (split packages: `core/`, `server/`, `client/`). Enabled stdio transport (`--stdio` flag) for editor-spawned MCP servers (Cursor, Claude Desktop, VS Code). Added stdio E2E test. Updated agent setup docs with stdio configuration examples.
 
+## Phase 9d — End-to-end setup (done)
+Added `--json` flags to `check`, `ls`, `build` for CLI-direct agent mode. `SLYDS_MCP_TOKEN` env var fallback for container deployments. Makefile targets for demo decks (`make demo`) and dev servers (`make dev-http`, `dev-sse`, `dev-stdio`). Tunnel helper script for remote access. Agent-readable setup guide (`AGENT-SETUP.md`) and human-readable setup guide (`docs/SETUP.md`).
+
 ## Phase 10 — Slide Folders
 Support `slides/03-name/slide.html` with co-located assets (images, per-slide CSS). Auto-detect folder vs file slides.
 

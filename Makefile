@@ -1,4 +1,5 @@
-.PHONY: build setup-tools install test clean version examples examples-serve gh-pages
+.PHONY: build setup-tools install test clean version examples examples-serve gh-pages \
+       demo dev-http dev-sse dev-stdio dev-http-auth dev-sse-auth tunnel
 
 VERSION ?= $(shell git describe --tags --always --dirty 2>/dev/null || echo "dev")
 LDFLAGS := -X github.com/panyam/slyds/cmd.Version=$(VERSION)
@@ -72,6 +73,49 @@ gh-pages: examples
 		git push -f origin gh-pages
 	@echo "Deployed! Enable GitHub Pages in repo settings to serve from gh-pages branch."
 	@rm -rf examples/dist/.git
+
+# =============================================================================
+# Demo decks + dev servers
+# =============================================================================
+
+DEMO_DIR := /tmp/slyds-demo
+
+# Scaffold 3 demo decks for testing all transports and LLM integrations.
+demo: build
+	@rm -rf $(DEMO_DIR)
+	@mkdir -p $(DEMO_DIR)
+	@cd $(DEMO_DIR) && $(CURDIR)/slyds init "Getting Started" --theme default -n 3
+	@cd $(DEMO_DIR) && $(CURDIR)/slyds init "Dark Mode Talk" --theme dark -n 5
+	@cd $(DEMO_DIR) && $(CURDIR)/slyds init "Corporate Review" --theme corporate -n 4
+	@echo ""
+	@echo "Demo decks scaffolded in $(DEMO_DIR)/"
+	@echo "  getting-started/   (3 slides, default theme)"
+	@echo "  dark-mode-talk/    (5 slides, dark theme)"
+	@echo "  corporate-review/  (4 slides, corporate theme)"
+
+# Dev: Streamable HTTP on :6274
+dev-http: demo
+	./slyds mcp --deck-root $(DEMO_DIR)
+
+# Dev: SSE on :6274
+dev-sse: demo
+	./slyds mcp --sse --deck-root $(DEMO_DIR)
+
+# Dev: stdio (for pipe testing or manual JSON-RPC)
+dev-stdio: demo
+	./slyds mcp --stdio --deck-root $(DEMO_DIR)
+
+# Dev: HTTP with bearer auth
+dev-http-auth: demo
+	./slyds mcp --deck-root $(DEMO_DIR) --token dev-secret
+
+# Dev: SSE with bearer auth
+dev-sse-auth: demo
+	./slyds mcp --sse --deck-root $(DEMO_DIR) --token dev-secret
+
+# Start a localhost tunnel (requires ngrok or cloudflared)
+tunnel:
+	@bash scripts/tunnel.sh
 
 # =============================================================================
 # Security audit

@@ -54,6 +54,9 @@ func runMCPServer() error {
 		return fmt.Errorf("invalid deck-root: %w", err)
 	}
 
+	// Token from env if flag not set
+	mcpToken = resolveMCPToken(mcpToken)
+
 	// Build server
 	var serverOpts []server.Option
 	serverOpts = append(serverOpts, server.WithListen(mcpListen))
@@ -120,6 +123,15 @@ func discoverDecks(root string) []string {
 		}
 	}
 	return decks
+}
+
+// resolveMCPToken returns the token from the flag value, falling back to the
+// MCP_TOKEN environment variable if the flag is empty.
+func resolveMCPToken(flagValue string) string {
+	if flagValue != "" {
+		return flagValue
+	}
+	return os.Getenv("SLYDS_MCP_TOKEN")
 }
 
 // openDeck resolves a deck name to a Deck instance.

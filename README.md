@@ -25,6 +25,15 @@ slyds serve scaling-at-the-edge
 # → http://localhost:3000
 ```
 
+## For AI Agents
+
+slyds works with Claude, Cursor, Copilot, and other AI agents in two modes:
+
+- **CLI-direct** — agent runs `slyds` commands via shell (no MCP server needed)
+- **MCP** — full protocol server with 10 tools + 7 resources (stdio, HTTP, SSE)
+
+See [AGENT-SETUP.md](AGENT-SETUP.md) for the agent-readable setup guide, or [docs/SETUP.md](docs/SETUP.md) for the human-readable version.
+
 ## Examples
 
 **[Live demos](https://panyam.github.io/slyds/)** — or browse the source in `examples/`:

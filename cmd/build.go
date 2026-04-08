@@ -1,11 +1,14 @@
 package cmd
 
 import (
+	"encoding/json"
 	"fmt"
 
 	"github.com/panyam/slyds/core"
 	"github.com/spf13/cobra"
 )
+
+var buildJSON bool
 
 var buildCmd = &cobra.Command{
 	Use:   "build [dir]",
@@ -24,6 +27,15 @@ var buildCmd = &cobra.Command{
 		result, err := d.Build()
 		if err != nil {
 			return fmt.Errorf("build failed: %w", err)
+		}
+
+		if buildJSON {
+			data, err := json.MarshalIndent(result, "", "  ")
+			if err != nil {
+				return err
+			}
+			fmt.Println(string(data))
+			return nil
 		}
 
 		// Write output to dist/ via DeckFS
@@ -45,5 +57,6 @@ var buildCmd = &cobra.Command{
 }
 
 func init() {
+	buildCmd.Flags().BoolVar(&buildJSON, "json", false, "output as JSON to stdout instead of writing dist/index.html")
 	rootCmd.AddCommand(buildCmd)
 }

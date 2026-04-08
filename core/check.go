@@ -1,6 +1,7 @@
 package core
 
 import (
+	"encoding/json"
 	"fmt"
 	"regexp"
 	"strings"
@@ -15,11 +16,26 @@ const (
 	IssueInfo                     // informational: talk time estimate
 )
 
+var issueTypeNames = [...]string{"error", "warning", "info"}
+
+// String returns the human-readable label for an IssueType.
+func (t IssueType) String() string {
+	if int(t) < len(issueTypeNames) {
+		return issueTypeNames[t]
+	}
+	return fmt.Sprintf("unknown(%d)", int(t))
+}
+
+// MarshalJSON encodes IssueType as a JSON string ("error", "warning", "info").
+func (t IssueType) MarshalJSON() ([]byte, error) {
+	return json.Marshal(t.String())
+}
+
 // Issue is a single finding from Deck.Check().
 type Issue struct {
-	Type   IssueType
-	Slide  string // slide filename (empty for deck-level issues)
-	Detail string // human-readable description
+	Type   IssueType `json:"type"`
+	Slide  string    `json:"slide,omitempty"`
+	Detail string    `json:"detail"`
 }
 
 // Issues is a list of check findings with filter helpers.
@@ -58,10 +74,10 @@ func (is Issues) HasErrors() bool { return len(is.Errors()) > 0 }
 
 // CheckResult holds the results of a deck validation.
 type CheckResult struct {
-	SlideCount       int
-	InSync           bool
-	Issues           Issues
-	EstimatedMinutes float64
+	SlideCount       int     `json:"slide_count"`
+	InSync           bool    `json:"in_sync"`
+	Issues           Issues  `json:"issues"`
+	EstimatedMinutes float64 `json:"estimated_minutes,omitempty"`
 }
 
 var assetRefRe = regexp.MustCompile(`(?:src|href)="([^"]+)"`)

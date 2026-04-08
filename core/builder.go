@@ -10,8 +10,8 @@ import (
 
 // Result holds the build output.
 type Result struct {
-	HTML     string
-	Warnings []string
+	HTML     string   `json:"html"`
+	Warnings []string `json:"warnings"`
 }
 
 // Build reads index.html from the deck's FS, resolves all templar includes,

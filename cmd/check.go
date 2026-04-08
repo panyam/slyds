@@ -1,11 +1,14 @@
 package cmd
 
 import (
+	"encoding/json"
 	"fmt"
 
 	"github.com/panyam/slyds/core"
 	"github.com/spf13/cobra"
 )
+
+var checkJSON bool
 
 var checkCmd = &cobra.Command{
 	Use:   "check [dir]",
@@ -30,6 +33,18 @@ var checkCmd = &cobra.Command{
 		result, err := d.Check()
 		if err != nil {
 			return err
+		}
+
+		if checkJSON {
+			data, err := json.MarshalIndent(result, "", "  ")
+			if err != nil {
+				return err
+			}
+			fmt.Println(string(data))
+			if result.Issues.HasErrors() {
+				return fmt.Errorf("%d error(s) found", len(result.Issues.Errors()))
+			}
+			return nil
 		}
 
 		// Print results
@@ -59,5 +74,6 @@ var checkCmd = &cobra.Command{
 }
 
 func init() {
+	checkCmd.Flags().BoolVar(&checkJSON, "json", false, "output as JSON")
 	rootCmd.AddCommand(checkCmd)
 }
