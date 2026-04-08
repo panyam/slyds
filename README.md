@@ -189,13 +189,13 @@ The speaker notes window includes an elapsed timer, per-slide reading time estim
 
 slyds ships with five built-in themes:
 
-| Theme | Description |
-|-------|-------------|
-| `default` | Purple gradient, white cards — conference talks |
-| `minimal` | White background, serif font — academic, maximum readability |
-| `dark` | Dark backgrounds, cyan accents — code talks, demos |
-| `corporate` | Navy blues, clean grays — business presentations |
-| `hacker` | Terminal aesthetics, nerdy but fun — backend engineers, tech demos |
+| Theme       | Description                                                        |
+|-------------|--------------------------------------------------------------------|
+| `default`   | Purple gradient, white cards — conference talks                    |
+| `minimal`   | White background, serif font — academic, maximum readability       |
+| `dark`      | Dark backgrounds, cyan accents — code talks, demos                 |
+| `corporate` | Navy blues, clean grays — business presentations                   |
+| `hacker`    | Terminal aesthetics, nerdy but fun — backend engineers, tech demos |
 
 Each theme includes position-aware CSS: slides automatically get `--slide-index` and `--slide-progress` CSS custom properties, enabling effects like alternating backgrounds and progress-based color shifts.
 
