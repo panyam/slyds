@@ -170,9 +170,9 @@ curl -s -X POST http://127.0.0.1:6274/mcp \
 | `slyds add <deck> <pos> --name N` | Insert slide | N/A |
 | `slyds introspect` | Full catalog (JSON) | Always JSON |
 
-## MCP tools (10)
+## MCP tools (11)
 
-`create_deck`, `describe_deck`, `list_slides`, `read_slide`, `edit_slide`, `query_slide`, `add_slide`, `remove_slide`, `check_deck`, `build_deck`
+`list_decks`, `create_deck`, `describe_deck`, `list_slides`, `read_slide`, `edit_slide`, `query_slide`, `add_slide`, `remove_slide`, `check_deck`, `build_deck`
 
 ## MCP resources (7)
 

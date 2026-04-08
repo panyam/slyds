@@ -161,7 +161,7 @@ func TestE2E_ToolsList(t *testing.T) {
 	}
 
 	expected := []string{
-		"create_deck", "describe_deck", "list_slides", "read_slide",
+		"list_decks", "create_deck", "describe_deck", "list_slides", "read_slide",
 		"edit_slide", "query_slide", "add_slide", "remove_slide",
 		"check_deck", "build_deck",
 	}
@@ -254,7 +254,7 @@ func TestE2E_StdioTransport(t *testing.T) {
 		names[tool.Name] = true
 	}
 	expected := []string{
-		"create_deck", "describe_deck", "list_slides", "read_slide",
+		"list_decks", "create_deck", "describe_deck", "list_slides", "read_slide",
 		"edit_slide", "query_slide", "add_slide", "remove_slide",
 		"check_deck", "build_deck",
 	}
