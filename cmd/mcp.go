@@ -110,6 +110,9 @@ func runMCPServer() error {
 	handler := mcpWithLanding(mcpHandler, transport, mcpListen, decks, mcpToken != "")
 
 	fmt.Fprintf(os.Stderr, "MCP server (%s) on %s — deck root: %s\n", transport, mcpListen, root)
+	if mcpToken != "" {
+		fmt.Fprintf(os.Stderr, "  Auth: bearer token (%s)\n", maskToken(mcpToken))
+	}
 	fmt.Fprintf(os.Stderr, "  http://%s/\n", mcpListen)
 
 	httpSrv := &http.Server{
@@ -147,12 +150,21 @@ func discoverDecks(root string) []string {
 }
 
 // resolveMCPToken returns the token from the flag value, falling back to the
-// MCP_TOKEN environment variable if the flag is empty.
+// SLYDS_MCP_TOKEN environment variable if the flag is empty.
 func resolveMCPToken(flagValue string) string {
 	if flagValue != "" {
 		return flagValue
 	}
 	return os.Getenv("SLYDS_MCP_TOKEN")
+}
+
+// maskToken returns a redacted version of a token, showing only the first 2
+// and last 2 characters with asterisks in between. Short tokens are fully masked.
+func maskToken(token string) string {
+	if len(token) <= 4 {
+		return "****"
+	}
+	return token[:2] + "****" + token[len(token)-2:]
 }
 
 // landingData is the template context for the MCP landing page.

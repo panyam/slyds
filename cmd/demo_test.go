@@ -74,3 +74,23 @@ func TestDemoScaffolding(t *testing.T) {
 		}
 	}
 }
+
+// TestMaskToken verifies that maskToken redacts tokens correctly, showing
+// only the first 2 and last 2 characters with asterisks in between.
+// Short tokens (4 chars or fewer) are fully masked.
+func TestMaskToken(t *testing.T) {
+	cases := []struct {
+		in, want string
+	}{
+		{"", "****"},
+		{"ab", "****"},
+		{"abcd", "****"},
+		{"abcde", "ab****de"},
+		{"my-secret-token-123", "my****23"},
+	}
+	for _, tc := range cases {
+		if got := maskToken(tc.in); got != tc.want {
+			t.Errorf("maskToken(%q) = %q, want %q", tc.in, got, tc.want)
+		}
+	}
+}
