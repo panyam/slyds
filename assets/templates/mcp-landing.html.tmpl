@@ -1,0 +1,31 @@
+<!DOCTYPE html>
+<html><head><title>slyds MCP Server</title>
+<style>
+  body { font-family: system-ui, sans-serif; max-width: 640px; margin: 40px auto; padding: 0 20px; color: #333; }
+  h1 { font-size: 1.4em; }
+  code { background: #f4f4f4; padding: 2px 6px; border-radius: 3px; font-size: 0.9em; }
+  pre { background: #f4f4f4; padding: 16px; border-radius: 6px; overflow-x: auto; font-size: 0.85em; }
+  .endpoint { font-size: 1.1em; margin: 12px 0; }
+  a { color: #2563eb; }
+  ul { padding-left: 20px; }
+</style></head><body>
+<h1>slyds MCP Server</h1>
+<p class="endpoint">Endpoint: <code>/mcp</code> ({{.Transport}})</p>
+<p>Decks found: <strong>{{len .Decks}}</strong></p>
+<ul>
+{{- range .Decks}}
+  <li><code>{{.}}</code></li>
+{{- end}}
+</ul>
+<p>Auth: {{if .AuthEnabled}}enabled (bearer token){{else}}disabled{{end}}</p>
+
+<h2>Connect</h2>
+<pre>{{.ConfigJSON}}</pre>
+
+<h2>Quick test (curl)</h2>
+<pre>curl -s -X POST http://{{.Listen}}/mcp \
+  -H 'Content-Type: application/json' \
+  -d '{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"protocolVersion":"2025-03-26","capabilities":{},"clientInfo":{"name":"curl","version":"1"}}}'</pre>
+
+<p><a href="https://github.com/panyam/slyds/blob/main/docs/MCP.md">Documentation</a></p>
+</body></html>

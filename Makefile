@@ -79,6 +79,12 @@ gh-pages: examples
 # =============================================================================
 
 DEMO_DIR := /tmp/slyds-demo
+MCP_PORT ?= 6274
+
+# Find a free port: try MCP_PORT first, fall back to OS-assigned.
+define find_free_port
+$(shell python3 -c "import socket; s=socket.socket(); s.bind(('127.0.0.1',$(MCP_PORT))); print($(MCP_PORT)); s.close()" 2>/dev/null || python3 -c "import socket; s=socket.socket(); s.bind(('127.0.0.1',0)); print(s.getsockname()[1]); s.close()")
+endef
 
 # Scaffold 3 demo decks for testing all transports and LLM integrations.
 demo: build
@@ -93,25 +99,43 @@ demo: build
 	@echo "  dark-mode-talk/    (5 slides, dark theme)"
 	@echo "  corporate-review/  (4 slides, corporate theme)"
 
-# Dev: Streamable HTTP on :6274
+# Dev: Streamable HTTP (auto-detect free port)
 dev-http: demo
-	./slyds mcp --deck-root $(DEMO_DIR)
+	$(eval PORT := $(find_free_port))
+	@echo ""
+	@echo "  MCP endpoint: http://127.0.0.1:$(PORT)/mcp"
+	@echo ""
+	./slyds mcp --listen 127.0.0.1:$(PORT) --deck-root $(DEMO_DIR)
 
-# Dev: SSE on :6274
+# Dev: SSE (auto-detect free port)
 dev-sse: demo
-	./slyds mcp --sse --deck-root $(DEMO_DIR)
+	$(eval PORT := $(find_free_port))
+	@echo ""
+	@echo "  MCP endpoint: http://127.0.0.1:$(PORT)/sse"
+	@echo ""
+	./slyds mcp --sse --listen 127.0.0.1:$(PORT) --deck-root $(DEMO_DIR)
 
 # Dev: stdio (for pipe testing or manual JSON-RPC)
 dev-stdio: demo
 	./slyds mcp --stdio --deck-root $(DEMO_DIR)
 
-# Dev: HTTP with bearer auth
+# Dev: HTTP with bearer auth (auto-detect free port)
 dev-http-auth: demo
-	./slyds mcp --deck-root $(DEMO_DIR) --token dev-secret
+	$(eval PORT := $(find_free_port))
+	@echo ""
+	@echo "  MCP endpoint: http://127.0.0.1:$(PORT)/mcp"
+	@echo "  Token: dev-secret"
+	@echo ""
+	./slyds mcp --listen 127.0.0.1:$(PORT) --deck-root $(DEMO_DIR) --token dev-secret
 
-# Dev: SSE with bearer auth
+# Dev: SSE with bearer auth (auto-detect free port)
 dev-sse-auth: demo
-	./slyds mcp --sse --deck-root $(DEMO_DIR) --token dev-secret
+	$(eval PORT := $(find_free_port))
+	@echo ""
+	@echo "  MCP endpoint: http://127.0.0.1:$(PORT)/sse"
+	@echo "  Token: dev-secret"
+	@echo ""
+	./slyds mcp --sse --listen 127.0.0.1:$(PORT) --deck-root $(DEMO_DIR) --token dev-secret
 
 # Start a localhost tunnel (requires ngrok or cloudflared)
 tunnel:

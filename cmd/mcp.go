@@ -2,13 +2,19 @@ package cmd
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
+	"html/template"
+	"io/fs"
+	"net/http"
 	"os"
 	"os/signal"
 	"path/filepath"
+	"strings"
 
 	mcpcore "github.com/panyam/mcpkit/core"
 	"github.com/panyam/mcpkit/server"
+	"github.com/panyam/slyds/assets"
 	"github.com/panyam/slyds/core"
 	"github.com/spf13/cobra"
 )
@@ -88,15 +94,30 @@ func runMCPServer() error {
 	if mcpPublicURL != "" {
 		transportOpts = append(transportOpts, server.WithPublicURL(mcpPublicURL))
 	}
+
+	var transport string
 	if mcpUseSSE {
 		transportOpts = append(transportOpts, server.WithSSE(true), server.WithStreamableHTTP(false))
-		fmt.Fprintf(os.Stderr, "MCP server (SSE) on %s — deck root: %s\n", mcpListen, root)
+		transport = "SSE"
 	} else {
 		transportOpts = append(transportOpts, server.WithStreamableHTTP(true), server.WithSSE(false))
-		fmt.Fprintf(os.Stderr, "MCP server (Streamable HTTP) on %s — deck root: %s\n", mcpListen, root)
+		transport = "Streamable HTTP"
 	}
 
-	return srv.ListenAndServe(transportOpts...)
+	// Build MCP handler and wrap with landing page at /
+	mcpHandler := srv.Handler(transportOpts...)
+	decks := discoverDecks(root)
+	handler := mcpWithLanding(mcpHandler, transport, mcpListen, decks, mcpToken != "")
+
+	fmt.Fprintf(os.Stderr, "MCP server (%s) on %s — deck root: %s\n", transport, mcpListen, root)
+	fmt.Fprintf(os.Stderr, "  http://%s/\n", mcpListen)
+
+	httpSrv := &http.Server{
+		Addr:         mcpListen,
+		Handler:      handler,
+		WriteTimeout: 0, // SSE requires no write timeout
+	}
+	return listenAndServeGraceful(httpSrv)
 }
 
 // discoverDecks finds all deck directories under root.
@@ -132,6 +153,69 @@ func resolveMCPToken(flagValue string) string {
 		return flagValue
 	}
 	return os.Getenv("SLYDS_MCP_TOKEN")
+}
+
+// landingData is the template context for the MCP landing page.
+type landingData struct {
+	Transport   string
+	Listen      string
+	Decks       []string
+	AuthEnabled bool
+	ConfigJSON  string
+}
+
+// landingTmpl is parsed once from the embedded template.
+var landingTmpl = func() *template.Template {
+	tmplFS, _ := fs.Sub(assets.TemplatesFS, "templates")
+	return template.Must(template.ParseFS(tmplFS, "mcp-landing.html.tmpl"))
+}()
+
+// mcpWithLanding wraps an MCP handler with a landing page at GET /.
+// Non-root requests and non-GET requests pass through to the MCP handler.
+func mcpWithLanding(mcpHandler http.Handler, transport, listen string, decks []string, authEnabled bool) http.Handler {
+	info := map[string]any{
+		"server":    "slyds MCP",
+		"version":   Version,
+		"transport": transport,
+		"listen":    listen,
+		"decks":     decks,
+		"auth":      authEnabled,
+	}
+	configJSON, _ := json.MarshalIndent(info, "", "  ")
+	data := landingData{
+		Transport:   transport,
+		Listen:      listen,
+		Decks:       decks,
+		AuthEnabled: authEnabled,
+		ConfigJSON:  string(configJSON),
+	}
+
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path == "/" && r.Method == http.MethodGet && strings.Contains(r.Header.Get("Accept"), "text/html") {
+			w.Header().Set("Content-Type", "text/html; charset=utf-8")
+			landingTmpl.Execute(w, data)
+			return
+		}
+		mcpHandler.ServeHTTP(w, r)
+	})
+}
+
+// listenAndServeGraceful starts the HTTP server with signal-based graceful shutdown.
+func listenAndServeGraceful(srv *http.Server) error {
+	ctx, cancel := signal.NotifyContext(context.Background(), os.Interrupt)
+	defer cancel()
+
+	errCh := make(chan error, 1)
+	go func() {
+		errCh <- srv.ListenAndServe()
+	}()
+
+	select {
+	case err := <-errCh:
+		return err
+	case <-ctx.Done():
+		return srv.Close()
+	}
 }
 
 // openDeck resolves a deck name to a Deck instance.
