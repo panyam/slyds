@@ -51,6 +51,9 @@ Upgraded mcpkit from v0.0.7 (flat package) to v0.1.5 (split packages: `core/`, `
 ## Phase 9d — End-to-end setup (done)
 Added `--json` flags to `check`, `ls`, `build` for CLI-direct agent mode. `SLYDS_MCP_TOKEN` env var fallback for container deployments. Makefile targets for demo decks (`make demo`) and dev servers (`make dev-http`, `dev-sse`, `dev-stdio`). Tunnel helper script for remote access. Agent-readable setup guide (`AGENT-SETUP.md`) and human-readable setup guide (`docs/SETUP.md`).
 
+## Phase 9e — Agent skills scaffolding (done)
+`slyds init` scaffolds `.claude/skills/` with 5 skills: `/preview` (build + open), `/check` (validate deck), `/slides` (list slides), `/build` (build HTML), `/add-slide` (guided slide insertion). Skills are static SKILL.md files embedded in `assets/skills/` and copied during scaffold. `slyds update` refreshes skills alongside engine files.
+
 ## Phase 10 — Slide Folders
 Support `slides/03-name/slide.html` with co-located assets (images, per-slide CSS). Auto-detect folder vs file slides.
 

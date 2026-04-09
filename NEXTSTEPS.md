@@ -39,6 +39,7 @@
 - [x] ~~core/ tests to MemFS — 73% os.* reduction, shared test helpers~~
 - [x] ~~mcpkit split-package upgrade + stdio transport — v0.1.5, `--stdio` flag, editor-spawned servers (mcpkit#9)~~
 - [x] ~~End-to-end setup — `--json` on check/ls/build, `SLYDS_MCP_TOKEN`, demo/dev Makefile targets, tunnel helper, AGENT-SETUP.md (#62)~~
+- [x] ~~Agent skills scaffolding — `slyds init` generates .claude/skills/ with /slyds-preview, /slyds-check, /slyds-slides, /slyds-build, /slyds-add-slide (#67)~~
 - [ ] Slide folders with co-located assets (e.g., `slides/03-architecture/slide.html` + `diagram.png`)
 - [ ] Live reload on file changes during `slyds serve`
 - [ ] Theme composability via templar `extend`/`namespace` directives

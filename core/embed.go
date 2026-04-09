@@ -11,6 +11,7 @@ var (
 	SlydsExportJS = assets.SlydsExportJS
 	TemplatesFS   = assets.TemplatesFS
 	LayoutsFS     = assets.LayoutsFS
+	SkillsFS      = assets.SkillsFS
 	themesFS      = assets.ThemesFS
 )
 
