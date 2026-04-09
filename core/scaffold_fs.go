@@ -98,6 +98,9 @@ func ScaffoldDeck(fsys templar.WritableFS, opts ScaffoldOpts) (*Deck, error) {
 	// Write AGENT.md
 	writeAgentMDFS(fsys, manifest)
 
+	// Write Claude Code skills
+	writeSkillsFS(fsys)
+
 	// Open as Deck and return
 	return OpenDeck(fsys)
 }
@@ -263,3 +266,4 @@ func writeAgentMDFS(fsys templar.WritableFS, m Manifest) error {
 	}
 	return fsys.WriteFile("AGENT.md", []byte(content), 0644)
 }
+

@@ -28,6 +28,9 @@ var ThemesFS embed.FS
 //go:embed all:layouts
 var LayoutsFS embed.FS
 
+//go:embed all:skills
+var SkillsFS embed.FS
+
 // ThemeFiles returns all theme CSS files as a map of filename → content.
 func ThemeFiles() map[string]string {
 	files := make(map[string]string)

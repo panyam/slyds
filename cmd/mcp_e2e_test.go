@@ -190,6 +190,39 @@ func TestE2E_ServerInfo(t *testing.T) {
 	}
 }
 
+// TestE2E_ListDecks verifies that the list_decks tool returns a JSON array
+// with name, title, theme, and slide count for each deck under the deck root.
+// This is the tool-based alternative to reading the slyds://decks resource.
+func TestE2E_ListDecks(t *testing.T) {
+	root := t.TempDir()
+	core.CreateInDir("Alpha Talk", 3, "default", fmt.Sprintf("%s/alpha", root), true)
+	core.CreateInDir("Beta Talk", 5, "dark", fmt.Sprintf("%s/beta", root), true)
+
+	c := newSlydsMCPClient(t, root)
+
+	result := c.ToolCall("list_decks", map[string]any{})
+	var decks []map[string]any
+	json.Unmarshal([]byte(result), &decks)
+
+	if len(decks) != 2 {
+		t.Fatalf("expected 2 decks, got %d: %s", len(decks), result)
+	}
+
+	names := make(map[string]bool)
+	for _, d := range decks {
+		names[d["name"].(string)] = true
+		// Verify all expected fields are present
+		for _, field := range []string{"name", "title", "theme", "slides"} {
+			if _, ok := d[field]; !ok {
+				t.Errorf("deck %v missing field: %s", d["name"], field)
+			}
+		}
+	}
+	if !names["alpha"] || !names["beta"] {
+		t.Errorf("expected decks alpha and beta, got: %v", names)
+	}
+}
+
 // TestE2E_StdioTransport verifies that the slyds MCP server works over the
 // stdio transport (Content-Length framed JSON-RPC over stdin/stdout). This test
 // creates a server with all tools and resources registered, wires it to a pair

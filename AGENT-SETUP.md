@@ -13,8 +13,10 @@ From source: `git clone https://github.com/panyam/slyds.git && cd slyds && make 
 
 ```bash
 slyds init "My Talk" --theme dark -n 5
-# Creates my-talk/ with 5 slides
+# Creates my-talk/ with 5 slides, AGENT.md, and .claude/skills/
 ```
+
+Scaffolded skills (available as `/slyds-preview`, `/slyds-check`, `/slyds-slides`, `/slyds-build`, `/slyds-add-slide` in Claude Code):
 
 Or scaffold demo decks: `make demo` (creates 3 decks in `/tmp/slyds-demo/`).
 
