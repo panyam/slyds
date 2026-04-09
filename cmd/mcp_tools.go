@@ -91,6 +91,7 @@ func createDeckTool(root string) (mcpcore.ToolDef, mcpcore.ToolHandler) {
 			if err != nil {
 				return mcpcore.ErrorResult(err.Error()), nil
 			}
+			mcpcore.NotifyResourcesChanged(ctx)
 			// Return the new deck's metadata
 			d, err := openDeck(root, p.Name)
 			if err != nil {
@@ -209,6 +210,7 @@ func editSlideTool(root string) (mcpcore.ToolDef, mcpcore.ToolHandler) {
 			if err := d.EditSlideContent(p.Position, p.Content); err != nil {
 				return mcpcore.ErrorResult(err.Error()), nil
 			}
+			mcpcore.NotifyResourcesChanged(ctx)
 			return mcpcore.TextResult(fmt.Sprintf("Slide %d updated.", p.Position)), nil
 		}
 }
@@ -312,6 +314,7 @@ func addSlideTool(root string) (mcpcore.ToolDef, mcpcore.ToolHandler) {
 			if err := d.InsertSlide(p.Position, p.Name, p.Layout, p.Title); err != nil {
 				return mcpcore.ErrorResult(err.Error()), nil
 			}
+			mcpcore.NotifyResourcesChanged(ctx)
 			return mcpcore.TextResult(fmt.Sprintf("Slide %q inserted at position %d.", p.Name, p.Position)), nil
 		}
 }
@@ -348,6 +351,7 @@ func removeSlideTool(root string) (mcpcore.ToolDef, mcpcore.ToolHandler) {
 			if err := d.RemoveSlide(filename); err != nil {
 				return mcpcore.ErrorResult(err.Error()), nil
 			}
+			mcpcore.NotifyResourcesChanged(ctx)
 			return mcpcore.TextResult(fmt.Sprintf("Slide %q removed.", filename)), nil
 		}
 }

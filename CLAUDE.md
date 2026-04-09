@@ -43,7 +43,7 @@ All Deck I/O goes through `templar.WritableFS` (v0.1.0). No `os.*`/`filepath.*` 
 - **macOS /private symlinks**: temp dirs resolve `/var/...` vs `/private/var/...`. Don't compare paths in tests.
 - **`go:embed` paths relative to Go file** — `assets/embed.go` lives alongside the embedded files; `core/embed.go` re-exports.
 - **Theme render fallback** — `InsertSlide` uses layout system first; falls back to theme templates.
-- **MCP** — 10 semantic tools + 7 resources via mcpkit (split packages: `core/`, `server/`). Transports: Streamable HTTP, SSE, stdio. See [docs/MCP.md](docs/MCP.md). `--deck-root` sets discovery root.
+- **MCP** — 13 tools (11 core + 2 preview) + 7 resources via mcpkit (split packages: `core/`, `server/`, `ext/ui`). Transports: Streamable HTTP, SSE, stdio. MCP Apps extension for inline slide previews. See [docs/MCP.md](docs/MCP.md). `--deck-root` sets discovery root.
 - **CLI-direct agent mode** — `describe --json`, `ls --json`, `check --json`, `build --json` for agents using shell commands instead of MCP. See [AGENT-SETUP.md](AGENT-SETUP.md).
 - **`SLYDS_MCP_TOKEN`** env var — fallback for `--token` flag in container/CI deployments.
 
@@ -53,6 +53,7 @@ All Deck I/O goes through `templar.WritableFS` (v0.1.0). No `os.*`/`filepath.*` 
 |-----------|---------|-------|
 | templar | v0.1.0 | WritableFS, FSFolder, MemFS, module system |
 | mcpkit | v0.1.5 | Split packages (core/server/client), SSE + Streamable HTTP + stdio transports, testutil |
+| mcpkit/ext/ui | v0.1.7 | MCP Apps extension (inline HTML previews via io.modelcontextprotocol/ui) |
 
 See [Stackfile.md](Stackfile.md) for full dependency list.
 

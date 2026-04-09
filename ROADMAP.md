@@ -54,6 +54,9 @@ Added `--json` flags to `check`, `ls`, `build` for CLI-direct agent mode. `SLYDS
 ## Phase 9e — Agent skills scaffolding (done)
 `slyds init` scaffolds `.claude/skills/` with 5 skills: `/preview` (build + open), `/check` (validate deck), `/slides` (list slides), `/build` (build HTML), `/add-slide` (guided slide insertion). Skills are static SKILL.md files embedded in `assets/skills/` and copied during scaffold. `slyds update` refreshes skills alongside engine files.
 
+## Phase 9f — MCP Apps / inline previews (done)
+Added MCP Apps extension (`io.modelcontextprotocol/ui`) with two preview tools: `preview_deck` (full navigable presentation via `d.Build()`) and `preview_slide` (single slide with theme CSS via embedded template). LLM hosts that support apps render slides inline as iframes. Non-UI clients get text summaries. Mutation tools (`edit_slide`, `add_slide`, `remove_slide`, `create_deck`) now send `notifications/resources/list_changed`. Added `github.com/panyam/mcpkit/ext/ui` dependency.
+
 ## Phase 10 — Slide Folders
 Support `slides/03-name/slide.html` with co-located assets (images, per-slide CSS). Auto-detect folder vs file slides.
 

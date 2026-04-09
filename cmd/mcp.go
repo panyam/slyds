@@ -13,6 +13,7 @@ import (
 	"strings"
 
 	mcpcore "github.com/panyam/mcpkit/core"
+	"github.com/panyam/mcpkit/ext/ui"
 	"github.com/panyam/mcpkit/server"
 	"github.com/panyam/slyds/assets"
 	"github.com/panyam/slyds/core"
@@ -66,6 +67,7 @@ func runMCPServer() error {
 	// Build server
 	var serverOpts []server.Option
 	serverOpts = append(serverOpts, server.WithListen(mcpListen))
+	serverOpts = append(serverOpts, server.WithExtension(ui.UIExtension{}))
 	if mcpToken != "" {
 		serverOpts = append(serverOpts, server.WithBearerToken(mcpToken))
 	}
@@ -78,9 +80,10 @@ func runMCPServer() error {
 		serverOpts...,
 	)
 
-	// Register resources and tools
+	// Register resources, tools, and app previews
 	registerResources(srv, root)
 	registerTools(srv, root)
+	registerAppTools(srv, root)
 
 	// Transport selection
 	if mcpUseStdio {

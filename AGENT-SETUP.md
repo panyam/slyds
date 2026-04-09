@@ -172,9 +172,11 @@ curl -s -X POST http://127.0.0.1:6274/mcp \
 | `slyds add <deck> <pos> --name N` | Insert slide | N/A |
 | `slyds introspect` | Full catalog (JSON) | Always JSON |
 
-## MCP tools (11)
+## MCP tools (13)
 
-`list_decks`, `create_deck`, `describe_deck`, `list_slides`, `read_slide`, `edit_slide`, `query_slide`, `add_slide`, `remove_slide`, `check_deck`, `build_deck`
+`list_decks`, `create_deck`, `describe_deck`, `list_slides`, `read_slide`, `edit_slide`, `query_slide`, `add_slide`, `remove_slide`, `check_deck`, `build_deck`, `preview_deck`, `preview_slide`
+
+**Preview tools** (MCP Apps): `preview_deck` and `preview_slide` render inline HTML previews in hosts that support the `io.modelcontextprotocol/ui` extension (e.g., Claude Desktop). Non-UI hosts receive a text summary instead.
 
 ## MCP resources (7)
 
