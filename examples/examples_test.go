@@ -2,6 +2,7 @@ package examples
 
 import (
 	"path/filepath"
+	"regexp"
 	"runtime"
 	"strings"
 	"testing"
@@ -9,6 +10,13 @@ import (
 	"github.com/panyam/slyds/core"
 	"github.com/panyam/templar"
 )
+
+// unresolvedIncludeRe matches a real unresolved templar include directive
+// (`{{# include "path" #}}`). A bare `{{#` substring is not enough — slide
+// content may legitimately document templar syntax in text/code blocks,
+// and the HTML parser may decode entity forms (e.g. `&lcub;`) back to the
+// literal characters on serialization.
+var unresolvedIncludeRe = regexp.MustCompile(`\{\{#\s*include\s+"[^"]+"`)
 
 // exampleDeck describes an expected example presentation for table-driven tests.
 type exampleDeck struct {
@@ -128,8 +136,8 @@ func TestExampleBuild(t *testing.T) {
 				t.Fatalf("Build failed: %v", err)
 			}
 
-			if strings.Contains(result.HTML, "{{#") {
-				t.Error("built HTML still contains unresolved templar directives")
+			if loc := unresolvedIncludeRe.FindStringIndex(result.HTML); loc != nil {
+				t.Errorf("built HTML still contains an unresolved templar include directive: %q", result.HTML[loc[0]:loc[1]])
 			}
 			if strings.Contains(result.HTML, `<link rel="stylesheet"`) {
 				t.Error("built HTML still contains <link> stylesheet tags")

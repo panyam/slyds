@@ -18,12 +18,11 @@ type Result struct {
 // inlines CSS/JS/images, and returns a self-contained HTML string.
 // All I/O goes through the deck's WritableFS.
 func (d *Deck) Build() (*Result, error) {
-	// Set up templar loader backed by the deck's FS
+	// Same template resolution as `slyds serve` (NewLoaderForDeck): deck FS plus
+	// optional .slyds.yaml module sources. Keeps preview_deck / build output aligned
+	// with the dev server.
 	group := templar.NewTemplateGroup()
-	group.Loader = &templar.FileSystemLoader{
-		Folders:    []templar.FSFolder{{FS: d.FS, Path: "."}},
-		Extensions: []string{"html"},
-	}
+	group.Loader = NewLoaderForDeck(d.FS)
 
 	templates, err := group.Loader.Load("index.html", "")
 	if err != nil {

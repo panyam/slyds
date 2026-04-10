@@ -64,28 +64,30 @@ func TestPreviewDeckReturnsHTML(t *testing.T) {
 	}
 }
 
-// TestPreviewSlideReturnsHTML verifies that the preview_slide tool handler
-// renders a single slide with theme CSS, stores it in the preview cache,
-// and returns a text summary. The cached HTML should be a self-contained
-// page with the slide content, base CSS, and theme CSS inlined.
+// TestPreviewSlideReturnsHTML verifies that preview_slide now goes through
+// the same Build() pipeline as preview_deck and injects an init script that
+// opens the deck on the requested slide. The cached HTML must be a full
+// presentation (multiple slides, navigation, slyds.js) with the hash-setter
+// in place so slyds.js's getSlideFromHash() picks up the right starting
+// position on load. Navigation (Prev/Next) remains functional from there.
 func TestPreviewSlideReturnsHTML(t *testing.T) {
 	root := scaffoldTestDeck(t, "test-deck", "Slide Preview", "dark", 3)
 
 	_, handler := previewSlideToolParts(root)
-	result := callTool(t, handler, map[string]any{"deck": "test-deck", "position": 1})
+	result := callTool(t, handler, map[string]any{"deck": "test-deck", "position": 2})
 	if result.IsError {
 		t.Fatalf("preview_slide error: %s", toolText(result))
 	}
 
 	text := toolText(result)
-	if !strings.Contains(text, "Slide 1") {
-		t.Error("preview_slide summary missing slide position")
+	if !strings.Contains(text, "slide 2/3") {
+		t.Errorf("preview_slide summary missing position info: %q", text)
 	}
 	if !strings.Contains(text, "Preview available") {
 		t.Error("preview_slide summary missing 'Preview available'")
 	}
 
-	// Verify cache has self-contained HTML with theme
+	// Verify cache has a full deck HTML, not a single-slide preview.
 	html, ok := previewCache.Load("ui://slyds/preview-slide")
 	if !ok {
 		t.Fatal("preview cache empty after preview_slide call")
@@ -94,10 +96,19 @@ func TestPreviewSlideReturnsHTML(t *testing.T) {
 		t.Error("cached slide HTML missing data-theme attribute")
 	}
 	if !strings.Contains(html, "<style>") {
-		t.Error("cached slide HTML missing <style>")
+		t.Error("cached slide HTML missing <style> (CSS not inlined)")
 	}
 	if !strings.Contains(html, `class="slide`) {
 		t.Error("cached slide HTML missing slide class")
+	}
+	// Full deck markers: navigation buttons + slyds.js engine runtime.
+	if !strings.Contains(html, `id="prevBtn"`) || !strings.Contains(html, `id="nextBtn"`) {
+		t.Error("cached slide HTML missing navigation buttons — preview_slide is not going through Build()")
+	}
+	// Init script must set the hash to the requested slide BEFORE slyds.js
+	// runs so the initial render lands on position 2.
+	if !strings.Contains(html, `window.location.hash='2'`) {
+		t.Errorf("cached slide HTML missing init script for position 2:\n%s", snippet(html, 500))
 	}
 }
 
@@ -111,6 +122,77 @@ func TestPreviewSlideInvalidPosition(t *testing.T) {
 	if !result.IsError {
 		t.Error("expected error for invalid slide position")
 	}
+}
+
+// TestPreviewSlideZeroPosition — 0 and negative positions are out of range.
+func TestPreviewSlideZeroPosition(t *testing.T) {
+	root := scaffoldTestDeck(t, "test-deck", "Zero Test", "default", 3)
+
+	_, handler := previewSlideToolParts(root)
+	result := callTool(t, handler, map[string]any{"deck": "test-deck", "position": 0})
+	if !result.IsError {
+		t.Error("expected error for position 0")
+	}
+}
+
+// TestPreviewSlideMatchesPreviewDeck verifies the unification: the HTML
+// cached by preview_slide is the HTML cached by preview_deck *plus* the
+// injected init script. If this test fails, the two tools have drifted
+// apart again — fix whichever one is doing something bespoke.
+func TestPreviewSlideMatchesPreviewDeck(t *testing.T) {
+	root := scaffoldTestDeck(t, "parity", "Parity Deck", "default", 4)
+
+	_, deckHandler := previewDeckToolParts(root)
+	_, slideHandler := previewSlideToolParts(root)
+
+	if r := callTool(t, deckHandler, map[string]string{"deck": "parity"}); r.IsError {
+		t.Fatalf("preview_deck: %s", toolText(r))
+	}
+	if r := callTool(t, slideHandler, map[string]any{"deck": "parity", "position": 3}); r.IsError {
+		t.Fatalf("preview_slide: %s", toolText(r))
+	}
+
+	deckHTML, _ := previewCache.Load("ui://slyds/preview-deck")
+	slideHTML, _ := previewCache.Load("ui://slyds/preview-slide")
+
+	if deckHTML == "" || slideHTML == "" {
+		t.Fatal("preview cache empty after calls")
+	}
+
+	// preview_slide HTML must contain the init script; preview_deck HTML
+	// must NOT (otherwise the unification leaked the wrong way round).
+	if strings.Contains(deckHTML, "window.location.hash=") {
+		t.Error("preview_deck HTML unexpectedly contains an init hash script")
+	}
+	if !strings.Contains(slideHTML, `window.location.hash='3'`) {
+		t.Error("preview_slide HTML missing init hash script for position 3")
+	}
+
+	// Removing the init script from preview_slide should leave HTML that
+	// matches preview_deck structurally (same deck title, same slide count,
+	// same asset inlining).
+	for _, marker := range []string{
+		`class="slideshow-container"`,
+		`id="prevBtn"`,
+		`id="nextBtn"`,
+		`Parity Deck`,
+		`<style>`,
+	} {
+		if !strings.Contains(deckHTML, marker) {
+			t.Errorf("preview_deck HTML missing marker %q", marker)
+		}
+		if !strings.Contains(slideHTML, marker) {
+			t.Errorf("preview_slide HTML missing marker %q — divergence from preview_deck", marker)
+		}
+	}
+}
+
+// snippet returns the first n runes of s, for use in error messages.
+func snippet(s string, n int) string {
+	if len(s) <= n {
+		return s
+	}
+	return s[:n] + "…"
 }
 
 // TestE2E_UIExtensionAdvertised verifies that the server advertises the
@@ -172,7 +254,7 @@ func TestE2E_PreviewSlideResource(t *testing.T) {
 	c := newSlydsMCPClientWithUI(t, root)
 
 	result := c.ToolCall("preview_slide", map[string]any{"deck": "deck", "position": 1})
-	if !strings.Contains(result, "Slide 1") {
+	if !strings.Contains(result, "slide 1/3") {
 		t.Fatalf("preview_slide result missing position: %s", result)
 	}
 
