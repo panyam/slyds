@@ -1,0 +1,44 @@
+/* slyds — MCP Apps embed overrides
+ *
+ * Injected into preview_deck/preview_slide HTML when served as an MCP App
+ * (ui:// resource) so slyds.css's full-viewport assumptions (100vh,
+ * flex-centered body) don't clip content inside the host's fixed-height
+ * chat iframe. The deeper fix (postMessage ui/notifications/size-changed,
+ * aspect-lock, tool-level framing args) is tracked in GH issue #75.
+ *
+ * The `html.slyds-mcp-embed` class is added by applyMCPAppEmbedHints in
+ * cmd/mcp_apps.go, so these rules are scoped and do not affect normal
+ * `slyds serve` / `slyds build` output.
+ */
+
+html.slyds-mcp-embed {
+  height: 100%;
+  min-height: 100%;
+  overflow: hidden;
+}
+
+html.slyds-mcp-embed body {
+  height: 100%;
+  min-height: 100%;
+  margin: 0;
+  overflow: hidden;
+  display: flex !important;
+  flex-direction: column;
+  align-items: stretch;
+  justify-content: flex-start;
+  box-sizing: border-box;
+}
+
+/* Let the slideshow container scroll internally. flex + min-height:0 is the
+ * fix for flex children that refuse to shrink below their content size;
+ * overscroll-behavior:contain keeps wheel events from chaining into the
+ * host chat (hosts can still capture them first if they choose). */
+html.slyds-mcp-embed .slideshow-container {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto !important;
+  overflow-x: hidden;
+  overscroll-behavior: contain;
+  -webkit-overflow-scrolling: touch;
+  box-sizing: border-box;
+}

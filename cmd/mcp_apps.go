@@ -10,6 +10,7 @@ import (
 	mcpcore "github.com/panyam/mcpkit/core"
 	"github.com/panyam/mcpkit/ext/ui"
 	"github.com/panyam/mcpkit/server"
+	"github.com/panyam/slyds/assets"
 	"github.com/panyam/slyds/core"
 )
 
@@ -17,48 +18,21 @@ import (
 // Tool handlers write, resource handlers read.
 var previewCache gocurrent.SyncMap[string, string]
 
-// mcpAppsEmbedStyle is injected into preview HTML so chat iframes (fixed height,
-// overflow hidden on the host) can scroll inside the document. MCP Apps hosts
-// control outer iframe size via hostContext.containerDimensions — not via
-// resources/read _meta (see io.modelcontextprotocol/ui spec).
+// mcpAppsEmbedStyleTag wraps the embedded MCP Apps embed CSS (loaded from
+// assets/mcp-embed.css) in a <style> element that applyMCPAppEmbedHints
+// injects into preview HTML. Computed once at init to avoid repeating the
+// wrapper on every resources/read call.
 //
-// The deeper fix (postMessage `ui/notifications/size-changed`, aspect-lock,
-// tool-level framing args) is tracked in GH issue #75.
-const mcpAppsEmbedStyle = `<style id="slyds-mcp-embed">
-/* MCP chat iframe: no document scroll; wheel goes to .slideshow-container when
-   it overflows (flex + min-height:0 fixes shrink/scroll). overscroll-behavior
-   reduces scroll chaining to the host chat. Hosts can still capture wheel first. */
-html.slyds-mcp-embed {
-  height: 100%;
-  min-height: 100%;
-  overflow: hidden;
-}
-html.slyds-mcp-embed body {
-  height: 100%;
-  min-height: 100%;
-  margin: 0;
-  overflow: hidden;
-  display: flex !important;
-  flex-direction: column;
-  align-items: stretch;
-  justify-content: flex-start;
-  box-sizing: border-box;
-}
-html.slyds-mcp-embed .slideshow-container {
-  flex: 1 1 auto;
-  min-height: 0;
-  overflow-y: auto !important;
-  overflow-x: hidden;
-  overscroll-behavior: contain;
-  -webkit-overflow-scrolling: touch;
-  box-sizing: border-box;
-}
-</style>`
+// MCP Apps hosts control outer iframe size via hostContext.containerDimensions
+// — not via resources/read _meta (see io.modelcontextprotocol/ui spec). These
+// overrides give the host-provided box a scrollable slide area until we ship
+// the postMessage `ui/notifications/size-changed` shim (GH issue #75).
+var mcpAppsEmbedStyleTag = `<style id="slyds-mcp-embed">` + "\n" + assets.MCPEmbedCSS + `</style>`
 
 // applyMCPAppEmbedHints adds a root class and embed CSS for MCP App iframes.
 func applyMCPAppEmbedHints(html string) string {
 	html = strings.Replace(html, "<html", "<html class=\"slyds-mcp-embed\"", 1)
-	html = strings.Replace(html, "<head>", "<head>\n"+mcpAppsEmbedStyle+"\n", 1)
+	html = strings.Replace(html, "<head>", "<head>\n"+mcpAppsEmbedStyleTag+"\n", 1)
 	return html
 }
 
