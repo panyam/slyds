@@ -129,7 +129,7 @@ This is the approved path for all programmatic slide content access. Regex-based
 
 The CLI exposes machine-readable **`slyds introspect`** (layouts, themes, command catalog) and per-deck **`slyds describe`** for non-MCP agents.
 
-**Model Context Protocol** (`cmd/mcp.go`, `cmd/mcp_tools.go`, `cmd/mcp_resources.go`, `cmd/mcp_apps.go`): uses **mcpkit** v0.1.5 (split packages: `core/`, `server/`) + **ext/ui** v0.1.7 (MCP Apps). Exposes **13 tools** (11 core + 2 preview) and **7 browsable resources** for reading deck content. Transports: Streamable HTTP (default), SSE (`--sse`), or stdio (`--stdio`). `--deck-root` sets the directory where decks are discovered. See [docs/MCP.md](docs/MCP.md).
+**Model Context Protocol** (`cmd/mcp.go`, `cmd/mcp_tools.go`, `cmd/mcp_resources.go`, `cmd/mcp_apps.go`): uses **mcpkit** v0.1.15 (split packages: `core/`, `server/`) + **ext/ui** v0.1.15 (MCP Apps). Single-struct registration (`srv.Register`), per-tool timeouts, `StructuredResult` for typed output, error handler for session lifecycle, EventStore for Streamable HTTP reconnection. Exposes **13 tools** (11 core + 2 preview) and **7 browsable resources** for reading deck content. Transports: Streamable HTTP (default), SSE (`--sse`), or stdio (`--stdio`). `--deck-root` sets the directory where decks are discovered. See [docs/MCP.md](docs/MCP.md).
 
 **Tools**: `list_decks`, `create_deck`, `describe_deck`, `list_slides`, `read_slide`, `edit_slide`, `query_slide`, `add_slide`, `remove_slide`, `check_deck`, `build_deck`, `preview_deck`, `preview_slide`.
 

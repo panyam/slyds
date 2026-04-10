@@ -46,12 +46,13 @@ See setup for [Claude](#agent-setup-claude), [Cursor](#agent-setup-cursor), or [
 
 ## What the Server Exposes
 
-### Tools (10)
+### Tools (11 + 2 preview)
 
 Agents call tools to create, read, modify, and build decks. Each tool takes a `deck` parameter — the subdirectory name under `--deck-root`.
 
 | Tool | Parameters | Description |
 |------|-----------|-------------|
+| `list_decks` | — | List all decks with name, title, theme, slide count |
 | `create_deck` | `name`, `title`, `theme?`, `slides?` | Scaffold a new presentation |
 | `describe_deck` | `deck` | Deck metadata: title, theme, slide list with layouts and word counts |
 | `list_slides` | `deck` | Slide filenames, layouts, titles, word counts |
@@ -105,6 +106,24 @@ slyds mcp [flags]
 | **Streamable HTTP** | (default) | 6274 | Any HTTP client, remote agents |
 | **SSE** | `--sse` | 6274 | Legacy SSE clients |
 | **stdio** | `--stdio` | — | Local editors (Cursor, Claude Desktop, VS Code) |
+
+## Server Configuration (mcpkit v0.1.15)
+
+### Per-Tool Timeouts
+
+`build_deck` (30s) and `check_deck` (10s) have per-tool timeouts via `ToolDef.Timeout`. Other tools use the server default. This prevents long-running builds from being killed by a short global timeout while keeping fast tools responsive.
+
+### Structured Results
+
+Tools that return JSON (`list_decks`, `describe_deck`, `list_slides`, `check_deck`, `query_slide`, `create_deck`) use `StructuredResult` — the response carries both a human-readable text representation and a typed `structuredContent` field for programmatic access via `ToolCallTyped`.
+
+### Error Handler
+
+The server logs session lifecycle events (session expiry, keepalive failures) to stderr via `WithErrorHandler`. This provides visibility into agent disconnects and network issues in production deployments.
+
+### EventStore (Streamable HTTP)
+
+Streamable HTTP transport uses an in-memory EventStore (1000 events per stream) for reconnection support. If a client disconnects briefly, it can reconnect with `Last-Event-ID` and receive missed notifications.
 
 ---
 

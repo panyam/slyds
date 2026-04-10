@@ -15,6 +15,7 @@ import (
 	mcpcore "github.com/panyam/mcpkit/core"
 	"github.com/panyam/mcpkit/ext/ui"
 	"github.com/panyam/mcpkit/server"
+	gohttp "github.com/panyam/servicekit/http"
 	"github.com/panyam/slyds/assets"
 	"github.com/panyam/slyds/core"
 	"github.com/spf13/cobra"
@@ -68,6 +69,7 @@ func runMCPServer() error {
 	var serverOpts []server.Option
 	serverOpts = append(serverOpts, server.WithListen(mcpListen))
 	serverOpts = append(serverOpts, server.WithExtension(ui.UIExtension{}))
+	serverOpts = append(serverOpts, server.WithErrorHandler(&slydsMCPErrorHandler{}))
 	if mcpToken != "" {
 		serverOpts = append(serverOpts, server.WithBearerToken(mcpToken))
 	}
@@ -107,7 +109,11 @@ func runMCPServer() error {
 		transportOpts = append(transportOpts, server.WithSSE(true), server.WithStreamableHTTP(false))
 		transport = "SSE"
 	} else {
-		transportOpts = append(transportOpts, server.WithStreamableHTTP(true), server.WithSSE(false))
+		transportOpts = append(transportOpts,
+			server.WithStreamableHTTP(true),
+			server.WithSSE(false),
+			server.WithEventStore(gohttp.NewMemoryEventStore(1000)),
+		)
 		transport = "Streamable HTTP"
 	}
 
@@ -288,6 +294,20 @@ func printStdioConfig(root, token string) {
   }
 `, slydsPath, args)
 	fmt.Fprintln(os.Stderr)
+}
+
+// slydsMCPErrorHandler logs MCP session lifecycle events to stderr.
+// Embeds server.BaseErrorHandler for default no-op on unimplemented methods.
+type slydsMCPErrorHandler struct {
+	server.BaseErrorHandler
+}
+
+func (h *slydsMCPErrorHandler) OnSessionExpire(sessionID string, reason error) {
+	fmt.Fprintf(os.Stderr, "MCP session expired: %s (%v)\n", sessionID, reason)
+}
+
+func (h *slydsMCPErrorHandler) OnKeepaliveFailure(sessionID string, consecutiveFailures int) {
+	fmt.Fprintf(os.Stderr, "MCP keepalive failure: session=%s failures=%d\n", sessionID, consecutiveFailures)
 }
 
 // openDeck resolves a deck name to a Deck instance.

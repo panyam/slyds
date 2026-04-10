@@ -57,6 +57,9 @@ Added `--json` flags to `check`, `ls`, `build` for CLI-direct agent mode. `SLYDS
 ## Phase 9f — MCP Apps / inline previews (done)
 Added MCP Apps extension (`io.modelcontextprotocol/ui`) with two preview tools: `preview_deck` (full navigable presentation via `d.Build()`) and `preview_slide` (single slide with theme CSS via embedded template). LLM hosts that support apps render slides inline as iframes. Non-UI clients get text summaries. Mutation tools (`edit_slide`, `add_slide`, `remove_slide`, `create_deck`) now send `notifications/resources/list_changed`. Added `github.com/panyam/mcpkit/ext/ui` dependency.
 
+## Phase 9g — mcpkit v0.1.15 adoption (done)
+Adopted mcpkit v0.1.15 features: single-struct registration (`srv.Register` with `server.Tool`/`server.Resource`/`server.ResourceTemplate`), per-tool timeouts (`build_deck` 30s, `check_deck` 10s), `StructuredResult` for typed tool output, `ToolCallTyped` in E2E tests, `ErrorHandler` for session lifecycle logging, `EventStore` for Streamable HTTP reconnection. Typed result structs replace `map[string]any` in tool handlers. No behavioral changes — purely internal improvements.
+
 ## Phase 10 — Slide Folders
 Support `slides/03-name/slide.html` with co-located assets (images, per-slide CSS). Auto-detect folder vs file slides.
 

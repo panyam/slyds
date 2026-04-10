@@ -10,11 +10,58 @@ import (
 	"testing"
 	"time"
 
+	"github.com/panyam/mcpkit/client"
 	mcpcore "github.com/panyam/mcpkit/core"
 	"github.com/panyam/mcpkit/server"
 	"github.com/panyam/mcpkit/testutil"
 	"github.com/panyam/slyds/core"
 )
+
+// --- Test-only result structs for ToolCallTyped ---
+
+// testDeckSummary matches the JSON shape returned by list_decks:
+// an array of objects with name, title, theme, and slide count.
+type testDeckSummary struct {
+	Name   string `json:"name"`
+	Title  string `json:"title"`
+	Theme  string `json:"theme"`
+	Slides int    `json:"slides"`
+}
+
+// testDeckDescription matches the JSON shape returned by describe_deck,
+// mirroring core.DeckDescription but limited to the fields we verify.
+type testDeckDescription struct {
+	Title      string                 `json:"title"`
+	Theme      string                 `json:"theme"`
+	SlideCount int                    `json:"slide_count"`
+	Slides     []testSlideDescription `json:"slides"`
+}
+
+// testSlideDescription matches the slide entries in a describe_deck response.
+type testSlideDescription struct {
+	Position int    `json:"position"`
+	File     string `json:"file"`
+	Layout   string `json:"layout"`
+	Title    string `json:"title"`
+}
+
+// testCheckResult matches the JSON shape returned by check_deck,
+// mirroring core.CheckResult but limited to the fields we verify.
+type testCheckResult struct {
+	SlideCount int  `json:"slide_count"`
+	InSync     bool `json:"in_sync"`
+}
+
+// toolCallTyped is a test helper that calls client.ToolCallTyped and fails
+// the test on error. Requires tools to return mcpcore.StructuredResult.
+func toolCallTyped[T any](t *testing.T, tc *testutil.TestClient, name string, args any) T {
+	t.Helper()
+	result, err := client.ToolCallTyped[T](tc.Client, name, args)
+	if err != nil {
+		t.Fatalf("ToolCallTyped(%s): %v", name, err)
+	}
+	return result
+}
 
 // newSlydsMCPClient creates a TestClient connected to a slyds MCP server
 // with the given deck root. Uses mcpkit/testutil for automatic httptest
@@ -190,9 +237,9 @@ func TestE2E_ServerInfo(t *testing.T) {
 	}
 }
 
-// TestE2E_ListDecks verifies that the list_decks tool returns a JSON array
-// with name, title, theme, and slide count for each deck under the deck root.
-// This is the tool-based alternative to reading the slyds://decks resource.
+// TestE2E_ListDecks verifies that the list_decks tool returns typed structured
+// content with name, title, theme, and slide count for each deck. Uses
+// ToolCallTyped to verify structured result unmarshaling end-to-end.
 func TestE2E_ListDecks(t *testing.T) {
 	root := t.TempDir()
 	core.CreateInDir("Alpha Talk", 3, "default", fmt.Sprintf("%s/alpha", root), true)
@@ -200,26 +247,106 @@ func TestE2E_ListDecks(t *testing.T) {
 
 	c := newSlydsMCPClient(t, root)
 
-	result := c.ToolCall("list_decks", map[string]any{})
-	var decks []map[string]any
-	json.Unmarshal([]byte(result), &decks)
+	decks := toolCallTyped[[]testDeckSummary](t, c, "list_decks", map[string]any{})
 
 	if len(decks) != 2 {
-		t.Fatalf("expected 2 decks, got %d: %s", len(decks), result)
+		t.Fatalf("expected 2 decks, got %d", len(decks))
 	}
 
 	names := make(map[string]bool)
 	for _, d := range decks {
-		names[d["name"].(string)] = true
-		// Verify all expected fields are present
-		for _, field := range []string{"name", "title", "theme", "slides"} {
-			if _, ok := d[field]; !ok {
-				t.Errorf("deck %v missing field: %s", d["name"], field)
-			}
+		names[d.Name] = true
+		if d.Title == "" {
+			t.Errorf("deck %s has empty title", d.Name)
+		}
+		if d.Theme == "" {
+			t.Errorf("deck %s has empty theme", d.Name)
 		}
 	}
 	if !names["alpha"] || !names["beta"] {
 		t.Errorf("expected decks alpha and beta, got: %v", names)
+	}
+}
+
+// TestE2E_ToolCallTyped verifies that tools returning JSON produce structured
+// content that can be unmarshaled via client.ToolCallTyped into typed Go structs.
+// Exercises list_decks, describe_deck, list_slides, and check_deck — the four
+// tools that return structured JSON via jsonResult. This test validates the
+// StructuredResult integration end-to-end: tool handler → wire format →
+// client deserialization.
+func TestE2E_ToolCallTyped(t *testing.T) {
+	root := t.TempDir()
+	core.CreateInDir("Typed Test", 3, "default", fmt.Sprintf("%s/typed", root), true)
+
+	c := newSlydsMCPClient(t, root)
+
+	// 1. list_decks → []testDeckSummary
+	decks := toolCallTyped[[]testDeckSummary](t, c, "list_decks", map[string]any{})
+	if len(decks) != 1 {
+		t.Fatalf("list_decks: expected 1 deck, got %d", len(decks))
+	}
+	if decks[0].Name != "typed" {
+		t.Errorf("list_decks: name = %q, want 'typed'", decks[0].Name)
+	}
+	if decks[0].Slides != 3 {
+		t.Errorf("list_decks: slides = %d, want 3", decks[0].Slides)
+	}
+
+	// 2. describe_deck → testDeckDescription
+	desc := toolCallTyped[testDeckDescription](t, c, "describe_deck", map[string]any{"deck": "typed"})
+	if desc.Title != "Typed Test" {
+		t.Errorf("describe_deck: title = %q, want 'Typed Test'", desc.Title)
+	}
+	if desc.Theme != "default" {
+		t.Errorf("describe_deck: theme = %q, want 'default'", desc.Theme)
+	}
+	if desc.SlideCount != 3 {
+		t.Errorf("describe_deck: slide_count = %d, want 3", desc.SlideCount)
+	}
+	if len(desc.Slides) != 3 {
+		t.Errorf("describe_deck: len(slides) = %d, want 3", len(desc.Slides))
+	}
+
+	// 3. list_slides → []testSlideDescription
+	slides := toolCallTyped[[]testSlideDescription](t, c, "list_slides", map[string]any{"deck": "typed"})
+	if len(slides) != 3 {
+		t.Fatalf("list_slides: expected 3 slides, got %d", len(slides))
+	}
+	if slides[0].Position != 1 {
+		t.Errorf("list_slides: first slide position = %d, want 1", slides[0].Position)
+	}
+
+	// 4. check_deck → testCheckResult
+	check := toolCallTyped[testCheckResult](t, c, "check_deck", map[string]any{"deck": "typed"})
+	if !check.InSync {
+		t.Error("check_deck: expected in_sync = true")
+	}
+	if check.SlideCount != 3 {
+		t.Errorf("check_deck: slide_count = %d, want 3", check.SlideCount)
+	}
+}
+
+// TestPerToolTimeout verifies that per-tool timeout values are set on the
+// ToolDef returned by tool factory functions. ToolDef.Timeout is server-side
+// only (json:"-"), so this is a unit test inspecting the struct directly
+// rather than an E2E test via tools/list.
+func TestPerToolTimeout(t *testing.T) {
+	root := t.TempDir()
+
+	build := buildDeckTool(root)
+	if build.Timeout != 30*time.Second {
+		t.Errorf("build_deck timeout = %v, want 30s", build.Timeout)
+	}
+
+	check := checkDeckTool(root)
+	if check.Timeout != 10*time.Second {
+		t.Errorf("check_deck timeout = %v, want 10s", check.Timeout)
+	}
+
+	// Other tools should have no per-tool timeout (use server default)
+	list := listDecksTool(root)
+	if list.Timeout != 0 {
+		t.Errorf("list_decks timeout = %v, want 0 (server default)", list.Timeout)
 	}
 }
 
