@@ -129,11 +129,13 @@ This is the approved path for all programmatic slide content access. Regex-based
 
 The CLI exposes machine-readable **`slyds introspect`** (layouts, themes, command catalog) and per-deck **`slyds describe`** for non-MCP agents.
 
-**Model Context Protocol** (`cmd/mcp.go`, `cmd/mcp_tools.go`, `cmd/mcp_resources.go`): uses **mcpkit** v0.1.5 (split packages: `core/`, `server/`). Exposes **10 semantic tools** that call the Deck API directly (no subprocess) and **7 browsable resources** for reading deck content. Transports: Streamable HTTP (default), SSE (`--sse`), or stdio (`--stdio`). `--deck-root` sets the directory where decks are discovered. See [docs/MCP.md](docs/MCP.md).
+**Model Context Protocol** (`cmd/mcp.go`, `cmd/mcp_tools.go`, `cmd/mcp_resources.go`, `cmd/mcp_apps.go`): uses **mcpkit** v0.1.15 (split packages: `core/`, `server/`) + **ext/ui** v0.1.15 (MCP Apps). Single-struct registration (`srv.Register`), per-tool timeouts, `StructuredResult` for typed output, error handler for session lifecycle, EventStore for Streamable HTTP reconnection. Exposes **13 tools** (11 core + 2 preview) and **7 browsable resources** for reading deck content. Transports: Streamable HTTP (default), SSE (`--sse`), or stdio (`--stdio`). `--deck-root` sets the directory where decks are discovered. See [docs/MCP.md](docs/MCP.md).
 
-**Tools**: `create_deck`, `describe_deck`, `list_slides`, `read_slide`, `edit_slide`, `query_slide`, `add_slide`, `remove_slide`, `check_deck`, `build_deck`.
+**Tools**: `list_decks`, `create_deck`, `describe_deck`, `list_slides`, `read_slide`, `edit_slide`, `query_slide`, `add_slide`, `remove_slide`, `check_deck`, `build_deck`, `preview_deck`, `preview_slide`.
 
-**Resources**: `slyds://decks`, `slyds://decks/{name}`, `slyds://decks/{name}/slides/{n}`, `slyds://decks/{name}/config`, `slyds://decks/{name}/agent`, etc.
+**MCP Apps** (`cmd/mcp_apps.go`): `preview_deck` and `preview_slide` register as app tools via the `io.modelcontextprotocol/ui` extension. Hosts that support the extension render slide previews inline as iframes. `preview_deck` uses `d.Build()` for the full deck. `preview_slide` wraps a single slide in a self-contained HTML page with theme CSS via `assets/templates/slide-preview.html.tmpl`. A `previewCache` stores the last-rendered HTML per resource URI.
+
+**Resources**: `slyds://decks`, `slyds://decks/{name}`, `slyds://decks/{name}/slides/{n}`, `slyds://decks/{name}/config`, `slyds://decks/{name}/agent`, `ui://slyds/preview-deck`, `ui://slyds/preview-slide`.
 
 Theme/manifest notes for remote agents: [docs/AGENT-THEMES.md](docs/AGENT-THEMES.md).
 

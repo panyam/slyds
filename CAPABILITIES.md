@@ -11,7 +11,7 @@ v0.0.10
 - **slide-management**: Add, remove, reorder, insert slides via CLI commands
 - **slide-query**: CSS selector-based read/write access to slide HTML content (goquery), including atomic batch writes
 - **slide-introspect**: JSON discovery of layouts, `data-slot` names, themes, and CLI catalog — for agents and automation
-- **slide-mcp**: MCP server with 10 semantic tools (create, describe, read, edit, query, add, remove, check, build, list) + 7 browsable resources. Streamable HTTP default, SSE via `--sse`. E2e tests via mcpkit/testutil (`go test ./cmd/... -run E2E`). See `docs/MCP.md`
+- **slide-mcp**: MCP server with 11 semantic tools + 2 preview tools + 7 browsable resources. Single-struct registration, per-tool timeouts, StructuredResult, error handler, EventStore. Streamable HTTP default, SSE via `--sse`, stdio via `--stdio`. E2e tests via mcpkit/testutil (`go test ./cmd/... -run E2E`). See `docs/MCP.md`
 - **slide-export**: Client-side ZIP export/download of built presentations
 - **theme-system**: Config-driven theme templates with shared fallback, runtime theme switching
 - **slide-hooks**: Client-side `slideEnter`/`slideLeave` lifecycle events + `window.slydsContext` persistent state
@@ -26,7 +26,7 @@ github.com/panyam/slyds
 
 ## Stack Dependencies
 - templar (github.com/panyam/templar) v0.1.0 — template composition, WritableFS, module system
-- mcpkit (github.com/panyam/mcpkit) v0.1.5 — MCP server (core/server split), Streamable HTTP + SSE + stdio
+- mcpkit (github.com/panyam/mcpkit) v0.1.15 — MCP server (core/server split), Streamable HTTP + SSE + stdio, per-tool timeout, error handler, StructuredResult, EventStore
 - goutils (github.com/panyam/goutils) — indirect, via templar
 
 *(Align versions with `go.mod`; Stackfile.md lists pinned stack versions.)*

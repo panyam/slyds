@@ -19,7 +19,7 @@ set -euo pipefail
 
 PORT="${SLYDS_MCP_PORT:-6274}"
 TOKEN="${SLYDS_MCP_TOKEN:-}"
-TOOL="${TOOL:-ngrok}"
+TOOL="${TOOL:-cf}"
 NGROK_DOMAIN="${NGROK_DOMAIN:-}"
 
 echo "Starting $TOOL tunnel to 127.0.0.1:$PORT..."
