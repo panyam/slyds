@@ -237,19 +237,46 @@ Try it: *"Create a new presentation about AI agents with 5 slides using the dark
 
 ## Agent Setup: GitHub Copilot / VS Code
 
-MCP support in VS Code varies by version. If your build supports MCP with URL-based servers:
+Use **GitHub Copilot** in VS Code (recent stable; see [Add and manage MCP servers](https://code.visualstudio.com/docs/copilot/customization/mcp-servers)). Configuration lives in **`.vscode/mcp.json`** with a top-level **`servers`** object (not `mcpServers`).
+
+**stdio (recommended)** — Copilot spawns `slyds` and talks over stdin/stdout:
 
 ```json
 {
-  "mcpServers": {
+  "servers": {
     "slyds": {
+      "type": "stdio",
+      "command": "slyds",
+      "args": ["mcp", "--stdio", "--deck-root", "/path/to/presentations"]
+    }
+  }
+}
+```
+
+You can use `${workspaceFolder}` in `--deck-root` to point at a repo folder.
+
+**MCP Apps** (inline `preview_deck` / `preview_slide` iframes): enable the experimental setting **`chat.mcp.apps.enabled`** (user or workspace `settings.json`). See [MCP Apps support in VS Code](https://code.visualstudio.com/blogs/2026/01/26/mcp-apps-support).
+
+**HTTP (Streamable HTTP or SSE)** — run `slyds mcp` in a terminal yourself, then point VS Code at the MCP endpoint. You must pass **`--deck-root`** on that process (the editor no longer spawns the binary). Default transport is **Streamable HTTP**; use **`--sse`** for legacy SSE only. VS Code’s `type: "http"` tries Streamable HTTP first and falls back to SSE.
+
+```json
+{
+  "servers": {
+    "slyds": {
+      "type": "http",
       "url": "http://127.0.0.1:6274/mcp"
     }
   }
 }
 ```
 
-Check [VS Code release notes](https://code.visualstudio.com/updates) for current MCP support.
+Example (this repo’s `examples/` decks):
+
+```bash
+slyds mcp --listen 127.0.0.1:6274 --deck-root /path/to/slyds/examples
+```
+
+Use **MCP: Open Workspace Folder MCP Configuration** or **MCP: Add Server** from the Command Palette. Trust the server when prompted. Check [VS Code release notes](https://code.visualstudio.com/updates) if anything is missing.
 
 ---
 
