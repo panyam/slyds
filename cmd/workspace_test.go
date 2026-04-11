@@ -238,3 +238,25 @@ func TestWorkspaceFromContext_MissingReturnsNil(t *testing.T) {
 		t.Errorf("workspaceFromContext(bare ctx) = %v, want nil", ws)
 	}
 }
+
+// TestResolveDeckRoot_Precedence verifies the fallback chain:
+// explicit flag value > SLYDS_DECK_ROOT env var > "." default. Shared by
+// `slyds mcp` and `slyds ws` so their deck-root resolution is identical.
+func TestResolveDeckRoot_Precedence(t *testing.T) {
+	// Flag wins even when env is set.
+	t.Setenv("SLYDS_DECK_ROOT", "/env/path")
+	if got := resolveDeckRoot("/flag/path"); got != "/flag/path" {
+		t.Errorf("resolveDeckRoot(flag) = %q, want /flag/path", got)
+	}
+
+	// Env used when flag is empty.
+	if got := resolveDeckRoot(""); got != "/env/path" {
+		t.Errorf("resolveDeckRoot(empty) with env = %q, want /env/path", got)
+	}
+
+	// Default "." when both flag and env are empty.
+	t.Setenv("SLYDS_DECK_ROOT", "")
+	if got := resolveDeckRoot(""); got != "." {
+		t.Errorf("resolveDeckRoot(empty) without env = %q, want .", got)
+	}
+}

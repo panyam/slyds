@@ -49,15 +49,16 @@ func init() {
 	mcpCmd.Flags().StringVar(&mcpPublicURL, "public-url", "", "Public URL for reverse proxy")
 	mcpCmd.Flags().BoolVar(&mcpUseSSE, "sse", false, "Use legacy HTTP+SSE transport")
 	mcpCmd.Flags().BoolVar(&mcpUseStdio, "stdio", false, "Use stdio transport (Content-Length framed JSON-RPC on stdin/stdout)")
-	mcpCmd.Flags().StringVar(&mcpDeckRoot, "deck-root", ".", "Root directory for deck discovery")
+	mcpCmd.Flags().StringVar(&mcpDeckRoot, "deck-root", "", "Root directory for deck discovery (default: $SLYDS_DECK_ROOT, or current directory)")
 	rootCmd.AddCommand(mcpCmd)
 }
 
 func runMCPServer() error {
-	// Build a LocalWorkspace rooted at --deck-root. In a future hosted
-	// deployment, the workspace is built per request from auth; here it's
-	// a single constant installed via middleware below.
-	ws, err := NewLocalWorkspace(mcpDeckRoot)
+	// Build a LocalWorkspace rooted at --deck-root (falling back to
+	// SLYDS_DECK_ROOT env var, then "."). In a future hosted deployment,
+	// the workspace is built per request from auth; here it's a single
+	// constant installed via middleware below.
+	ws, err := NewLocalWorkspace(resolveDeckRoot(mcpDeckRoot))
 	if err != nil {
 		return fmt.Errorf("invalid deck-root: %w", err)
 	}
@@ -152,6 +153,20 @@ func resolveMCPToken(flagValue string) string {
 		return flagValue
 	}
 	return os.Getenv("SLYDS_MCP_TOKEN")
+}
+
+// resolveDeckRoot returns the workspace root in precedence order:
+// explicit --deck-root flag → SLYDS_DECK_ROOT environment variable →
+// current working directory ("."). Shared by `slyds mcp` and `slyds ws`
+// so the fallback behavior is identical across commands.
+func resolveDeckRoot(flagValue string) string {
+	if flagValue != "" {
+		return flagValue
+	}
+	if env := os.Getenv("SLYDS_DECK_ROOT"); env != "" {
+		return env
+	}
+	return "."
 }
 
 // maskToken returns a redacted version of a token, showing only the first 2

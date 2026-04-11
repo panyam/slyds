@@ -33,7 +33,7 @@ var wsInfoCmd = &cobra.Command{
 	Use:   "info",
 	Short: "Print the workspace root path and deck count",
 	RunE: func(cmd *cobra.Command, args []string) error {
-		ws, err := NewLocalWorkspace(wsDeckRoot)
+		ws, err := NewLocalWorkspace(resolveDeckRoot(wsDeckRoot))
 		if err != nil {
 			return err
 		}
@@ -63,7 +63,7 @@ var wsListCmd = &cobra.Command{
 	Use:   "list",
 	Short: "List decks visible to the workspace",
 	RunE: func(cmd *cobra.Command, args []string) error {
-		ws, err := NewLocalWorkspace(wsDeckRoot)
+		ws, err := NewLocalWorkspace(resolveDeckRoot(wsDeckRoot))
 		if err != nil {
 			return err
 		}
@@ -115,7 +115,7 @@ var wsListCmd = &cobra.Command{
 }
 
 func init() {
-	wsCmd.PersistentFlags().StringVar(&wsDeckRoot, "deck-root", ".", "Workspace root directory")
+	wsCmd.PersistentFlags().StringVar(&wsDeckRoot, "deck-root", "", "Workspace root directory (default: $SLYDS_DECK_ROOT, or current directory)")
 	wsCmd.PersistentFlags().BoolVar(&wsJSON, "json", false, "Output as JSON instead of human-readable text")
 	wsCmd.AddCommand(wsInfoCmd)
 	wsCmd.AddCommand(wsListCmd)

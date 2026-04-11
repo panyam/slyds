@@ -47,6 +47,7 @@ All Deck I/O goes through `templar.WritableFS` (v0.1.0). No `os.*`/`filepath.*` 
 - **MCP** — 13 tools (11 core + 2 preview) + 7 resources via mcpkit v0.1.15 (split packages: `core/`, `server/`, `ext/ui`). Single-struct registration (`srv.Register`). Workspace middleware injects a `Workspace` into every request's context; handlers resolve decks via `workspaceFromContext(ctx).OpenDeck(name)`. Per-tool timeouts on `build_deck` (30s) and `check_deck` (10s). `StructuredResult` for typed tool output. Error handler for session lifecycle logging. EventStore for Streamable HTTP reconnection. Transports: Streamable HTTP, SSE, stdio. MCP Apps extension for inline slide previews. See [docs/MCP.md](docs/MCP.md). `--deck-root` sets the local workspace root.
 - **CLI-direct agent mode** — `describe --json`, `ls --json`, `check --json`, `build --json`, `ws info --json`, `ws list --json` for agents using shell commands instead of MCP. See [AGENT-SETUP.md](AGENT-SETUP.md).
 - **`SLYDS_MCP_TOKEN`** env var — fallback for `--token` flag in container/CI deployments.
+- **`SLYDS_DECK_ROOT`** env var — fallback for `--deck-root` flag on both `slyds mcp` and `slyds ws`. Precedence: explicit flag > env var > `.` (cwd).
 
 ## Stack
 
