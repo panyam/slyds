@@ -4,7 +4,6 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"path/filepath"
 	"time"
 
 	mcpcore "github.com/panyam/mcpkit/core"
@@ -13,20 +12,23 @@ import (
 )
 
 // registerTools registers all semantic MCP tools on the server using
-// single-struct registration (mcpkit v0.1.15).
-func registerTools(srv *server.Server, root string) {
+// single-struct registration (mcpkit v0.1.15). Tool handlers resolve the
+// active Workspace from request context — never from a captured path —
+// so the same factory works for localhost (single static workspace) and
+// for future hosted multi-tenant deployments (per-request workspace).
+func registerTools(srv *server.Server) {
 	srv.Register(
-		listDecksTool(root),
-		createDeckTool(root),
-		describeDeckTool(root),
-		listSlidesTool(root),
-		readSlideTool(root),
-		editSlideTool(root),
-		querySlideTool(root),
-		addSlideTool(root),
-		removeSlideTool(root),
-		checkDeckTool(root),
-		buildDeckTool(root),
+		listDecksTool(),
+		createDeckTool(),
+		describeDeckTool(),
+		listSlidesTool(),
+		readSlideTool(),
+		editSlideTool(),
+		querySlideTool(),
+		addSlideTool(),
+		removeSlideTool(),
+		checkDeckTool(),
+		buildDeckTool(),
 	)
 }
 
@@ -49,27 +51,34 @@ type buildWarningResult struct {
 
 // --- Tool definitions and handlers ---
 
-func listDecksTool(root string) server.Tool {
+func listDecksTool() server.Tool {
 	return server.Tool{
 		ToolDef: mcpcore.ToolDef{
 			Name:        "list_decks",
-			Description: "List all presentation decks under the deck root with name, title, theme, and slide count.",
+			Description: "List all presentation decks visible to the current workspace with name, title, theme, and slide count.",
 			InputSchema: map[string]any{
 				"type":       "object",
 				"properties": map[string]any{},
 			},
 		},
 		Handler: func(ctx context.Context, req mcpcore.ToolRequest) (mcpcore.ToolResult, error) {
-			names := discoverDecks(root)
+			ws, errResult := requireWorkspace(ctx)
+			if errResult != nil {
+				return *errResult, nil
+			}
+			refs, err := ws.ListDecks()
+			if err != nil {
+				return mcpcore.ErrorResult(err.Error()), nil
+			}
 			var decks []deckSummary
-			for _, name := range names {
-				d, err := openDeck(root, name)
+			for _, ref := range refs {
+				d, err := ws.OpenDeck(ref.Name)
 				if err != nil {
 					continue
 				}
 				count, _ := d.SlideCount()
 				decks = append(decks, deckSummary{
-					Name:   name,
+					Name:   ref.Name,
 					Title:  d.Title(),
 					Theme:  d.Theme(),
 					Slides: count,
@@ -80,7 +89,7 @@ func listDecksTool(root string) server.Tool {
 	}
 }
 
-func createDeckTool(root string) server.Tool {
+func createDeckTool() server.Tool {
 	return server.Tool{
 		ToolDef: mcpcore.ToolDef{
 			Name:        "create_deck",
@@ -88,7 +97,7 @@ func createDeckTool(root string) server.Tool {
 			InputSchema: map[string]any{
 				"type": "object",
 				"properties": map[string]any{
-					"name":   propString("Deck name (becomes the directory name under deck root)"),
+					"name":   propString("Deck name (becomes the deck identifier in the workspace)"),
 					"title":  propString("Presentation title"),
 					"theme":  propString("Theme: default, dark, minimal, corporate, hacker"),
 					"slides": propInt("Number of slides to scaffold (default: 3)"),
@@ -97,6 +106,10 @@ func createDeckTool(root string) server.Tool {
 			},
 		},
 		Handler: func(ctx context.Context, req mcpcore.ToolRequest) (mcpcore.ToolResult, error) {
+			ws, errResult := requireWorkspace(ctx)
+			if errResult != nil {
+				return *errResult, nil
+			}
 			var p struct {
 				Name   string `json:"name"`
 				Title  string `json:"title"`
@@ -112,17 +125,11 @@ func createDeckTool(root string) server.Tool {
 			if p.Slides < 1 {
 				p.Slides = 3
 			}
-			outDir := filepath.Join(root, p.Name)
-			_, err := core.CreateInDir(p.Title, p.Slides, p.Theme, outDir, true)
+			d, err := ws.CreateDeck(p.Name, p.Title, p.Theme, p.Slides)
 			if err != nil {
 				return mcpcore.ErrorResult(err.Error()), nil
 			}
 			mcpcore.NotifyResourcesChanged(ctx)
-			// Return the new deck's metadata
-			d, err := openDeck(root, p.Name)
-			if err != nil {
-				return mcpcore.TextResult(fmt.Sprintf("Deck %q created.", p.Name)), nil
-			}
 			desc, err := d.Describe()
 			if err != nil {
 				return mcpcore.TextResult(fmt.Sprintf("Deck %q created.", p.Name)), nil
@@ -132,7 +139,7 @@ func createDeckTool(root string) server.Tool {
 	}
 }
 
-func describeDeckTool(root string) server.Tool {
+func describeDeckTool() server.Tool {
 	return server.Tool{
 		ToolDef: mcpcore.ToolDef{
 			Name:        "describe_deck",
@@ -144,9 +151,9 @@ func describeDeckTool(root string) server.Tool {
 			if err != nil {
 				return mcpcore.ErrorResult(err.Error()), nil
 			}
-			d, err := openDeck(root, p.Deck)
-			if err != nil {
-				return mcpcore.ErrorResult(err.Error()), nil
+			d, errResult := openDeckFromContext(ctx, p.Deck)
+			if errResult != nil {
+				return *errResult, nil
 			}
 			desc, err := d.Describe()
 			if err != nil {
@@ -157,7 +164,7 @@ func describeDeckTool(root string) server.Tool {
 	}
 }
 
-func listSlidesTool(root string) server.Tool {
+func listSlidesTool() server.Tool {
 	return server.Tool{
 		ToolDef: mcpcore.ToolDef{
 			Name:        "list_slides",
@@ -169,9 +176,9 @@ func listSlidesTool(root string) server.Tool {
 			if err != nil {
 				return mcpcore.ErrorResult(err.Error()), nil
 			}
-			d, err := openDeck(root, p.Deck)
-			if err != nil {
-				return mcpcore.ErrorResult(err.Error()), nil
+			d, errResult := openDeckFromContext(ctx, p.Deck)
+			if errResult != nil {
+				return *errResult, nil
 			}
 			desc, err := d.Describe()
 			if err != nil {
@@ -182,7 +189,7 @@ func listSlidesTool(root string) server.Tool {
 	}
 }
 
-func readSlideTool(root string) server.Tool {
+func readSlideTool() server.Tool {
 	return server.Tool{
 		ToolDef: mcpcore.ToolDef{
 			Name:        "read_slide",
@@ -190,7 +197,7 @@ func readSlideTool(root string) server.Tool {
 			InputSchema: map[string]any{
 				"type": "object",
 				"properties": map[string]any{
-					"deck":     propString("Deck name (subdirectory under deck root)"),
+					"deck":     propString("Deck name (workspace-scoped identifier)"),
 					"position": propInt("Slide position (1-based)"),
 				},
 				"required": []string{"deck", "position"},
@@ -204,9 +211,9 @@ func readSlideTool(root string) server.Tool {
 			if err := req.Bind(&p); err != nil {
 				return mcpcore.ErrorResult(err.Error()), nil
 			}
-			d, err := openDeck(root, p.Deck)
-			if err != nil {
-				return mcpcore.ErrorResult(err.Error()), nil
+			d, errResult := openDeckFromContext(ctx, p.Deck)
+			if errResult != nil {
+				return *errResult, nil
 			}
 			content, err := d.GetSlideContent(p.Position)
 			if err != nil {
@@ -217,7 +224,7 @@ func readSlideTool(root string) server.Tool {
 	}
 }
 
-func editSlideTool(root string) server.Tool {
+func editSlideTool() server.Tool {
 	return server.Tool{
 		ToolDef: mcpcore.ToolDef{
 			Name:        "edit_slide",
@@ -241,9 +248,9 @@ func editSlideTool(root string) server.Tool {
 			if err := req.Bind(&p); err != nil {
 				return mcpcore.ErrorResult(err.Error()), nil
 			}
-			d, err := openDeck(root, p.Deck)
-			if err != nil {
-				return mcpcore.ErrorResult(err.Error()), nil
+			d, errResult := openDeckFromContext(ctx, p.Deck)
+			if errResult != nil {
+				return *errResult, nil
 			}
 			if err := d.EditSlideContent(p.Position, p.Content); err != nil {
 				return mcpcore.ErrorResult(err.Error()), nil
@@ -254,7 +261,7 @@ func editSlideTool(root string) server.Tool {
 	}
 }
 
-func querySlideTool(root string) server.Tool {
+func querySlideTool() server.Tool {
 	return server.Tool{
 		ToolDef: mcpcore.ToolDef{
 			Name:        "query_slide",
@@ -296,9 +303,9 @@ func querySlideTool(root string) server.Tool {
 			if err := req.Bind(&p); err != nil {
 				return mcpcore.ErrorResult(err.Error()), nil
 			}
-			d, err := openDeck(root, p.Deck)
-			if err != nil {
-				return mcpcore.ErrorResult(err.Error()), nil
+			d, errResult := openDeckFromContext(ctx, p.Deck)
+			if errResult != nil {
+				return *errResult, nil
 			}
 			opts := core.QueryOpts{
 				HTML:    p.HTML,
@@ -320,7 +327,7 @@ func querySlideTool(root string) server.Tool {
 	}
 }
 
-func addSlideTool(root string) server.Tool {
+func addSlideTool() server.Tool {
 	return server.Tool{
 		ToolDef: mcpcore.ToolDef{
 			Name:        "add_slide",
@@ -351,9 +358,9 @@ func addSlideTool(root string) server.Tool {
 			if p.Layout == "" {
 				p.Layout = "content"
 			}
-			d, err := openDeck(root, p.Deck)
-			if err != nil {
-				return mcpcore.ErrorResult(err.Error()), nil
+			d, errResult := openDeckFromContext(ctx, p.Deck)
+			if errResult != nil {
+				return *errResult, nil
 			}
 			if err := d.InsertSlide(p.Position, p.Name, p.Layout, p.Title); err != nil {
 				return mcpcore.ErrorResult(err.Error()), nil
@@ -364,7 +371,7 @@ func addSlideTool(root string) server.Tool {
 	}
 }
 
-func removeSlideTool(root string) server.Tool {
+func removeSlideTool() server.Tool {
 	return server.Tool{
 		ToolDef: mcpcore.ToolDef{
 			Name:        "remove_slide",
@@ -386,9 +393,9 @@ func removeSlideTool(root string) server.Tool {
 			if err := req.Bind(&p); err != nil {
 				return mcpcore.ErrorResult(err.Error()), nil
 			}
-			d, err := openDeck(root, p.Deck)
-			if err != nil {
-				return mcpcore.ErrorResult(err.Error()), nil
+			d, errResult := openDeckFromContext(ctx, p.Deck)
+			if errResult != nil {
+				return *errResult, nil
 			}
 			// Resolve slide reference to filename
 			filename, err := d.ResolveSlide(p.Slide)
@@ -404,7 +411,7 @@ func removeSlideTool(root string) server.Tool {
 	}
 }
 
-func checkDeckTool(root string) server.Tool {
+func checkDeckTool() server.Tool {
 	return server.Tool{
 		ToolDef: mcpcore.ToolDef{
 			Name:        "check_deck",
@@ -417,9 +424,9 @@ func checkDeckTool(root string) server.Tool {
 			if err != nil {
 				return mcpcore.ErrorResult(err.Error()), nil
 			}
-			d, err := openDeck(root, p.Deck)
-			if err != nil {
-				return mcpcore.ErrorResult(err.Error()), nil
+			d, errResult := openDeckFromContext(ctx, p.Deck)
+			if errResult != nil {
+				return *errResult, nil
 			}
 			issues, err := d.Check()
 			if err != nil {
@@ -430,7 +437,7 @@ func checkDeckTool(root string) server.Tool {
 	}
 }
 
-func buildDeckTool(root string) server.Tool {
+func buildDeckTool() server.Tool {
 	return server.Tool{
 		ToolDef: mcpcore.ToolDef{
 			Name:        "build_deck",
@@ -443,9 +450,9 @@ func buildDeckTool(root string) server.Tool {
 			if err != nil {
 				return mcpcore.ErrorResult(err.Error()), nil
 			}
-			d, err := openDeck(root, p.Deck)
-			if err != nil {
-				return mcpcore.ErrorResult(err.Error()), nil
+			d, errResult := openDeckFromContext(ctx, p.Deck)
+			if errResult != nil {
+				return *errResult, nil
 			}
 			result, err := d.Build()
 			if err != nil {
@@ -470,7 +477,7 @@ func deckOnlySchema() map[string]any {
 	return map[string]any{
 		"type": "object",
 		"properties": map[string]any{
-			"deck": propString("Deck name (subdirectory under deck root, or '.' for root deck)"),
+			"deck": propString("Deck name (workspace-scoped identifier, or '.' for a deck at the workspace root)"),
 		},
 		"required": []string{"deck"},
 	}

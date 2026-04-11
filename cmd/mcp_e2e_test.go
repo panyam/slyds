@@ -68,9 +68,16 @@ func toolCallTyped[T any](t *testing.T, tc *testutil.TestClient, name string, ar
 // server lifecycle, session management, and t.Fatal on errors.
 func newSlydsMCPClient(t *testing.T, root string) *testutil.TestClient {
 	t.Helper()
-	srv := server.NewServer(mcpcore.ServerInfo{Name: "slyds-test", Version: "0.0.1"})
-	registerResources(srv, root)
-	registerTools(srv, root)
+	ws, err := NewLocalWorkspace(root)
+	if err != nil {
+		t.Fatalf("NewLocalWorkspace: %v", err)
+	}
+	srv := server.NewServer(
+		mcpcore.ServerInfo{Name: "slyds-test", Version: "0.0.1"},
+		server.WithMiddleware(workspaceMiddleware(ws)),
+	)
+	registerResources(srv)
+	registerTools(srv)
 	return testutil.NewTestClient(t, srv)
 }
 
@@ -331,20 +338,18 @@ func TestE2E_ToolCallTyped(t *testing.T) {
 // only (json:"-"), so this is a unit test inspecting the struct directly
 // rather than an E2E test via tools/list.
 func TestPerToolTimeout(t *testing.T) {
-	root := t.TempDir()
-
-	build := buildDeckTool(root)
+	build := buildDeckTool()
 	if build.Timeout != 30*time.Second {
 		t.Errorf("build_deck timeout = %v, want 30s", build.Timeout)
 	}
 
-	check := checkDeckTool(root)
+	check := checkDeckTool()
 	if check.Timeout != 10*time.Second {
 		t.Errorf("check_deck timeout = %v, want 10s", check.Timeout)
 	}
 
 	// Other tools should have no per-tool timeout (use server default)
-	list := listDecksTool(root)
+	list := listDecksTool()
 	if list.Timeout != 0 {
 		t.Errorf("list_decks timeout = %v, want 0 (server default)", list.Timeout)
 	}
@@ -362,9 +367,16 @@ func TestE2E_StdioTransport(t *testing.T) {
 	root := t.TempDir()
 	core.CreateInDir("Stdio Test", 2, "default", fmt.Sprintf("%s/test-deck", root), true)
 
-	srv := server.NewServer(mcpcore.ServerInfo{Name: "slyds-stdio", Version: "0.0.1"})
-	registerResources(srv, root)
-	registerTools(srv, root)
+	ws, err := NewLocalWorkspace(root)
+	if err != nil {
+		t.Fatalf("NewLocalWorkspace: %v", err)
+	}
+	srv := server.NewServer(
+		mcpcore.ServerInfo{Name: "slyds-stdio", Version: "0.0.1"},
+		server.WithMiddleware(workspaceMiddleware(ws)),
+	)
+	registerResources(srv)
+	registerTools(srv)
 
 	// Create pipe pairs: server reads from sr, client writes to cw;
 	// client reads from cr, server writes to sw.

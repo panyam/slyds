@@ -20,13 +20,18 @@ import (
 // automatic httptest server lifecycle, session management, and t.Fatal on errors.
 func newSlydsMCPClientWithUI(t *testing.T, root string) *testutil.TestClient {
 	t.Helper()
+	ws, err := NewLocalWorkspace(root)
+	if err != nil {
+		t.Fatalf("NewLocalWorkspace: %v", err)
+	}
 	srv := server.NewServer(
 		mcpcore.ServerInfo{Name: "slyds-test", Version: "0.0.1"},
 		server.WithExtension(ui.UIExtension{}),
+		server.WithMiddleware(workspaceMiddleware(ws)),
 	)
-	registerResources(srv, root)
-	registerTools(srv, root)
-	registerAppTools(srv, root)
+	registerResources(srv)
+	registerTools(srv)
+	registerAppTools(srv)
 	return testutil.NewTestClient(t, srv)
 }
 
@@ -38,7 +43,7 @@ func TestPreviewDeckReturnsHTML(t *testing.T) {
 	root := scaffoldTestDeck(t, "test-deck", "Preview Deck", "default", 3)
 
 	_, handler := previewDeckToolParts(root)
-	result := callTool(t, handler, map[string]string{"deck": "test-deck"})
+	result := callTool(t, root, handler, map[string]string{"deck": "test-deck"})
 	if result.IsError {
 		t.Fatalf("preview_deck error: %s", toolText(result))
 	}
@@ -74,7 +79,7 @@ func TestPreviewSlideReturnsHTML(t *testing.T) {
 	root := scaffoldTestDeck(t, "test-deck", "Slide Preview", "dark", 3)
 
 	_, handler := previewSlideToolParts(root)
-	result := callTool(t, handler, map[string]any{"deck": "test-deck", "position": 2})
+	result := callTool(t, root, handler, map[string]any{"deck": "test-deck", "position": 2})
 	if result.IsError {
 		t.Fatalf("preview_slide error: %s", toolText(result))
 	}
@@ -118,7 +123,7 @@ func TestPreviewSlideInvalidPosition(t *testing.T) {
 	root := scaffoldTestDeck(t, "test-deck", "Error Test", "default", 3)
 
 	_, handler := previewSlideToolParts(root)
-	result := callTool(t, handler, map[string]any{"deck": "test-deck", "position": 99})
+	result := callTool(t, root, handler, map[string]any{"deck": "test-deck", "position": 99})
 	if !result.IsError {
 		t.Error("expected error for invalid slide position")
 	}
@@ -129,7 +134,7 @@ func TestPreviewSlideZeroPosition(t *testing.T) {
 	root := scaffoldTestDeck(t, "test-deck", "Zero Test", "default", 3)
 
 	_, handler := previewSlideToolParts(root)
-	result := callTool(t, handler, map[string]any{"deck": "test-deck", "position": 0})
+	result := callTool(t, root, handler, map[string]any{"deck": "test-deck", "position": 0})
 	if !result.IsError {
 		t.Error("expected error for position 0")
 	}
@@ -145,10 +150,10 @@ func TestPreviewSlideMatchesPreviewDeck(t *testing.T) {
 	_, deckHandler := previewDeckToolParts(root)
 	_, slideHandler := previewSlideToolParts(root)
 
-	if r := callTool(t, deckHandler, map[string]string{"deck": "parity"}); r.IsError {
+	if r := callTool(t, root, deckHandler, map[string]string{"deck": "parity"}); r.IsError {
 		t.Fatalf("preview_deck: %s", toolText(r))
 	}
-	if r := callTool(t, slideHandler, map[string]any{"deck": "parity", "position": 3}); r.IsError {
+	if r := callTool(t, root, slideHandler, map[string]any{"deck": "parity", "position": 3}); r.IsError {
 		t.Fatalf("preview_slide: %s", toolText(r))
 	}
 
@@ -281,11 +286,16 @@ func previewSlideToolParts(root string) (mcpcore.ToolDef, mcpcore.ToolHandler) {
 }
 
 func extractAppTool(root, name string) (mcpcore.ToolDef, mcpcore.ToolHandler) {
+	ws, err := NewLocalWorkspace(root)
+	if err != nil {
+		panic(fmt.Sprintf("NewLocalWorkspace: %v", err))
+	}
 	srv := server.NewServer(
 		mcpcore.ServerInfo{Name: "test", Version: "0.0.1"},
 		server.WithExtension(ui.UIExtension{}),
+		server.WithMiddleware(workspaceMiddleware(ws)),
 	)
-	registerAppTools(srv, root)
+	registerAppTools(srv)
 
 	// Use tools/list to find the tool definition
 	req := &mcpcore.Request{
