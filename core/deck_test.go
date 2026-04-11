@@ -1,6 +1,7 @@
 package core
 
 import (
+	"errors"
 	"strings"
 	"testing"
 
@@ -355,7 +356,7 @@ func TestInsertSlideWithLayout(t *testing.T) {
 	mfs.SetFile("slides/01-title.html", []byte(`<h1>Title</h1>`))
 
 	d, _ := OpenDeck(mfs)
-	if err := d.InsertSlide(2, "details", "content", ""); err != nil {
+	if _, err := d.InsertSlide(2, "details", "content", ""); err != nil {
 		t.Fatal(err)
 	}
 
@@ -375,7 +376,7 @@ func TestInsertSlideWithTwoCol(t *testing.T) {
 	mfs.SetFile("slides/01-a.html", []byte(`A`))
 
 	d, _ := OpenDeck(mfs)
-	d.InsertSlide(2, "comparison", "two-col", "")
+	_, _ = d.InsertSlide(2, "comparison", "two-col", "")
 
 	content, _ := d.GetSlideContent(2)
 	if !strings.Contains(content, `data-layout="two-col"`) {
@@ -396,7 +397,7 @@ func TestInsertSlideWithTitle(t *testing.T) {
 	mfs.SetFile("slides/01-a.html", []byte(`A`))
 
 	d, _ := OpenDeck(mfs)
-	d.InsertSlide(1, "intro", "title", "Welcome Everyone")
+	_, _ = d.InsertSlide(1, "intro", "title", "Welcome Everyone")
 
 	content, _ := d.GetSlideContent(1)
 	if !strings.Contains(content, "Welcome Everyone") {
@@ -414,7 +415,7 @@ func TestInsertSlideUnknownLayout(t *testing.T) {
 	mfs.SetFile("slides/01-a.html", []byte(`A`))
 
 	d, _ := OpenDeck(mfs)
-	err := d.InsertSlide(2, "bad", "nonexistent-layout", "")
+	_, err := d.InsertSlide(2, "bad", "nonexistent-layout", "")
 	if err == nil {
 		t.Fatal("expected error for unknown layout")
 	}
@@ -427,7 +428,7 @@ func TestApplySlots(t *testing.T) {
 	mfs.SetFile("slides/01-a.html", []byte(`A`))
 
 	d, _ := OpenDeck(mfs)
-	d.InsertSlide(2, "details", "content", "")
+	_, _ = d.InsertSlide(2, "details", "content", "")
 
 	err := d.ApplySlots(2, map[string]string{
 		"body": "<p>Custom body content</p>",
@@ -494,5 +495,222 @@ func TestResolveSlide(t *testing.T) {
 	_, err = d.ResolveSlide("nope")
 	if err == nil {
 		t.Error("expected error for unknown slide")
+	}
+}
+
+// --- Slug-as-ID tests (#78) ---
+
+// makeDeckWithSlugs constructs an in-memory deck where slide filenames and
+// slug portions are fully under test control. Used by the slug-focused
+// tests below to create ambiguous or handcrafted slug states that a real
+// scaffolder wouldn't produce.
+func makeDeckWithSlugs(t *testing.T, slides ...string) *Deck {
+	t.Helper()
+	mfs := templar.NewMemFS()
+	var includes []byte
+	for _, f := range slides {
+		includes = append(includes, []byte(`{{# include "slides/`+f+`" #}}`+"\n")...)
+		mfs.SetFile("slides/"+f, []byte(`<section><h1>`+f+`</h1></section>`))
+	}
+	mfs.SetFile("index.html", includes)
+	d, err := OpenDeck(mfs)
+	if err != nil {
+		t.Fatalf("OpenDeck: %v", err)
+	}
+	return d
+}
+
+// TestInsertSlide_ReturnsFinalName verifies the InsertSlide signature
+// change: returns (finalName, error) so callers can see whether the
+// requested name was used verbatim or auto-suffixed. Exercises the
+// non-colliding happy path where the requested name is preserved.
+func TestInsertSlide_ReturnsFinalName(t *testing.T) {
+	d := makeDeckWithSlugs(t, "01-intro.html", "02-outro.html")
+
+	finalName, err := d.InsertSlide(2, "middle", "content", "Middle")
+	if err != nil {
+		t.Fatalf("InsertSlide: %v", err)
+	}
+	if finalName != "middle" {
+		t.Errorf("finalName = %q, want %q", finalName, "middle")
+	}
+
+	// The resulting filename should be 02-middle.html at position 2.
+	slides, _ := d.SlideFilenames()
+	if len(slides) != 3 {
+		t.Fatalf("slides = %d, want 3", len(slides))
+	}
+	if slides[1] != "02-middle.html" {
+		t.Errorf("slides[1] = %q, want 02-middle.html", slides[1])
+	}
+}
+
+// TestInsertSlide_SlugCollisionAutoSuffix verifies that InsertSlide
+// auto-suffixes the slug when it collides with an existing slide. This
+// is the core uniqueness rule — two slides can never share a slug within
+// a deck after this PR lands. The suffix pattern matches SlugifySlides
+// (intro → intro-2 → intro-3 → ...).
+func TestInsertSlide_SlugCollisionAutoSuffix(t *testing.T) {
+	d := makeDeckWithSlugs(t, "01-intro.html", "02-outro.html")
+
+	// Insert with a name that collides with the existing intro slide.
+	finalName, err := d.InsertSlide(3, "intro", "content", "Intro Two")
+	if err != nil {
+		t.Fatalf("InsertSlide: %v", err)
+	}
+	if finalName != "intro-2" {
+		t.Errorf("finalName = %q, want %q (auto-suffixed)", finalName, "intro-2")
+	}
+
+	slides, _ := d.SlideFilenames()
+	// Expect: 01-intro.html, 02-outro.html, 03-intro-2.html
+	if len(slides) != 3 {
+		t.Fatalf("slides = %d, want 3", len(slides))
+	}
+	if slides[0] != "01-intro.html" {
+		t.Errorf("slides[0] = %q, want 01-intro.html (original untouched)", slides[0])
+	}
+	if slides[2] != "03-intro-2.html" {
+		t.Errorf("slides[2] = %q, want 03-intro-2.html (suffixed)", slides[2])
+	}
+}
+
+// TestInsertSlide_SlugCollisionMultipleSuffix verifies that the -N counter
+// walks past existing suffixes. Given a deck with foo, foo-2, foo-3, an
+// InsertSlide call with name="foo" produces foo-4 (not foo-2 overwriting).
+func TestInsertSlide_SlugCollisionMultipleSuffix(t *testing.T) {
+	d := makeDeckWithSlugs(t,
+		"01-foo.html",
+		"02-foo-2.html",
+		"03-foo-3.html",
+	)
+
+	finalName, err := d.InsertSlide(4, "foo", "content", "")
+	if err != nil {
+		t.Fatalf("InsertSlide: %v", err)
+	}
+	if finalName != "foo-4" {
+		t.Errorf("finalName = %q, want foo-4", finalName)
+	}
+}
+
+// TestResolveSlide_BySlugExactMatch verifies that an exact slug (the
+// non-prefix portion of a filename) resolves to the right slide, even
+// when substring matching would return an earlier slide first.
+func TestResolveSlide_BySlugExactMatch(t *testing.T) {
+	d := makeDeckWithSlugs(t, "01-intro.html", "02-outro.html")
+
+	f, err := d.ResolveSlide("intro")
+	if err != nil {
+		t.Fatalf("ResolveSlide(intro): %v", err)
+	}
+	if f != "01-intro.html" {
+		t.Errorf("ResolveSlide(intro) = %q, want 01-intro.html", f)
+	}
+}
+
+// TestResolveSlide_BySlugAmbiguous verifies that a slug matching more
+// than one slide returns ErrAmbiguousSlideRef. Hand-crafts an ambiguous
+// state (two slides with slug "ambi") that the post-PR InsertSlide would
+// never produce — protects existing decks that shipped with duplicate
+// slugs before uniqueness was enforced.
+func TestResolveSlide_BySlugAmbiguous(t *testing.T) {
+	d := makeDeckWithSlugs(t, "01-ambi.html", "02-ambi.html")
+
+	_, err := d.ResolveSlide("ambi")
+	if err == nil {
+		t.Fatal("expected error for ambiguous slug")
+	}
+	if !errors.Is(err, ErrAmbiguousSlideRef) {
+		t.Errorf("expected ErrAmbiguousSlideRef, got %v", err)
+	}
+	msg := err.Error()
+	if !strings.Contains(msg, "01-ambi.html") || !strings.Contains(msg, "02-ambi.html") {
+		t.Errorf("error should name both candidates, got: %v", err)
+	}
+}
+
+// TestResolveSlide_ByFilenameExact verifies that passing a full filename
+// (e.g., "01-intro.html") resolves to that exact file, distinct from the
+// slug-match and substring-match paths.
+func TestResolveSlide_ByFilenameExact(t *testing.T) {
+	d := makeDeckWithSlugs(t, "01-intro.html", "02-outro.html")
+
+	f, err := d.ResolveSlide("01-intro.html")
+	if err != nil {
+		t.Fatalf("ResolveSlide: %v", err)
+	}
+	if f != "01-intro.html" {
+		t.Errorf("got %q, want 01-intro.html", f)
+	}
+}
+
+// TestResolveSlide_ByPositionNumeric is a regression guard for the
+// existing numeric-ref path. Passing "2" resolves to the slide at
+// position 2 (1-based).
+func TestResolveSlide_ByPositionNumeric(t *testing.T) {
+	d := makeDeckWithSlugs(t, "01-intro.html", "02-outro.html", "03-closing.html")
+
+	f, err := d.ResolveSlide("2")
+	if err != nil {
+		t.Fatalf("ResolveSlide(2): %v", err)
+	}
+	if f != "02-outro.html" {
+		t.Errorf("ResolveSlide(2) = %q, want 02-outro.html", f)
+	}
+}
+
+// TestResolveSlide_BySubstringFallback verifies that the legacy substring
+// match still works for references that don't match a slug exactly. This
+// preserves backward compat for callers that pass partial filenames.
+func TestResolveSlide_BySubstringFallback(t *testing.T) {
+	d := makeDeckWithSlugs(t, "01-introduction.html", "02-outro.html")
+
+	// "ntro" doesn't match any slug exactly, but substring-matches
+	// 01-introduction.html. With only one match, resolution succeeds.
+	f, err := d.ResolveSlide("ntro")
+	if err != nil {
+		t.Fatalf("ResolveSlide(ntro): %v", err)
+	}
+	if f != "01-introduction.html" {
+		t.Errorf("got %q, want 01-introduction.html", f)
+	}
+}
+
+// TestResolveSlide_BySubstringAmbiguous verifies that substring matches
+// are now checked for ambiguity. Before this PR, strings.Contains picked
+// the first match silently; after, multiple matches return an error.
+// This is a strict improvement — the previous behavior was already wrong.
+func TestResolveSlide_BySubstringAmbiguous(t *testing.T) {
+	d := makeDeckWithSlugs(t, "01-intro.html", "02-retrospective.html")
+
+	// "tro" substring-matches both files.
+	_, err := d.ResolveSlide("tro")
+	if err == nil {
+		t.Fatal("expected error for ambiguous substring match")
+	}
+	if !errors.Is(err, ErrAmbiguousSlideRef) {
+		t.Errorf("expected ErrAmbiguousSlideRef, got %v", err)
+	}
+}
+
+// TestDescribe_IncludesSlug verifies that Describe() populates the Slug
+// field on every SlideDescription. Slug is derived from the filename by
+// stripping the NN- prefix and the .html suffix.
+func TestDescribe_IncludesSlug(t *testing.T) {
+	d := makeDeckWithSlugs(t, "01-intro.html", "02-metrics.html", "03-closing.html")
+
+	desc, err := d.Describe()
+	if err != nil {
+		t.Fatalf("Describe: %v", err)
+	}
+	want := []string{"intro", "metrics", "closing"}
+	if len(desc.Slides) != len(want) {
+		t.Fatalf("slides = %d, want %d", len(desc.Slides), len(want))
+	}
+	for i, s := range desc.Slides {
+		if s.Slug != want[i] {
+			t.Errorf("slides[%d].Slug = %q, want %q", i, s.Slug, want[i])
+		}
 	}
 }

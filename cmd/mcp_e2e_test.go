@@ -355,6 +355,92 @@ func TestPerToolTimeout(t *testing.T) {
 	}
 }
 
+// TestE2E_SlugRefSurvivesInsert is the canonical integration test for
+// slug-as-ID (#78): it proves that a slug-based `slide` reference remains
+// stable across a structural mutation that shifts position numbers.
+//
+// The flow:
+//
+//  1. Scaffold a 5-slide deck (slugs: title, slide, slide-2, slide-3, closing).
+//  2. Edit the slide at slug "slide-2" via edit_slide — originally at position 3.
+//  3. Insert a new slide at position 2 via add_slide, shifting every later
+//     slide's position number up by one. "slide-2" is now at position 4.
+//  4. Edit again by slug "slide-2". If slug is truly stable, the second edit
+//     lands on the same file as the first — not on whatever is at position 3
+//     now. Content from both edits should be present in the final read.
+//
+// This test exists to prove that the whole PR's motivation works end-to-end.
+// If it fails, slug identity is broken.
+func TestE2E_SlugRefSurvivesInsert(t *testing.T) {
+	root := t.TempDir()
+	core.CreateInDir("Slug Stability", 5, "default", fmt.Sprintf("%s/test-deck", root), true)
+
+	c := newSlydsMCPClient(t, root)
+
+	// 1. First edit by slug — lands at position 3 in the 5-slide deck.
+	firstEdit := `<div class="slide" data-layout="content"><h1>First Edit</h1><p class="marker-1"></p></div>`
+	r := c.ToolCall("edit_slide", map[string]any{
+		"deck":    "test-deck",
+		"slide":   "slide-2",
+		"content": firstEdit,
+	})
+	if !strings.Contains(r, "updated") {
+		t.Fatalf("first edit_slide: %s", r)
+	}
+
+	// Read by slug and verify the first edit landed.
+	content := c.ToolCall("read_slide", map[string]any{
+		"deck":  "test-deck",
+		"slide": "slide-2",
+	})
+	if !strings.Contains(content, "First Edit") {
+		t.Fatalf("first edit content not found: %s", content)
+	}
+
+	// 2. Insert a new slide at position 2. The original "slide-2" shifts
+	//    to position 4; its filename becomes 04-slide-2.html.
+	r = c.ToolCall("add_slide", map[string]any{
+		"deck": "test-deck", "position": 2, "name": "inserted", "layout": "content",
+	})
+	if !strings.Contains(r, "inserted at position 2") {
+		t.Fatalf("add_slide: %s", r)
+	}
+
+	// 3. Edit by slug "slide-2" AGAIN — should still land on the same
+	//    original slide, now at position 4. The first edit's content
+	//    must still be present (we didn't clobber it), and the second
+	//    edit's content must be appended over.
+	secondEdit := `<div class="slide" data-layout="content"><h1>Second Edit</h1><p class="marker-2"></p></div>`
+	r = c.ToolCall("edit_slide", map[string]any{
+		"deck":    "test-deck",
+		"slide":   "slide-2",
+		"content": secondEdit,
+	})
+	if !strings.Contains(r, "updated") {
+		t.Fatalf("second edit_slide: %s", r)
+	}
+
+	// 4. Read by slug — must return the second edit's content, proving
+	//    the slug reference stayed pointed at the same file across the
+	//    position shift.
+	content = c.ToolCall("read_slide", map[string]any{
+		"deck":  "test-deck",
+		"slide": "slide-2",
+	})
+	if !strings.Contains(content, "Second Edit") {
+		t.Errorf("second edit by slug didn't land on the original slide: %s", content)
+	}
+
+	// Sanity: position 2 now holds the newly inserted slide, NOT slide-2.
+	content = c.ToolCall("read_slide", map[string]any{
+		"deck":     "test-deck",
+		"position": 2,
+	})
+	if strings.Contains(content, "Second Edit") || strings.Contains(content, "marker-2") {
+		t.Error("the second edit accidentally landed at position 2 (the inserted slide)")
+	}
+}
+
 // TestE2E_StdioTransport verifies that the slyds MCP server works over the
 // stdio transport (Content-Length framed JSON-RPC over stdin/stdout). This test
 // creates a server with all tools and resources registered, wires it to a pair

@@ -112,9 +112,13 @@ func generateSlidesFromThemeFS(fsys templar.WritableFS, readTmpl func(string) ([
 	}
 	files = append(files, name)
 
-	// Content slides
+	// Content slides — unique slugs per slide (see generateSlidesFS comment).
 	for i := 2; i < count; i++ {
-		name = fmt.Sprintf("%02d-slide.html", i)
+		slug := "slide"
+		if i > 2 {
+			slug = fmt.Sprintf("slide-%d", i-1)
+		}
+		name = fmt.Sprintf("%02d-%s.html", i, slug)
 		if err := render("slides/content.html.tmpl", map[string]any{"Title": title, "Number": i}, name); err != nil {
 			return nil, fmt.Errorf("content slide %d: %w", i, err)
 		}

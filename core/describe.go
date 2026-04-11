@@ -18,9 +18,20 @@ type DeckDescription struct {
 }
 
 // SlideDescription holds metadata for a single slide.
+//
+// Slug is the stable, human-readable identifier for a slide within a deck.
+// It's derived from the filename by stripping the NN- prefix and .html
+// suffix. Stable across inserts/removes/moves (because RewriteSlideOrder
+// preserves the slug portion when renumbering) but NOT across renames
+// (slugify, manual rename). Agents should prefer Slug over Position when
+// referencing a slide across multiple MCP calls.
+//
+// TODO(#83): add SlideID field once .slyds.yaml stores per-slide metadata.
+// SlideID will be rename-safe where Slug is not.
 type SlideDescription struct {
 	Position int    `yaml:"position" json:"position"`
 	File     string `yaml:"file" json:"file"`
+	Slug     string `yaml:"slug" json:"slug"`
 	Layout   string `yaml:"layout" json:"layout"`
 	Title    string `yaml:"title" json:"title"`
 	Words    int    `yaml:"words" json:"words"`
@@ -66,6 +77,7 @@ func (d *Deck) Describe() (*DeckDescription, error) {
 		slideDescs = append(slideDescs, SlideDescription{
 			Position: i + 1,
 			File:     f,
+			Slug:     strings.TrimSuffix(ExtractNamePart(f), ".html"),
 			Layout:   slideLayout,
 			Title:    slideTitle,
 			Words:    wordCount,

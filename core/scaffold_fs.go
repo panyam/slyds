@@ -167,9 +167,16 @@ func generateSlidesFS(fsys templar.WritableFS, theme, title string, count int) (
 	fsys.WriteFile("slides/"+name, []byte(content), 0644)
 	files = append(files, name)
 
-	// Content slides
+	// Content slides — each placeholder gets a unique slug so slug-based
+	// references are unambiguous from day one. The first content slide
+	// keeps the bare "slide" slug; subsequent ones follow the same -N
+	// suffix convention SlugifySlides and InsertSlide use.
 	for i := 2; i < count; i++ {
-		name = fmt.Sprintf("%02d-slide.html", i)
+		slug := "slide"
+		if i > 2 {
+			slug = fmt.Sprintf("slide-%d", i-1)
+		}
+		name = fmt.Sprintf("%02d-%s.html", i, slug)
 		data = map[string]any{"Title": fmt.Sprintf("Slide %d", i), "Number": i}
 		content, err = Render("content", data)
 		if err != nil {

@@ -63,6 +63,9 @@ Adopted mcpkit v0.1.15 features: single-struct registration (`srv.Register` with
 ## Phase 9h — Workspace abstraction (done)
 Introduced a `Workspace` interface (`cmd/workspace.go`) to decouple MCP tool and resource handlers from raw `--deck-root` filesystem paths. The `LocalWorkspace` implementation is installed on every MCP request via `workspaceMiddleware`; handlers resolve decks via `workspaceFromContext(ctx).OpenDeck(name)`. New `slyds ws` CLI subcommand (`ws info`, `ws list`) exercises the same workspace path as the MCP server, and `make demo-smoke` drives both through a single end-to-end test. This is the prep refactor for hosted multi-tenancy (#76), optimistic concurrency, and slug-as-ID slide identity — all tracked as follow-ups under #74. No behavioral changes for existing agents or CLI users.
 
+## Phase 9i — Slug-as-ID in MCP tools (done)
+Made slug (the non-prefix portion of `NN-slug.html`) the stable handle for slide references in the MCP API. `SlideDescription` grew a `Slug` field returned by `describe_deck` / `list_slides`. `ResolveSlide` rewritten with a priority chain (numeric → exact filename → exact slug → substring fallback) and new `ErrAmbiguousSlideRef` for multi-match cases. `InsertSlide` auto-suffixes colliding slugs via the same `-N` pattern `SlugifySlides` already uses, and now returns `(finalSlug, error)` so callers can surface the actual name. Scaffolder fixed so `slyds init --slides 5` produces unique slugs by default (`slide`, `slide-2`, `slide-3`). MCP `read_slide` and `edit_slide` accept a new `slide` string parameter (slug, filename, or position) alongside the existing `position` int for backward compat. `TestE2E_SlugRefSurvivesInsert` is the canonical integration test proving slug stability across position shifts.
+
 ## Phase 10 — Slide Folders
 Support `slides/03-name/slide.html` with co-located assets (images, per-slide CSS). Auto-detect folder vs file slides.
 

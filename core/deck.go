@@ -286,12 +286,23 @@ func (d *Deck) SlugifySlides(slugFn func(string) string) (int, error) {
 	return renamed, d.RewriteSlideOrder(newNames)
 }
 
-// InsertSlide renders a new slide from the named layout template and inserts it
-// at the given position. This is the high-level "add a slide" operation that
-// combines layout rendering with slide insertion.
-// The name is used to generate the filename slug. Title overrides the display title.
-func (d *Deck) InsertSlide(position int, name, layoutName, title string) error {
-	displayName := slugToTitle(name)
+// InsertSlide renders a new slide from the named layout template and inserts
+// it at the given position. The name is used to generate the filename slug.
+// If a slide with the same slug already exists in the deck, the slug is
+// auto-suffixed with -2, -3, ... (same convention as SlugifySlides) to keep
+// slugs unique within a deck.
+//
+// Returns the final slug actually used (may differ from the requested name
+// if auto-suffix was applied) and any error encountered.
+//
+// Title overrides the display title (otherwise derived from the slug).
+//
+// TODO(#83): also return assigned slide_id once .slyds.yaml stores per-slide
+// metadata — gives callers a rename-safe handle separate from the slug.
+func (d *Deck) InsertSlide(position int, name, layoutName, title string) (string, error) {
+	finalName := d.uniqueSlug(name)
+
+	displayName := slugToTitle(finalName)
 	if title != "" {
 		displayName = title
 	}
@@ -301,11 +312,36 @@ func (d *Deck) InsertSlide(position int, name, layoutName, title string) error {
 		"Number": position,
 	})
 	if err != nil {
-		return fmt.Errorf("layout %q: %w", layoutName, err)
+		return "", fmt.Errorf("layout %q: %w", layoutName, err)
 	}
 
-	filename := fmt.Sprintf("%02d-%s.html", position, name)
-	return d.AddSlide(position, filename, content)
+	filename := fmt.Sprintf("%02d-%s.html", position, finalName)
+	if err := d.AddSlide(position, filename, content); err != nil {
+		return "", err
+	}
+	return finalName, nil
+}
+
+// uniqueSlug returns the desired slug if no existing slide uses it, otherwise
+// appends -2, -3, ... until an unused slug is found. Uses the same convention
+// as SlugifySlides so the two creation paths stay consistent. A collision-free
+// name is always returned — the loop terminates because slide counts are
+// bounded by the filesystem.
+func (d *Deck) uniqueSlug(desired string) string {
+	used := map[string]bool{}
+	slides, _ := d.SlideFilenames()
+	for _, f := range slides {
+		used[strings.TrimSuffix(ExtractNamePart(f), ".html")] = true
+	}
+	if !used[desired] {
+		return desired
+	}
+	for i := 2; ; i++ {
+		candidate := fmt.Sprintf("%s-%d", desired, i)
+		if !used[candidate] {
+			return candidate
+		}
+	}
 }
 
 // ApplySlots sets inner HTML for named layout slots on a slide.

@@ -52,8 +52,12 @@ var addCmd = &cobra.Command{
 		}
 
 		layoutName := resolveLayoutFlag(slideLayout, slideType)
-		if err := d.InsertSlide(position, name, layoutName, ""); err != nil {
+		finalName, err := d.InsertSlide(position, name, layoutName, "")
+		if err != nil {
 			return err
+		}
+		if finalName != name {
+			fmt.Fprintf(os.Stderr, "note: slide name auto-suffixed to avoid slug collision: %s\n", finalName)
 		}
 
 		if slotsFileAdd != "" {
@@ -227,8 +231,12 @@ after insertion to maintain consistent NN-name.html naming.`,
 		}
 
 		layoutName := resolveLayoutFlag(insertLayout, insertType)
-		if err := d.InsertSlide(pos, name, layoutName, insertTitle); err != nil {
+		finalName, err := d.InsertSlide(pos, name, layoutName, insertTitle)
+		if err != nil {
 			return err
+		}
+		if finalName != name {
+			fmt.Fprintf(os.Stderr, "note: slide name auto-suffixed to avoid slug collision: %s\n", finalName)
 		}
 
 		if slotsFileInsert != "" {
