@@ -55,11 +55,11 @@ Agents call tools to create, read, modify, and build decks. Each tool takes a `d
 | `list_decks` | — | List all decks with name, title, theme, slide count |
 | `create_deck` | `name`, `title`, `theme?`, `slides?` | Scaffold a new presentation |
 | `describe_deck` | `deck` | Deck metadata: title, theme, slide list with layouts and word counts |
-| `list_slides` | `deck` | Slide filenames, layouts, titles, word counts |
-| `read_slide` | `deck`, `position` | Raw HTML content of a slide (1-based) |
-| `edit_slide` | `deck`, `position`, `content` | Replace a slide's HTML content |
-| `query_slide` | `deck`, `slide`, `selector`, ... | CSS selector read/write (goquery) — text, HTML, attrs, mutations |
-| `add_slide` | `deck`, `position`, `name`, `layout?`, `title?` | Insert slide at position using layout template |
+| `list_slides` | `deck` | Slide filenames, slugs, layouts, titles, word counts |
+| `read_slide` | `deck`, `slide` or `position` | Raw HTML content of a slide. `slide` (preferred) accepts slug, filename, or position as string. |
+| `edit_slide` | `deck`, `slide` or `position`, `content` | Replace a slide's HTML content. `slide` is stable across inserts; `position` is legacy. |
+| `query_slide` | `deck`, `slide`, `selector`, ... | CSS selector read/write (goquery) — `slide` accepts slug, filename, or position |
+| `add_slide` | `deck`, `position`, `name`, `layout?`, `title?` | Insert slide at position using layout template. Slug auto-suffixes on collision (`intro` → `intro-2`). |
 | `remove_slide` | `deck`, `slide` | Remove slide by filename or position |
 | `check_deck` | `deck` | Validate deck: missing files, broken includes, missing notes |
 | `build_deck` | `deck` | Build self-contained HTML (resolves includes, inlines CSS/JS/images) |
@@ -106,6 +106,24 @@ slyds mcp [flags]
 | **Streamable HTTP** | (default) | 6274 | Any HTTP client, remote agents |
 | **SSE** | `--sse` | 6274 | Legacy SSE clients |
 | **stdio** | `--stdio` | — | Local editors (Cursor, Claude Desktop, VS Code) |
+
+## Slide Identity
+
+Slides have three overlapping identifiers in the MCP API:
+
+| Reference | Stable across... | Use when |
+|-----------|-----------------|----------|
+| **Position** (`2`) | same session only | legacy/simple access |
+| **Filename** (`02-metrics.html`) | content edits | you already have it from a previous response |
+| **Slug** (`metrics`) | inserts, removes, moves | you want to re-reference the slide after structural changes |
+
+Agents should prefer **slug** for references that survive insert/remove operations. The `slide` parameter on `read_slide`, `edit_slide`, `query_slide`, and `remove_slide` accepts any of the three forms — the server tries numeric → exact filename → exact slug → substring match.
+
+**Slug uniqueness** is enforced within a deck. `add_slide` auto-suffixes colliding slugs with `-2`, `-3`, ... (e.g. inserting a second slide named `intro` produces `intro-2`). The `add_slide` response text reports the final slug when auto-suffixing occurs.
+
+**Ambiguous references** return a clear error instead of silently picking the first match. If a substring or slug matches more than one slide, the response lists the candidates so the agent can retry with a specific filename.
+
+Slug is **not rename-safe**: `slyds slides slugify` changes slugs based on `<h1>` headings. A truly rename-safe `slide_id` (stored in `.slyds.yaml`) is planned for a follow-up PR.
 
 ## Server Configuration (mcpkit v0.1.15)
 

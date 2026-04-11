@@ -193,19 +193,21 @@ func readSlideTool() server.Tool {
 	return server.Tool{
 		ToolDef: mcpcore.ToolDef{
 			Name:        "read_slide",
-			Description: "Read the raw HTML content of a slide by position (1-based).",
+			Description: "Read the raw HTML content of a slide. Supply either 'slide' (preferred: slug, filename, or position as string) or 'position' (legacy: 1-based integer).",
 			InputSchema: map[string]any{
 				"type": "object",
 				"properties": map[string]any{
 					"deck":     propString("Deck name (workspace-scoped identifier)"),
-					"position": propInt("Slide position (1-based)"),
+					"slide":    propString("Slide reference: slug (e.g. 'metrics'), filename (e.g. '02-metrics.html'), or position number as string"),
+					"position": propInt("Slide position (1-based). Legacy — prefer 'slide' for stability across inserts."),
 				},
-				"required": []string{"deck", "position"},
+				"required": []string{"deck"},
 			},
 		},
 		Handler: func(ctx context.Context, req mcpcore.ToolRequest) (mcpcore.ToolResult, error) {
 			var p struct {
 				Deck     string `json:"deck"`
+				Slide    string `json:"slide"`
 				Position int    `json:"position"`
 			}
 			if err := req.Bind(&p); err != nil {
@@ -215,7 +217,11 @@ func readSlideTool() server.Tool {
 			if errResult != nil {
 				return *errResult, nil
 			}
-			content, err := d.GetSlideContent(p.Position)
+			pos, err := resolveSlidePosition(d, p.Slide, p.Position)
+			if err != nil {
+				return mcpcore.ErrorResult(err.Error()), nil
+			}
+			content, err := d.GetSlideContent(pos)
 			if err != nil {
 				return mcpcore.ErrorResult(err.Error()), nil
 			}
@@ -228,20 +234,22 @@ func editSlideTool() server.Tool {
 	return server.Tool{
 		ToolDef: mcpcore.ToolDef{
 			Name:        "edit_slide",
-			Description: "Replace the HTML content of a slide at the given position.",
+			Description: "Replace the HTML content of a slide. Supply either 'slide' (preferred: slug, filename, or position as string) or 'position' (legacy: 1-based integer).",
 			InputSchema: map[string]any{
 				"type": "object",
 				"properties": map[string]any{
 					"deck":     propString("Deck name"),
-					"position": propInt("Slide position (1-based)"),
+					"slide":    propString("Slide reference: slug (e.g. 'metrics'), filename (e.g. '02-metrics.html'), or position number as string"),
+					"position": propInt("Slide position (1-based). Legacy — prefer 'slide' for stability across inserts."),
 					"content":  propString("New HTML content for the slide"),
 				},
-				"required": []string{"deck", "position", "content"},
+				"required": []string{"deck", "content"},
 			},
 		},
 		Handler: func(ctx context.Context, req mcpcore.ToolRequest) (mcpcore.ToolResult, error) {
 			var p struct {
 				Deck     string `json:"deck"`
+				Slide    string `json:"slide"`
 				Position int    `json:"position"`
 				Content  string `json:"content"`
 			}
@@ -252,13 +260,46 @@ func editSlideTool() server.Tool {
 			if errResult != nil {
 				return *errResult, nil
 			}
-			if err := d.EditSlideContent(p.Position, p.Content); err != nil {
+			pos, err := resolveSlidePosition(d, p.Slide, p.Position)
+			if err != nil {
+				return mcpcore.ErrorResult(err.Error()), nil
+			}
+			if err := d.EditSlideContent(pos, p.Content); err != nil {
 				return mcpcore.ErrorResult(err.Error()), nil
 			}
 			mcpcore.NotifyResourcesChanged(ctx)
-			return mcpcore.TextResult(fmt.Sprintf("Slide %d updated.", p.Position)), nil
+			return mcpcore.TextResult(fmt.Sprintf("Slide %d updated.", pos)), nil
 		},
 	}
+}
+
+// resolveSlidePosition turns the (slide, position) parameter pair from
+// read_slide / edit_slide into a concrete 1-based position. The `slide`
+// string takes precedence over `position` if both are provided; this
+// lets agents migrate from position-based refs to slug-based refs on
+// their own schedule. Returns a descriptive error if neither is set or
+// the slide string cannot be resolved.
+func resolveSlidePosition(d *core.Deck, slide string, position int) (int, error) {
+	if slide != "" {
+		filename, err := d.ResolveSlide(slide)
+		if err != nil {
+			return 0, err
+		}
+		slides, err := d.SlideFilenames()
+		if err != nil {
+			return 0, err
+		}
+		for i, s := range slides {
+			if s == filename {
+				return i + 1, nil
+			}
+		}
+		return 0, fmt.Errorf("resolved slide %q (%s) not found in deck ordering", slide, filename)
+	}
+	if position >= 1 {
+		return position, nil
+	}
+	return 0, fmt.Errorf("either 'slide' or 'position' is required")
 }
 
 func querySlideTool() server.Tool {
@@ -362,10 +403,17 @@ func addSlideTool() server.Tool {
 			if errResult != nil {
 				return *errResult, nil
 			}
-			if err := d.InsertSlide(p.Position, p.Name, p.Layout, p.Title); err != nil {
+			finalSlug, err := d.InsertSlide(p.Position, p.Name, p.Layout, p.Title)
+			if err != nil {
 				return mcpcore.ErrorResult(err.Error()), nil
 			}
 			mcpcore.NotifyResourcesChanged(ctx)
+			if finalSlug != p.Name {
+				return mcpcore.TextResult(fmt.Sprintf(
+					"Slide %q inserted at position %d (slug auto-suffixed to %q to avoid collision).",
+					p.Name, p.Position, finalSlug,
+				)), nil
+			}
 			return mcpcore.TextResult(fmt.Sprintf("Slide %q inserted at position %d.", p.Name, p.Position)), nil
 		},
 	}
@@ -380,7 +428,7 @@ func removeSlideTool() server.Tool {
 				"type": "object",
 				"properties": map[string]any{
 					"deck":  propString("Deck name"),
-					"slide": propString("Slide filename (e.g. '02-slide.html') or position number"),
+					"slide": propString("Slide reference: slug (e.g. 'metrics'), filename (e.g. '02-metrics.html'), or position number as string"),
 				},
 				"required": []string{"deck", "slide"},
 			},

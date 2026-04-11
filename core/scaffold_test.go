@@ -391,3 +391,57 @@ func TestCreateHasThemesDirectory(t *testing.T) {
 		}
 	}
 }
+
+// TestCreate_ThreeSlideDeckFilenamesUnchanged is a regression guard: the
+// 3-slide scaffolding path must still produce exactly
+// 01-title.html, 02-slide.html, 03-closing.html (the pre-#78 layout).
+// The slug uniqueness fix only kicks in for decks with >= 4 slides.
+func TestCreate_ThreeSlideDeckFilenamesUnchanged(t *testing.T) {
+	_, mfs := scaffoldMem(t, "Three Slides", withSlides(3))
+	for _, f := range []string{
+		"slides/01-title.html",
+		"slides/02-slide.html",
+		"slides/03-closing.html",
+	} {
+		if !hasFile(mfs, f) {
+			t.Errorf("missing file: %s", f)
+		}
+	}
+}
+
+// TestCreate_LargeDeckHasUniqueSlugs verifies that scaffolding a deck with
+// 5 slides produces 5 unique slugs — the whole point of the scaffolder fix
+// in #78. Before the fix, slides 2–4 all shared the slug "slide". This
+// test directly asserts that every slug appears exactly once.
+func TestCreate_LargeDeckHasUniqueSlugs(t *testing.T) {
+	d, mfs := scaffoldMem(t, "Large Deck", withSlides(5))
+
+	expected := []string{
+		"slides/01-title.html",
+		"slides/02-slide.html",
+		"slides/03-slide-2.html",
+		"slides/04-slide-3.html",
+		"slides/05-closing.html",
+	}
+	for _, f := range expected {
+		if !hasFile(mfs, f) {
+			t.Errorf("missing file: %s", f)
+		}
+	}
+
+	// And the slugs in the Describe() output are all unique.
+	desc, err := d.Describe()
+	if err != nil {
+		t.Fatalf("Describe: %v", err)
+	}
+	seen := map[string]bool{}
+	for _, s := range desc.Slides {
+		if seen[s.Slug] {
+			t.Errorf("duplicate slug %q in scaffolded deck", s.Slug)
+		}
+		seen[s.Slug] = true
+	}
+	if len(seen) != 5 {
+		t.Errorf("got %d unique slugs, want 5", len(seen))
+	}
+}

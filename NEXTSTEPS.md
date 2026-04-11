@@ -43,9 +43,10 @@
 - [x] ~~MCP Apps — inline slide previews via `preview_deck` and `preview_slide` tools (#64)~~
 - [x] ~~mcpkit v0.1.15 adoption — single-struct registration, per-tool timeouts, StructuredResult, error handler, EventStore (#71)~~
 - [x] ~~Workspace abstraction — `cmd/workspace.go`, `slyds ws` CLI, MCP middleware-based deck resolution (#74, PR 1 of 4)~~
-- [ ] Slug-as-ID in MCP tools + slug uniqueness (#74 subtask)
-- [ ] Optimistic versioning on MCP mutations (#74 subtask)
-- [ ] Multi-root workspace.yaml config (#74 subtask)
+- [x] ~~Slug-as-ID in MCP tools + slug uniqueness — `Slug` field, priority-chain `ResolveSlide`, scaffolder fix, `slide` param on read/edit (#78, #74 PR 2 of 4)~~
+- [ ] Persistent slide IDs in `.slyds.yaml` for rename-safe identity (#83, next subtask)
+- [ ] Optimistic versioning on MCP mutations (#79, locks on slide_id)
+- [ ] Multi-root workspace.yaml config (#80)
 - [ ] Slide folders with co-located assets (e.g., `slides/03-architecture/slide.html` + `diagram.png`)
 - [ ] Live reload on file changes during `slyds serve`
 - [ ] Theme composability via templar `extend`/`namespace` directives

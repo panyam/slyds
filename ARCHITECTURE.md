@@ -140,6 +140,14 @@ The abstraction exists so that:
 
 The `slyds ws` CLI subcommand exercises the same `LocalWorkspace` implementation the MCP server uses, making it a single-process smoke test for the wiring.
 
+### Slide identity
+
+Slides have three overlapping identifiers: **position** (1-based, changes on insert/remove), **filename** (`NN-slug.html`, prefix changes on renumber), and **slug** (the non-prefix portion of the filename, stable across inserts/removes/moves because `RewriteSlideOrder` preserves it). Agents should prefer slug for references that survive position shifts.
+
+Slug uniqueness within a deck is enforced at every creation path — `InsertSlide` auto-suffixes on collision (`intro`, `intro-2`, `intro-3`), and the scaffolder produces unique slugs by default even for large decks (`01-title.html`, `02-slide.html`, `03-slide-2.html`, `04-slide-3.html`, `05-closing.html`). `ResolveSlide` accepts slug, filename, or position as a reference and returns `ErrAmbiguousSlideRef` if a reference matches more than one slide instead of silently picking the first match.
+
+Slug is the best "stable handle" the current file-based backend provides, but it is not truly rename-safe — running `slyds slides slugify` can change a slide's slug. A rename-safe `slide_id` stored in `.slyds.yaml` is planned as the next subtask of #74 (#83) so optimistic versioning (#79) can lock on an identifier that survives both position shifts and renames.
+
 **Model Context Protocol** (`cmd/mcp.go`, `cmd/mcp_tools.go`, `cmd/mcp_resources.go`, `cmd/mcp_apps.go`): uses **mcpkit** v0.1.15 (split packages: `core/`, `server/`) + **ext/ui** v0.1.15 (MCP Apps). Single-struct registration (`srv.Register`), workspace middleware, per-tool timeouts, `StructuredResult` for typed output, error handler for session lifecycle, EventStore for Streamable HTTP reconnection. Exposes **13 tools** (11 core + 2 preview) and **7 browsable resources** for reading deck content. Transports: Streamable HTTP (default), SSE (`--sse`), or stdio (`--stdio`). `--deck-root` sets the local workspace root. See [docs/MCP.md](docs/MCP.md).
 
 **Tools**: `list_decks`, `create_deck`, `describe_deck`, `list_slides`, `read_slide`, `edit_slide`, `query_slide`, `add_slide`, `remove_slide`, `check_deck`, `build_deck`, `preview_deck`, `preview_slide`.

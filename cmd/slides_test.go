@@ -17,7 +17,8 @@ func runInsert(root string, pos int, name, layoutName, title string) error {
 	if err != nil {
 		return err
 	}
-	return d.InsertSlide(pos, name, layoutName, title)
+	_, err = d.InsertSlide(pos, name, layoutName, title)
+	return err
 }
 
 // mustSlideFilenames opens a Deck and returns its slide filenames.

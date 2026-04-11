@@ -1,12 +1,21 @@
 package core
 
 import (
+	"errors"
 	"fmt"
 	"strconv"
 	"strings"
 
 	"github.com/PuerkitoBio/goquery"
 )
+
+// ErrAmbiguousSlideRef is returned by ResolveSlide when a reference matches
+// more than one slide. The error message names the candidate filenames so
+// callers can pick a specific one.
+//
+// Callers should use errors.Is(err, ErrAmbiguousSlideRef) to check for this
+// condition rather than string matching.
+var ErrAmbiguousSlideRef = errors.New("slide reference is ambiguous")
 
 // QueryOpts holds the options for a CSS selector query operation on a slide.
 type QueryOpts struct {
@@ -40,14 +49,28 @@ type BatchOperation struct {
 	All      bool   `json:"all,omitempty"`
 }
 
-// ResolveSlide resolves a slide reference (1-based number or name substring)
-// to a filename from the deck's slide list.
+// ResolveSlide resolves a slide reference to a filename from the deck's
+// slide list. Reference forms are tried in this priority order:
+//
+//  1. Numeric — a 1-based position number ("2" → the second slide)
+//  2. Exact filename — "03-intro.html"
+//  3. Exact slug — "intro" matches "NN-intro.html" for exactly one slide
+//  4. Substring fallback — legacy behavior for partial filename matches
+//
+// Steps 3 and 4 check for ambiguity: if the reference matches more than one
+// slide, the function returns ErrAmbiguousSlideRef wrapped with the list of
+// candidate filenames, rather than silently picking the first match.
+//
+// TODO(#83): prepend a slide_id lookup branch above the slug match once
+// .slyds.yaml stores per-slide metadata. slide_id is rename-safe where slug
+// is not.
 func (d *Deck) ResolveSlide(ref string) (string, error) {
 	slides, err := d.SlideFilenames()
 	if err != nil {
 		return "", err
 	}
 
+	// 1. Numeric: 1-based position
 	if num, err := strconv.Atoi(ref); err == nil {
 		if num < 1 || num > len(slides) {
 			return "", fmt.Errorf("slide %d out of range (have %d slides)", num, len(slides))
@@ -55,11 +78,42 @@ func (d *Deck) ResolveSlide(ref string) (string, error) {
 		return slides[num-1], nil
 	}
 
+	// 2. Exact filename match
 	for _, s := range slides {
-		if strings.Contains(s, ref) {
+		if s == ref {
 			return s, nil
 		}
 	}
+
+	// 3. Exact slug match (slug = filename without NN- prefix and .html suffix)
+	var slugMatches []string
+	for _, s := range slides {
+		slug := strings.TrimSuffix(ExtractNamePart(s), ".html")
+		if slug == ref {
+			slugMatches = append(slugMatches, s)
+		}
+	}
+	if len(slugMatches) == 1 {
+		return slugMatches[0], nil
+	}
+	if len(slugMatches) > 1 {
+		return "", fmt.Errorf("%w: slug %q matches %v", ErrAmbiguousSlideRef, ref, slugMatches)
+	}
+
+	// 4. Substring fallback (legacy behavior, now ambiguity-checked)
+	var subMatches []string
+	for _, s := range slides {
+		if strings.Contains(s, ref) {
+			subMatches = append(subMatches, s)
+		}
+	}
+	if len(subMatches) == 1 {
+		return subMatches[0], nil
+	}
+	if len(subMatches) > 1 {
+		return "", fmt.Errorf("%w: %q matches %v", ErrAmbiguousSlideRef, ref, subMatches)
+	}
+
 	return "", fmt.Errorf("slide %q not found", ref)
 }
 

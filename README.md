@@ -64,9 +64,9 @@ scaling-at-the-edge/
   theme.css               # Your color/style overrides
   slides/
     01-title.html          # Title slide
-    02-slide.html          # Content slides
-    03-slide.html
-    04-slide.html
+    02-slide.html          # Content slides (each has a unique slug:
+    03-slide-2.html        # slide, slide-2, slide-3, ...)
+    04-slide-3.html
     05-closing.html        # Closing slide
 ```
 

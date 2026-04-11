@@ -271,6 +271,103 @@ func TestToolDeckNotFound(t *testing.T) {
 	}
 }
 
+// TestReadSlideTool_BySlideParam verifies that read_slide accepts a
+// slug-based reference via the new `slide` string parameter in addition
+// to the legacy `position` int. Uses a scaffolded 3-slide deck (slugs:
+// title, slide, closing) and reads slide 2 by slug.
+func TestReadSlideTool_BySlideParam(t *testing.T) {
+	root := scaffoldTestDeck(t, "test-deck", "Slide Test", "default", 3)
+	tool := readSlideTool()
+
+	result := callTool(t, root, tool.Handler, map[string]any{
+		"deck":  "test-deck",
+		"slide": "slide", // slug of the middle content slide
+	})
+	if result.IsError {
+		t.Fatalf("read_slide by slide: %s", toolText(result))
+	}
+	if !strings.Contains(toolText(result), `data-layout="content"`) {
+		t.Error("read_slide by slug didn't return the content slide")
+	}
+}
+
+// TestEditSlideTool_BySlideParam verifies that edit_slide accepts a
+// slug-based reference and lands the mutation on the right slide.
+func TestEditSlideTool_BySlideParam(t *testing.T) {
+	root := scaffoldTestDeck(t, "test-deck", "Edit by Slug", "default", 3)
+	editTool := editSlideTool()
+	readTool := readSlideTool()
+
+	newContent := `<div class="slide" data-layout="content"><h1>Edited by Slug</h1></div>`
+	result := callTool(t, root, editTool.Handler, map[string]any{
+		"deck":    "test-deck",
+		"slide":   "slide",
+		"content": newContent,
+	})
+	if result.IsError {
+		t.Fatalf("edit_slide by slide: %s", toolText(result))
+	}
+
+	result = callTool(t, root, readTool.Handler, map[string]any{
+		"deck":     "test-deck",
+		"position": 2,
+	})
+	if !strings.Contains(toolText(result), "Edited by Slug") {
+		t.Error("edit via slide ref didn't persist")
+	}
+}
+
+// TestEditSlideTool_RequiresPositionOrSlide verifies that edit_slide
+// returns a clear error when the caller supplies neither `slide` nor
+// `position`. Guards against agents accidentally sending empty refs.
+func TestEditSlideTool_RequiresPositionOrSlide(t *testing.T) {
+	root := scaffoldTestDeck(t, "test-deck", "Req Test", "default", 3)
+	tool := editSlideTool()
+
+	result := callTool(t, root, tool.Handler, map[string]any{
+		"deck":    "test-deck",
+		"content": "<div>x</div>",
+	})
+	if !result.IsError {
+		t.Error("expected error when neither slide nor position provided")
+	}
+	if !strings.Contains(toolText(result), "required") {
+		t.Errorf("error should say 'required'; got: %s", toolText(result))
+	}
+}
+
+// TestAddSlideTool_SlugCollision verifies that add_slide auto-suffixes a
+// colliding slug and surfaces the actual slug used in the response text.
+// Two consecutive inserts with name="intro" produce intro and intro-2;
+// the second call's response must mention the auto-suffix.
+func TestAddSlideTool_SlugCollision(t *testing.T) {
+	root := scaffoldTestDeck(t, "test-deck", "Collision", "default", 3)
+	addTool := addSlideTool()
+
+	// First insert: slug "intro" is free.
+	r1 := callTool(t, root, addTool.Handler, map[string]any{
+		"deck": "test-deck", "position": 2, "name": "intro", "layout": "content",
+	})
+	if r1.IsError {
+		t.Fatalf("first add: %s", toolText(r1))
+	}
+
+	// Second insert: slug "intro" now collides, should become intro-2.
+	r2 := callTool(t, root, addTool.Handler, map[string]any{
+		"deck": "test-deck", "position": 3, "name": "intro", "layout": "content",
+	})
+	if r2.IsError {
+		t.Fatalf("second add: %s", toolText(r2))
+	}
+	msg := toolText(r2)
+	if !strings.Contains(msg, "intro-2") {
+		t.Errorf("second add response should mention intro-2; got: %s", msg)
+	}
+	if !strings.Contains(msg, "auto-suffixed") {
+		t.Errorf("second add response should mention auto-suffix; got: %s", msg)
+	}
+}
+
 // TestMCPTools_NoWorkspaceReturnsError verifies that every tool handler
 // returns a clean error (instead of panicking) when invoked with a context
 // that has no workspace installed. This prevents silent nil-pointer bugs

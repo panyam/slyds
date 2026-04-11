@@ -34,6 +34,7 @@ All Deck I/O goes through `templar.WritableFS` (v0.1.0). No `os.*`/`filepath.*` 
 
 - **Deck is the single API** — cmd/ calls Deck methods, never touches FS internals
 - **Workspace is the MCP boundary** — MCP tool and resource handlers resolve decks via `workspaceFromContext(ctx).OpenDeck(name)`, never from raw paths. The workspace is installed on every request via `workspaceMiddleware`. See [cmd/workspace.go](cmd/workspace.go).
+- **Slug is the stable slide handle** — agents should reference slides by slug (the non-prefix portion of `NN-slug.html`), not by position, for identity across inserts/removes. Slug uniqueness is enforced at creation time via auto-suffixing (`intro`, `intro-2`, `intro-3`). `ResolveSlide` returns `ErrAmbiguousSlideRef` when a reference is ambiguous. Not rename-safe — a truly stable `slide_id` is planned in #83.
 - **No hardcoded HTML** — use embedded `.tmpl` files under `assets/templates/`
 - **No regex HTML mutation** — use `d.Query()` (goquery/CSS selectors). See [CONSTRAINTS.md](CONSTRAINTS.md)
 - **Index.html is source of truth** for slide ordering
