@@ -9,7 +9,6 @@ import (
 	"net/http"
 	"os"
 	"os/signal"
-	"path/filepath"
 	"strings"
 
 	mcpcore "github.com/panyam/mcpkit/core"
@@ -17,7 +16,6 @@ import (
 	"github.com/panyam/mcpkit/server"
 	gohttp "github.com/panyam/servicekit/http"
 	"github.com/panyam/slyds/assets"
-	"github.com/panyam/slyds/core"
 	"github.com/spf13/cobra"
 )
 
@@ -56,11 +54,14 @@ func init() {
 }
 
 func runMCPServer() error {
-	// Resolve deck root to absolute path
-	root, err := filepath.Abs(mcpDeckRoot)
+	// Build a LocalWorkspace rooted at --deck-root. In a future hosted
+	// deployment, the workspace is built per request from auth; here it's
+	// a single constant installed via middleware below.
+	ws, err := NewLocalWorkspace(mcpDeckRoot)
 	if err != nil {
 		return fmt.Errorf("invalid deck-root: %w", err)
 	}
+	root := ws.Root()
 
 	// Token from env if flag not set
 	mcpToken = resolveMCPToken(mcpToken)
@@ -70,6 +71,7 @@ func runMCPServer() error {
 	serverOpts = append(serverOpts, server.WithListen(mcpListen))
 	serverOpts = append(serverOpts, server.WithExtension(ui.UIExtension{}))
 	serverOpts = append(serverOpts, server.WithErrorHandler(&slydsMCPErrorHandler{}))
+	serverOpts = append(serverOpts, server.WithMiddleware(workspaceMiddleware(ws)))
 	if mcpToken != "" {
 		serverOpts = append(serverOpts, server.WithBearerToken(mcpToken))
 	}
@@ -82,10 +84,11 @@ func runMCPServer() error {
 		serverOpts...,
 	)
 
-	// Register resources, tools, and app previews
-	registerResources(srv, root)
-	registerTools(srv, root)
-	registerAppTools(srv, root)
+	// Register resources, tools, and app previews. None of these capture
+	// the workspace directly — handlers resolve it from request context.
+	registerResources(srv)
+	registerTools(srv)
+	registerAppTools(srv)
 
 	// Transport selection
 	if mcpUseStdio {
@@ -117,10 +120,15 @@ func runMCPServer() error {
 		transport = "Streamable HTTP"
 	}
 
-	// Build MCP handler and wrap with landing page at /
+	// Build MCP handler and wrap with landing page at /. The landing page
+	// needs deck names up front; we call ws.ListDecks() once at startup.
 	mcpHandler := srv.Handler(transportOpts...)
-	decks := discoverDecks(root)
-	handler := mcpWithLanding(mcpHandler, transport, mcpListen, decks, mcpToken != "")
+	deckRefs, _ := ws.ListDecks()
+	deckNames := make([]string, 0, len(deckRefs))
+	for _, r := range deckRefs {
+		deckNames = append(deckNames, r.Name)
+	}
+	handler := mcpWithLanding(mcpHandler, transport, mcpListen, deckNames, mcpToken != "")
 
 	fmt.Fprintf(os.Stderr, "MCP server (%s) on %s — deck root: %s\n", transport, mcpListen, root)
 	if mcpToken != "" {
@@ -135,32 +143,6 @@ func runMCPServer() error {
 		WriteTimeout: 0, // SSE requires no write timeout
 	}
 	return listenAndServeGraceful(httpSrv)
-}
-
-// discoverDecks finds all deck directories under root.
-// A deck is a directory containing index.html.
-func discoverDecks(root string) []string {
-	var decks []string
-
-	// Check if root itself is a deck
-	if _, err := os.Stat(filepath.Join(root, "index.html")); err == nil {
-		decks = append(decks, ".")
-	}
-
-	// Check subdirectories
-	entries, err := os.ReadDir(root)
-	if err != nil {
-		return decks
-	}
-	for _, e := range entries {
-		if !e.IsDir() {
-			continue
-		}
-		if _, err := os.Stat(filepath.Join(root, e.Name(), "index.html")); err == nil {
-			decks = append(decks, e.Name())
-		}
-	}
-	return decks
 }
 
 // resolveMCPToken returns the token from the flag value, falling back to the
@@ -310,13 +292,3 @@ func (h *slydsMCPErrorHandler) OnKeepaliveFailure(sessionID string, consecutiveF
 	fmt.Fprintf(os.Stderr, "MCP keepalive failure: session=%s failures=%d\n", sessionID, consecutiveFailures)
 }
 
-// openDeck resolves a deck name to a Deck instance.
-func openDeck(root, name string) (*core.Deck, error) {
-	var dir string
-	if name == "." || name == "" {
-		dir = root
-	} else {
-		dir = filepath.Join(root, name)
-	}
-	return core.OpenDeckDir(dir)
-}

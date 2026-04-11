@@ -60,6 +60,9 @@ Added MCP Apps extension (`io.modelcontextprotocol/ui`) with two preview tools: 
 ## Phase 9g — mcpkit v0.1.15 adoption (done)
 Adopted mcpkit v0.1.15 features: single-struct registration (`srv.Register` with `server.Tool`/`server.Resource`/`server.ResourceTemplate`), per-tool timeouts (`build_deck` 30s, `check_deck` 10s), `StructuredResult` for typed tool output, `ToolCallTyped` in E2E tests, `ErrorHandler` for session lifecycle logging, `EventStore` for Streamable HTTP reconnection. Typed result structs replace `map[string]any` in tool handlers. No behavioral changes — purely internal improvements.
 
+## Phase 9h — Workspace abstraction (done)
+Introduced a `Workspace` interface (`cmd/workspace.go`) to decouple MCP tool and resource handlers from raw `--deck-root` filesystem paths. The `LocalWorkspace` implementation is installed on every MCP request via `workspaceMiddleware`; handlers resolve decks via `workspaceFromContext(ctx).OpenDeck(name)`. New `slyds ws` CLI subcommand (`ws info`, `ws list`) exercises the same workspace path as the MCP server, and `make demo-smoke` drives both through a single end-to-end test. This is the prep refactor for hosted multi-tenancy (#76), optimistic concurrency, and slug-as-ID slide identity — all tracked as follow-ups under #74. No behavioral changes for existing agents or CLI users.
+
 ## Phase 10 — Slide Folders
 Support `slides/03-name/slide.html` with co-located assets (images, per-slide CSS). Auto-detect folder vs file slides.
 

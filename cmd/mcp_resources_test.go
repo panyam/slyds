@@ -11,76 +11,36 @@ import (
 	"github.com/panyam/slyds/core"
 )
 
-// TestDiscoverDecks verifies that discoverDecks finds all subdirectories
-// containing index.html under the given root.
-func TestDiscoverDecks(t *testing.T) {
-	root := t.TempDir()
-	core.CreateInDir("Alpha", 2, "default", filepath.Join(root, "alpha"), true)
-	core.CreateInDir("Beta", 3, "dark", filepath.Join(root, "beta"), true)
+// NOTE: TestDiscoverDecks, TestDiscoverDecksEmpty, TestDiscoverDecksRootIsDeck,
+// and TestOpenDeck previously exercised package-private helpers (`discoverDecks`,
+// `openDeck`) that the Workspace refactor removed. Equivalent coverage now lives
+// in cmd/workspace_test.go against LocalWorkspace.ListDecks and .OpenDeck with
+// stricter assertions (matches by name instead of count only).
 
-	decks := discoverDecks(root)
-	if len(decks) != 2 {
-		t.Errorf("expected 2 decks, got %d: %v", len(decks), decks)
-	}
-}
-
-// TestDiscoverDecksEmpty verifies that an empty directory yields no decks.
-func TestDiscoverDecksEmpty(t *testing.T) {
-	decks := discoverDecks(t.TempDir())
-	if len(decks) != 0 {
-		t.Errorf("expected 0 decks, got %d", len(decks))
-	}
-}
-
-// TestDiscoverDecksRootIsDeck verifies that when the root directory itself
-// contains index.html, it is discovered as deck ".".
-func TestDiscoverDecksRootIsDeck(t *testing.T) {
-	root := t.TempDir()
-	core.CreateInDir("Root Deck", 2, "default", root, true)
-
-	decks := discoverDecks(root)
-	found := false
-	for _, d := range decks {
-		if d == "." {
-			found = true
-		}
-	}
-	if !found {
-		t.Errorf("root deck not discovered as '.': %v", decks)
-	}
-}
-
-// TestOpenDeck verifies that openDeck resolves a deck name to a Deck
-// instance with the correct title and slide count.
-func TestOpenDeck(t *testing.T) {
-	root := t.TempDir()
-	core.CreateInDir("Test", 3, "default", filepath.Join(root, "my-deck"), true)
-
-	d, err := openDeck(root, "my-deck")
-	if err != nil {
-		t.Fatalf("openDeck: %v", err)
-	}
-	if d.Title() != "Test" {
-		t.Errorf("title = %q, want Test", d.Title())
-	}
-	count, _ := d.SlideCount()
-	if count != 3 {
-		t.Errorf("slides = %d, want 3", count)
-	}
-}
-
-// TestResourceRegistration verifies that registerResources succeeds and
-// the registered deck is readable through the Deck API.
+// TestResourceRegistration verifies that registerResources succeeds with
+// the workspace middleware installed and the registered deck is readable
+// through the Workspace API. The middleware path is the production wiring,
+// so this test doubles as a smoke check for the wiring.
 func TestResourceRegistration(t *testing.T) {
 	root := t.TempDir()
 	core.CreateInDir("Deck", 2, "default", filepath.Join(root, "test-deck"), true)
 
-	srv := server.NewServer(mcpcore.ServerInfo{Name: "test", Version: "0.0.1"})
-	registerResources(srv, root)
-
-	d, err := openDeck(root, "test-deck")
+	ws, err := NewLocalWorkspace(root)
 	if err != nil {
-		t.Fatalf("openDeck: %v", err)
+		t.Fatalf("NewLocalWorkspace: %v", err)
+	}
+
+	srv := server.NewServer(
+		mcpcore.ServerInfo{Name: "test", Version: "0.0.1"},
+		server.WithMiddleware(workspaceMiddleware(ws)),
+	)
+	registerResources(srv)
+
+	// Sanity check: resolve the deck via the workspace directly (what the
+	// resource handlers do when the middleware is active).
+	d, err := ws.OpenDeck("test-deck")
+	if err != nil {
+		t.Fatalf("ws.OpenDeck: %v", err)
 	}
 	content, err := d.GetSlideContent(1)
 	if err != nil {

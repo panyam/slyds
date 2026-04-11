@@ -70,8 +70,10 @@ func injectInitialSlide(html string, position int) (string, error) {
 }
 
 // registerAppTools registers MCP Apps (UI extension) tools that render
-// slide previews as inline HTML iframes in LLM hosts.
-func registerAppTools(srv *server.Server, root string) {
+// slide previews as inline HTML iframes in LLM hosts. Handlers resolve the
+// active Workspace from request context so the same registration works
+// for localhost and future hosted deployments.
+func registerAppTools(srv *server.Server) {
 	// preview_deck — full navigable presentation
 	ui.RegisterAppTool(srv, ui.AppToolConfig{
 		Name:        "preview_deck",
@@ -79,7 +81,7 @@ func registerAppTools(srv *server.Server, root string) {
 		InputSchema: map[string]any{
 			"type": "object",
 			"properties": map[string]any{
-				"deck": propString("Deck name (subdirectory under deck root)"),
+				"deck": propString("Deck name (workspace-scoped identifier)"),
 			},
 			"required": []string{"deck"},
 		},
@@ -91,9 +93,9 @@ func registerAppTools(srv *server.Server, root string) {
 			if err := req.Bind(&p); err != nil {
 				return mcpcore.ErrorResult(err.Error()), nil
 			}
-			d, err := openDeck(root, p.Deck)
-			if err != nil {
-				return mcpcore.ErrorResult(err.Error()), nil
+			d, errResult := openDeckFromContext(ctx, p.Deck)
+			if errResult != nil {
+				return *errResult, nil
 			}
 			result, err := buildDeckForPreview(d)
 			if err != nil {
@@ -135,7 +137,7 @@ func registerAppTools(srv *server.Server, root string) {
 		InputSchema: map[string]any{
 			"type": "object",
 			"properties": map[string]any{
-				"deck":     propString("Deck name (subdirectory under deck root)"),
+				"deck":     propString("Deck name (workspace-scoped identifier)"),
 				"position": propInt("Slide position (1-based)"),
 			},
 			"required": []string{"deck", "position"},
@@ -149,9 +151,9 @@ func registerAppTools(srv *server.Server, root string) {
 			if err := req.Bind(&p); err != nil {
 				return mcpcore.ErrorResult(err.Error()), nil
 			}
-			d, err := openDeck(root, p.Deck)
-			if err != nil {
-				return mcpcore.ErrorResult(err.Error()), nil
+			d, errResult := openDeckFromContext(ctx, p.Deck)
+			if errResult != nil {
+				return *errResult, nil
 			}
 			// Validate position against the deck's slide list. This also
 			// lets us surface a helpful "out of range" error before spending

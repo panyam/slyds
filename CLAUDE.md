@@ -20,7 +20,7 @@ make audit       # govulncheck + gosec + gitleaks
 - `examples/` — demo presentations with tests.
 - `docs/` — MCP setup, agent themes, CSS contract, design docs.
 
-Key files: `core/deck.go` (Deck API), `core/osfs.go` (OS boundary), `cmd/mcp.go` (MCP server), `cmd/mcp_tools.go` (11 semantic tools), `cmd/mcp_resources.go` (7 browsable resources).
+Key files: `core/deck.go` (Deck API), `core/osfs.go` (OS boundary), `cmd/workspace.go` (Workspace abstraction), `cmd/mcp.go` (MCP server), `cmd/mcp_tools.go` (11 semantic tools), `cmd/mcp_resources.go` (7 browsable resources), `cmd/ws.go` (`slyds ws` debug CLI).
 
 ## FS Abstraction
 
@@ -33,6 +33,7 @@ All Deck I/O goes through `templar.WritableFS` (v0.1.0). No `os.*`/`filepath.*` 
 ## Conventions
 
 - **Deck is the single API** — cmd/ calls Deck methods, never touches FS internals
+- **Workspace is the MCP boundary** — MCP tool and resource handlers resolve decks via `workspaceFromContext(ctx).OpenDeck(name)`, never from raw paths. The workspace is installed on every request via `workspaceMiddleware`. See [cmd/workspace.go](cmd/workspace.go).
 - **No hardcoded HTML** — use embedded `.tmpl` files under `assets/templates/`
 - **No regex HTML mutation** — use `d.Query()` (goquery/CSS selectors). See [CONSTRAINTS.md](CONSTRAINTS.md)
 - **Index.html is source of truth** for slide ordering
@@ -43,8 +44,8 @@ All Deck I/O goes through `templar.WritableFS` (v0.1.0). No `os.*`/`filepath.*` 
 - **macOS /private symlinks**: temp dirs resolve `/var/...` vs `/private/var/...`. Don't compare paths in tests.
 - **`go:embed` paths relative to Go file** — `assets/embed.go` lives alongside the embedded files; `core/embed.go` re-exports.
 - **Theme render fallback** — `InsertSlide` uses layout system first; falls back to theme templates.
-- **MCP** — 13 tools (11 core + 2 preview) + 7 resources via mcpkit v0.1.15 (split packages: `core/`, `server/`, `ext/ui`). Single-struct registration (`srv.Register`). Per-tool timeouts on `build_deck` (30s) and `check_deck` (10s). `StructuredResult` for typed tool output. Error handler for session lifecycle logging. EventStore for Streamable HTTP reconnection. Transports: Streamable HTTP, SSE, stdio. MCP Apps extension for inline slide previews. See [docs/MCP.md](docs/MCP.md). `--deck-root` sets discovery root.
-- **CLI-direct agent mode** — `describe --json`, `ls --json`, `check --json`, `build --json` for agents using shell commands instead of MCP. See [AGENT-SETUP.md](AGENT-SETUP.md).
+- **MCP** — 13 tools (11 core + 2 preview) + 7 resources via mcpkit v0.1.15 (split packages: `core/`, `server/`, `ext/ui`). Single-struct registration (`srv.Register`). Workspace middleware injects a `Workspace` into every request's context; handlers resolve decks via `workspaceFromContext(ctx).OpenDeck(name)`. Per-tool timeouts on `build_deck` (30s) and `check_deck` (10s). `StructuredResult` for typed tool output. Error handler for session lifecycle logging. EventStore for Streamable HTTP reconnection. Transports: Streamable HTTP, SSE, stdio. MCP Apps extension for inline slide previews. See [docs/MCP.md](docs/MCP.md). `--deck-root` sets the local workspace root.
+- **CLI-direct agent mode** — `describe --json`, `ls --json`, `check --json`, `build --json`, `ws info --json`, `ws list --json` for agents using shell commands instead of MCP. See [AGENT-SETUP.md](AGENT-SETUP.md).
 - **`SLYDS_MCP_TOKEN`** env var — fallback for `--token` flag in container/CI deployments.
 
 ## Stack

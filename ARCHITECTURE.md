@@ -127,9 +127,20 @@ This is the approved path for all programmatic slide content access. Regex-based
 
 ## MCP and agent-facing surfaces
 
-The CLI exposes machine-readable **`slyds introspect`** (layouts, themes, command catalog) and per-deck **`slyds describe`** for non-MCP agents.
+The CLI exposes machine-readable **`slyds introspect`** (layouts, themes, command catalog), per-deck **`slyds describe`**, and **`slyds ws info` / `slyds ws list`** for inspecting the MCP workspace without starting a server.
 
-**Model Context Protocol** (`cmd/mcp.go`, `cmd/mcp_tools.go`, `cmd/mcp_resources.go`, `cmd/mcp_apps.go`): uses **mcpkit** v0.1.15 (split packages: `core/`, `server/`) + **ext/ui** v0.1.15 (MCP Apps). Single-struct registration (`srv.Register`), per-tool timeouts, `StructuredResult` for typed output, error handler for session lifecycle, EventStore for Streamable HTTP reconnection. Exposes **13 tools** (11 core + 2 preview) and **7 browsable resources** for reading deck content. Transports: Streamable HTTP (default), SSE (`--sse`), or stdio (`--stdio`). `--deck-root` sets the directory where decks are discovered. See [docs/MCP.md](docs/MCP.md).
+### Workspace layer
+
+MCP tool and resource handlers never touch raw filesystem paths. They resolve decks through a `Workspace` interface (`cmd/workspace.go`). The `LocalWorkspace` implementation is a thin wrapper around `core.OpenDeckDir` rooted at `--deck-root`. A workspace middleware installs the active `Workspace` into every request's `context.Context`, and handlers call `workspaceFromContext(ctx).OpenDeck(name)` to get a `*core.Deck`.
+
+The abstraction exists so that:
+- a future hosted deployment can resolve a per-request `Workspace` from an authenticated session instead of a single startup-constructed one, without changing tool/resource handler code
+- deck names with path separators (`../escape`, `root/sub`) are rejected at the API boundary, reserving `/` for future multi-root workspace qualification
+- unit tests can install a workspace directly via `withWorkspace(ctx, ws)` without going through the full middleware chain
+
+The `slyds ws` CLI subcommand exercises the same `LocalWorkspace` implementation the MCP server uses, making it a single-process smoke test for the wiring.
+
+**Model Context Protocol** (`cmd/mcp.go`, `cmd/mcp_tools.go`, `cmd/mcp_resources.go`, `cmd/mcp_apps.go`): uses **mcpkit** v0.1.15 (split packages: `core/`, `server/`) + **ext/ui** v0.1.15 (MCP Apps). Single-struct registration (`srv.Register`), workspace middleware, per-tool timeouts, `StructuredResult` for typed output, error handler for session lifecycle, EventStore for Streamable HTTP reconnection. Exposes **13 tools** (11 core + 2 preview) and **7 browsable resources** for reading deck content. Transports: Streamable HTTP (default), SSE (`--sse`), or stdio (`--stdio`). `--deck-root` sets the local workspace root. See [docs/MCP.md](docs/MCP.md).
 
 **Tools**: `list_decks`, `create_deck`, `describe_deck`, `list_slides`, `read_slide`, `edit_slide`, `query_slide`, `add_slide`, `remove_slide`, `check_deck`, `build_deck`, `preview_deck`, `preview_slide`.
 
