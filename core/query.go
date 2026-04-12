@@ -52,6 +52,7 @@ type BatchOperation struct {
 // ResolveSlide resolves a slide reference to a filename from the deck's
 // slide list. Reference forms are tried in this priority order:
 //
+//  0. Slide ID — "sl_a1b2c3d4" matches the id→file mapping in .slyds.yaml
 //  1. Numeric — a 1-based position number ("2" → the second slide)
 //  2. Exact filename — "03-intro.html"
 //  3. Exact slug — "intro" matches "NN-intro.html" for exactly one slide
@@ -60,11 +61,17 @@ type BatchOperation struct {
 // Steps 3 and 4 check for ambiguity: if the reference matches more than one
 // slide, the function returns ErrAmbiguousSlideRef wrapped with the list of
 // candidate filenames, rather than silently picking the first match.
-//
-// TODO(#83): prepend a slide_id lookup branch above the slug match once
-// .slyds.yaml stores per-slide metadata. slide_id is rename-safe where slug
-// is not.
 func (d *Deck) ResolveSlide(ref string) (string, error) {
+	// 0. Slide ID: sl_-prefixed references resolve via the persistent
+	// id→file mapping from .slyds.yaml. This is the most stable form —
+	// it survives every mutation including renames.
+	if IsSlideID(ref) {
+		if file, ok := d.fileByID[ref]; ok {
+			return file, nil
+		}
+		return "", fmt.Errorf("slide id %q not found", ref)
+	}
+
 	slides, err := d.SlideFilenames()
 	if err != nil {
 		return "", err

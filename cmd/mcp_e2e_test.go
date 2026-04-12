@@ -355,6 +355,73 @@ func TestPerToolTimeout(t *testing.T) {
 	}
 }
 
+// TestE2E_SlideIDSurvivesRename is the canonical integration test for
+// slide_id (#83): it proves that a slide_id reference survives a rename
+// (slugify) that changes the slide's slug and filename — the exact
+// scenario that slug alone cannot handle.
+//
+// Flow:
+//  1. Scaffold a 3-slide deck (IDs assigned at scaffold time).
+//  2. Describe the deck; capture slide 2's slide_id.
+//  3. Edit slide 2's content to change its <h1> heading.
+//  4. Call SlugifySlides (via the CLI path) to rename slides based on
+//     headings — slide 2's slug changes.
+//  5. Read the slide by its ORIGINAL slide_id — should resolve to the
+//     renamed file and return the new content.
+func TestE2E_SlideIDSurvivesRename(t *testing.T) {
+	root := t.TempDir()
+	core.CreateInDir("ID Rename Test", 3, "default", fmt.Sprintf("%s/test-deck", root), true)
+
+	c := newSlydsMCPClient(t, root)
+
+	// 1. Get slide 2's slide_id from describe_deck
+	descResult := c.ToolCall("describe_deck", map[string]any{"deck": "test-deck"})
+	type slideInfo struct {
+		SlideID string `json:"slide_id"`
+		Slug    string `json:"slug"`
+	}
+	type deckDesc struct {
+		Slides []slideInfo `json:"slides"`
+	}
+	var desc deckDesc
+	json.Unmarshal([]byte(descResult), &desc)
+	if len(desc.Slides) < 2 {
+		t.Fatalf("expected >=2 slides, got %d", len(desc.Slides))
+	}
+	slideID := desc.Slides[1].SlideID
+	if slideID == "" {
+		t.Fatal("slide 2 has no slide_id")
+	}
+
+	// 2. Edit slide 2's content to give it a distinctive heading
+	newContent := `<div class="slide" data-layout="content"><h1>Renamed Heading</h1><p>marker-rename</p></div>`
+	c.ToolCall("edit_slide", map[string]any{
+		"deck": "test-deck", "slide": slideID, "content": newContent,
+	})
+
+	// 3. Run slugify to rename slides based on headings — this changes
+	//    slide 2's slug and filename.
+	d, _ := core.OpenDeckDir(fmt.Sprintf("%s/test-deck", root))
+	renamed, err := d.SlugifySlides(core.Slugify)
+	if err != nil {
+		t.Fatalf("SlugifySlides: %v", err)
+	}
+	if renamed == 0 {
+		t.Fatal("slugify should have renamed at least 1 slide")
+	}
+
+	// 4. Reconnect — the deck state changed on disk outside MCP
+	c2 := newSlydsMCPClient(t, root)
+
+	// 5. Read the slide by its ORIGINAL slide_id — should still work!
+	readResult := c2.ToolCall("read_slide", map[string]any{
+		"deck": "test-deck", "slide": slideID,
+	})
+	if !strings.Contains(readResult, "marker-rename") {
+		t.Errorf("read by slide_id after rename didn't return the edited content: %s", readResult[:min(200, len(readResult))])
+	}
+}
+
 // TestE2E_SlugRefSurvivesInsert is the canonical integration test for
 // slug-as-ID (#78): it proves that a slug-based `slide` reference remains
 // stable across a structural mutation that shifts position numbers.

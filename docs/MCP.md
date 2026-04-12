@@ -115,7 +115,8 @@ Slides have three overlapping identifiers in the MCP API:
 |-----------|-----------------|----------|
 | **Position** (`2`) | same session only | legacy/simple access |
 | **Filename** (`02-metrics.html`) | content edits | you already have it from a previous response |
-| **Slug** (`metrics`) | inserts, removes, moves | you want to re-reference the slide after structural changes |
+| **Slug** (`metrics`) | inserts, removes, moves | you want to re-reference after structural changes |
+| **Slide ID** (`sl_a1b2c3d4`) | everything incl. renames | you want to cache the ID across tool calls |
 
 Agents should prefer **slug** for references that survive insert/remove operations. The `slide` parameter on `read_slide`, `edit_slide`, `query_slide`, and `remove_slide` accepts any of the three forms — the server tries numeric → exact filename → exact slug → substring match.
 
@@ -123,7 +124,9 @@ Agents should prefer **slug** for references that survive insert/remove operatio
 
 **Ambiguous references** return a clear error instead of silently picking the first match. If a substring or slug matches more than one slide, the response lists the candidates so the agent can retry with a specific filename.
 
-Slug is **not rename-safe**: `slyds slides slugify` changes slugs based on `<h1>` headings. A truly rename-safe `slide_id` (stored in `.slyds.yaml`) is planned for a follow-up PR.
+Slug is **not rename-safe**: `slyds slides slugify` changes slugs based on `<h1>` headings. For rename-safe references, use **slide_id** — an opaque `sl_`-prefixed identifier assigned by slyds on slide creation, stored in `.slyds.yaml`, and returned in `describe_deck` / `list_slides` output. Slide IDs survive every mutation including renames.
+
+**Legacy decks** (scaffolded before #83) start without slide IDs and get them auto-assigned on the first mutation. Until then, `describe_deck` returns `""` for `slide_id` — use slug or position instead.
 
 ## Server Configuration (mcpkit v0.1.15)
 

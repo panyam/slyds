@@ -84,10 +84,18 @@ func ScaffoldDeck(fsys templar.WritableFS, opts ScaffoldOpts) (*Deck, error) {
 	// Copy static assets from embedded theme
 	copyEmbeddedAssetsFS(fsys, themeName)
 
-	// Write manifest
+	// Write manifest — assign slide_ids to the initial slides so every
+	// scaffolded deck has full id coverage from day one.
+	usedIDs := make(map[string]bool)
+	var slideRecords []SlideRecord
+	for _, f := range slideFiles {
+		id := uniqueSlideID(usedIDs)
+		slideRecords = append(slideRecords, SlideRecord{ID: id, File: f})
+	}
 	manifest := Manifest{
-		Theme: themeName,
-		Title: opts.Title,
+		Theme:  themeName,
+		Title:  opts.Title,
+		Slides: slideRecords,
 	}
 	if !opts.IncludeMCPAgent {
 		f := false
@@ -243,13 +251,13 @@ func copyEmbeddedAssetsFS(fsys templar.WritableFS, theme string) {
 	})
 }
 
-// writeManifestFS writes .slyds.yaml via FS.
+// writeManifestFS writes .slyds.yaml via FS. Delegates to WriteManifestFS
+// (the exported yaml.Marshal path) so new Manifest fields — including the
+// Slides slice from #83 — are serialized correctly. Previously this was a
+// hand-formatted string that silently dropped any field not explicitly
+// named; the switch to yaml.Marshal is a strict correctness improvement.
 func writeManifestFS(fsys templar.WritableFS, m Manifest) error {
-	data := fmt.Sprintf("theme: %s\ntitle: %s\n", m.Theme, m.Title)
-	if m.AgentIncludeMCP != nil && !*m.AgentIncludeMCP {
-		data += "agent_include_mcp: false\n"
-	}
-	return fsys.WriteFile(".slyds.yaml", []byte(data), 0644)
+	return WriteManifestFS(fsys, m)
 }
 
 // readFullManifestFS reads the full Manifest (including Sources) from FS.

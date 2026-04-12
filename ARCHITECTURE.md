@@ -142,11 +142,21 @@ The `slyds ws` CLI subcommand exercises the same `LocalWorkspace` implementation
 
 ### Slide identity
 
-Slides have three overlapping identifiers: **position** (1-based, changes on insert/remove), **filename** (`NN-slug.html`, prefix changes on renumber), and **slug** (the non-prefix portion of the filename, stable across inserts/removes/moves because `RewriteSlideOrder` preserves it). Agents should prefer slug for references that survive position shifts.
+Slides have three overlapping identifiers, each stable across a different set of mutations:
 
-Slug uniqueness within a deck is enforced at every creation path — `InsertSlide` auto-suffixes on collision (`intro`, `intro-2`, `intro-3`), and the scaffolder produces unique slugs by default even for large decks (`01-title.html`, `02-slide.html`, `03-slide-2.html`, `04-slide-3.html`, `05-closing.html`). `ResolveSlide` accepts slug, filename, or position as a reference and returns `ErrAmbiguousSlideRef` if a reference matches more than one slide instead of silently picking the first match.
+| Reference | Format | Stable across inserts? | Stable across renames? |
+|-----------|--------|----------------------|----------------------|
+| **Position** | `2` | No | Yes |
+| **Slug** | `metrics` | Yes | No |
+| **Slide ID** | `sl_a1b2c3d4` | Yes | Yes |
 
-Slug is the best "stable handle" the current file-based backend provides, but it is not truly rename-safe — running `slyds slides slugify` can change a slide's slug. A rename-safe `slide_id` stored in `.slyds.yaml` is planned as the next subtask of #74 (#83) so optimistic versioning (#79) can lock on an identifier that survives both position shifts and renames.
+**Slug** is the non-prefix portion of `NN-slug.html`. Uniqueness is enforced at every creation path — `InsertSlide` auto-suffixes on collision (`intro` → `intro-2`), and the scaffolder produces unique slugs. `ResolveSlide` accepts slug, filename, or position and returns `ErrAmbiguousSlideRef` on multi-match.
+
+**Slide ID** (`sl_` + 8 hex chars) is an opaque identifier assigned by slyds on slide creation and stored in `.slyds.yaml` as per-slide `{id, file}` records. The ID never changes; only the `file` value updates when a slide is renamed or renumbered. `ResolveSlide` checks slide_id as its highest-priority match (before numeric, filename, slug, and substring).
+
+Mutation methods (`AddSlide`, `InsertSlide`, `RemoveSlide`, `MoveSlide`, `SlugifySlides`, `RewriteSlideOrder`) maintain the id→file mapping atomically: `ensureSlideIDs()` is called before the mutation (auto-migrating legacy decks without IDs), and `saveManifest()` is called after. Read-only operations (`Describe`, `list_slides`) do not trigger auto-migration — legacy decks return empty `slide_id` until their first mutation.
+
+The `DeckManifest` type has been eliminated; `Deck.Manifest` is now the full `*Manifest` type from `core/manifest.go`. The unexported `writeManifestFS` in `scaffold_fs.go` now delegates to the exported `WriteManifestFS` (`yaml.Marshal` path) ensuring all manifest fields are serialized correctly.
 
 **Model Context Protocol** (`cmd/mcp.go`, `cmd/mcp_tools.go`, `cmd/mcp_resources.go`, `cmd/mcp_apps.go`): uses **mcpkit** v0.1.15 (split packages: `core/`, `server/`) + **ext/ui** v0.1.15 (MCP Apps). Single-struct registration (`srv.Register`), workspace middleware, per-tool timeouts, `StructuredResult` for typed output, error handler for session lifecycle, EventStore for Streamable HTTP reconnection. Exposes **13 tools** (11 core + 2 preview) and **7 browsable resources** for reading deck content. Transports: Streamable HTTP (default), SSE (`--sse`), or stdio (`--stdio`). `--deck-root` sets the local workspace root. See [docs/MCP.md](docs/MCP.md).
 
