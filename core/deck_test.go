@@ -356,7 +356,7 @@ func TestInsertSlideWithLayout(t *testing.T) {
 	mfs.SetFile("slides/01-title.html", []byte(`<h1>Title</h1>`))
 
 	d, _ := OpenDeck(mfs)
-	if _, err := d.InsertSlide(2, "details", "content", ""); err != nil {
+	if _, _, err := d.InsertSlide(2, "details", "content", ""); err != nil {
 		t.Fatal(err)
 	}
 
@@ -376,7 +376,7 @@ func TestInsertSlideWithTwoCol(t *testing.T) {
 	mfs.SetFile("slides/01-a.html", []byte(`A`))
 
 	d, _ := OpenDeck(mfs)
-	_, _ = d.InsertSlide(2, "comparison", "two-col", "")
+	_, _, _ = d.InsertSlide(2, "comparison", "two-col", "")
 
 	content, _ := d.GetSlideContent(2)
 	if !strings.Contains(content, `data-layout="two-col"`) {
@@ -397,7 +397,7 @@ func TestInsertSlideWithTitle(t *testing.T) {
 	mfs.SetFile("slides/01-a.html", []byte(`A`))
 
 	d, _ := OpenDeck(mfs)
-	_, _ = d.InsertSlide(1, "intro", "title", "Welcome Everyone")
+	_, _, _ = d.InsertSlide(1, "intro", "title", "Welcome Everyone")
 
 	content, _ := d.GetSlideContent(1)
 	if !strings.Contains(content, "Welcome Everyone") {
@@ -415,7 +415,7 @@ func TestInsertSlideUnknownLayout(t *testing.T) {
 	mfs.SetFile("slides/01-a.html", []byte(`A`))
 
 	d, _ := OpenDeck(mfs)
-	_, err := d.InsertSlide(2, "bad", "nonexistent-layout", "")
+	_, _, err := d.InsertSlide(2, "bad", "nonexistent-layout", "")
 	if err == nil {
 		t.Fatal("expected error for unknown layout")
 	}
@@ -428,7 +428,7 @@ func TestApplySlots(t *testing.T) {
 	mfs.SetFile("slides/01-a.html", []byte(`A`))
 
 	d, _ := OpenDeck(mfs)
-	_, _ = d.InsertSlide(2, "details", "content", "")
+	_, _, _ = d.InsertSlide(2, "details", "content", "")
 
 	err := d.ApplySlots(2, map[string]string{
 		"body": "<p>Custom body content</p>",
@@ -527,7 +527,7 @@ func makeDeckWithSlugs(t *testing.T, slides ...string) *Deck {
 func TestInsertSlide_ReturnsFinalName(t *testing.T) {
 	d := makeDeckWithSlugs(t, "01-intro.html", "02-outro.html")
 
-	finalName, err := d.InsertSlide(2, "middle", "content", "Middle")
+	finalName, _, err := d.InsertSlide(2, "middle", "content", "Middle")
 	if err != nil {
 		t.Fatalf("InsertSlide: %v", err)
 	}
@@ -554,7 +554,7 @@ func TestInsertSlide_SlugCollisionAutoSuffix(t *testing.T) {
 	d := makeDeckWithSlugs(t, "01-intro.html", "02-outro.html")
 
 	// Insert with a name that collides with the existing intro slide.
-	finalName, err := d.InsertSlide(3, "intro", "content", "Intro Two")
+	finalName, _, err := d.InsertSlide(3, "intro", "content", "Intro Two")
 	if err != nil {
 		t.Fatalf("InsertSlide: %v", err)
 	}
@@ -585,7 +585,7 @@ func TestInsertSlide_SlugCollisionMultipleSuffix(t *testing.T) {
 		"03-foo-3.html",
 	)
 
-	finalName, err := d.InsertSlide(4, "foo", "content", "")
+	finalName, _, err := d.InsertSlide(4, "foo", "content", "")
 	if err != nil {
 		t.Fatalf("InsertSlide: %v", err)
 	}
@@ -711,6 +711,241 @@ func TestDescribe_IncludesSlug(t *testing.T) {
 	for i, s := range desc.Slides {
 		if s.Slug != want[i] {
 			t.Errorf("slides[%d].Slug = %q, want %q", i, s.Slug, want[i])
+		}
+	}
+}
+
+// --- Slide ID stability tests (#83) ---
+
+// TestSlideID_StableAcrossInsertEarlier verifies that a slide's id is
+// preserved when another slide is inserted before it, causing a position
+// shift and filename renumber. This is the foundational property of
+// slide_id — without it, the entire #83 PR is useless.
+func TestSlideID_StableAcrossInsertEarlier(t *testing.T) {
+	d := makeDeckWithSlugs(t, "01-alpha.html", "02-beta.html", "03-gamma.html")
+	// Force id assignment by triggering a mutation.
+	_, idBeta, err := d.InsertSlide(4, "delta", "content", "")
+	if err != nil {
+		t.Fatalf("InsertSlide: %v", err)
+	}
+	_ = idBeta // we'll use the pre-existing beta id instead
+
+	// Capture beta's id (it was at position 2, now might be renumbered).
+	betaID := ""
+	for _, rec := range d.Manifest.Slides {
+		if slideSlugFromFile(rec.File) == "beta" {
+			betaID = rec.ID
+			break
+		}
+	}
+	if betaID == "" {
+		t.Fatal("could not find slide_id for beta")
+	}
+
+	// Insert a new slide at position 1 — pushes everything else.
+	_, _, err = d.InsertSlide(1, "prelude", "content", "")
+	if err != nil {
+		t.Fatalf("InsertSlide at 1: %v", err)
+	}
+
+	// Beta should still have the same id even though its position and
+	// filename prefix changed.
+	betaIDAfter := ""
+	for _, rec := range d.Manifest.Slides {
+		if slideSlugFromFile(rec.File) == "beta" {
+			betaIDAfter = rec.ID
+			break
+		}
+	}
+	if betaIDAfter != betaID {
+		t.Errorf("beta slide_id changed after insert: %q → %q", betaID, betaIDAfter)
+	}
+}
+
+// TestSlideID_StableAcrossRemove verifies that removing an unrelated
+// slide doesn't change other slides' ids.
+func TestSlideID_StableAcrossRemove(t *testing.T) {
+	d := makeDeckWithSlugs(t, "01-a.html", "02-b.html", "03-c.html", "04-d.html")
+	// Trigger id assignment.
+	d.ensureSlideIDs()
+	d.saveManifest()
+
+	idC := ""
+	for _, rec := range d.Manifest.Slides {
+		if slideSlugFromFile(rec.File) == "c" {
+			idC = rec.ID
+			break
+		}
+	}
+
+	// Remove slide 1 (a). Slides b, c, d renumber.
+	d.RemoveSlide("01-a.html")
+
+	idCAfter := ""
+	for _, rec := range d.Manifest.Slides {
+		if slideSlugFromFile(rec.File) == "c" {
+			idCAfter = rec.ID
+			break
+		}
+	}
+	if idCAfter != idC {
+		t.Errorf("c slide_id changed after remove: %q → %q", idC, idCAfter)
+	}
+}
+
+// TestSlideID_StableAcrossSlugify verifies the critical rename case:
+// SlugifySlides changes the slug portion of the filename, but the
+// slide_id must remain unchanged. This is the property that makes
+// slide_id stronger than slug as an identifier.
+func TestSlideID_StableAcrossSlugify(t *testing.T) {
+	mfs := templar.NewMemFS()
+	mfs.SetFile("index.html", []byte(`{{# include "slides/01-old-name.html" #}}`))
+	mfs.SetFile("slides/01-old-name.html", []byte(`<section><h1>New Heading</h1></section>`))
+	d, _ := OpenDeck(mfs)
+
+	// Trigger initial id assignment.
+	d.ensureSlideIDs()
+	d.saveManifest()
+
+	idBefore := d.Manifest.Slides[0].ID
+	fileBefore := d.Manifest.Slides[0].File
+
+	// Slugify will rename old-name → new-heading.
+	renamed, err := d.SlugifySlides(Slugify)
+	if err != nil {
+		t.Fatalf("SlugifySlides: %v", err)
+	}
+	if renamed == 0 {
+		t.Fatal("SlugifySlides should have renamed at least 1 slide")
+	}
+
+	// The file field should have changed, but the id must stay the same.
+	if d.Manifest.Slides[0].ID != idBefore {
+		t.Errorf("slide_id changed after slugify: %q → %q", idBefore, d.Manifest.Slides[0].ID)
+	}
+	if d.Manifest.Slides[0].File == fileBefore {
+		t.Error("file should have changed after slugify")
+	}
+
+	// ResolveSlide by the old id should still work.
+	file, err := d.ResolveSlide(idBefore)
+	if err != nil {
+		t.Fatalf("ResolveSlide(%s) after slugify: %v", idBefore, err)
+	}
+	if file == fileBefore {
+		t.Errorf("ResolveSlide returned old file %q; should return new file", fileBefore)
+	}
+}
+
+// TestResolveSlide_BySlideID verifies the priority-0 branch in
+// ResolveSlide: passing a slide_id (sl_-prefixed) resolves directly
+// to the file via the id→file index without position or slug ambiguity.
+func TestResolveSlide_BySlideID(t *testing.T) {
+	d := makeDeckWithSlugs(t, "01-intro.html", "02-outro.html")
+	d.ensureSlideIDs()
+
+	id := d.Manifest.Slides[0].ID
+	file, err := d.ResolveSlide(id)
+	if err != nil {
+		t.Fatalf("ResolveSlide(%s): %v", id, err)
+	}
+	if file != "01-intro.html" {
+		t.Errorf("ResolveSlide(%s) = %q, want 01-intro.html", id, file)
+	}
+}
+
+// TestEnsureSlideIDs_LegacyDeck verifies auto-migration: opening a deck
+// that has no slides: section in its manifest, then calling a mutation,
+// results in all slides getting ids assigned.
+func TestEnsureSlideIDs_LegacyDeck(t *testing.T) {
+	d := makeDeckWithSlugs(t, "01-a.html", "02-b.html")
+	// makeDeckWithSlugs doesn't write a manifest, so Manifest is nil or
+	// has no Slides. Force the migration path.
+	d.ensureSlideIDs()
+
+	if len(d.Manifest.Slides) != 2 {
+		t.Fatalf("expected 2 slide records, got %d", len(d.Manifest.Slides))
+	}
+	for _, rec := range d.Manifest.Slides {
+		if !IsSlideID(rec.ID) {
+			t.Errorf("slide record has invalid id %q", rec.ID)
+		}
+	}
+}
+
+// TestEnsureSlideIDs_DoesNotRunOnRead verifies the critical invariant
+// that read-only operations (Describe, list) do NOT trigger auto-migration.
+// This prevents surprise git diffs when users run `slyds describe` on a
+// legacy deck without intending to modify it.
+func TestEnsureSlideIDs_DoesNotRunOnRead(t *testing.T) {
+	mfs := templar.NewMemFS()
+	mfs.SetFile("index.html", []byte(`{{# include "slides/01-a.html" #}}`))
+	mfs.SetFile("slides/01-a.html", []byte(`A`))
+	mfs.SetFile(".slyds.yaml", []byte("theme: default\ntitle: Legacy\n"))
+
+	d, _ := OpenDeck(mfs)
+
+	// Describe is read-only.
+	d.Describe()
+
+	// Re-read the manifest file — it should NOT have a slides: section.
+	data, _ := mfs.ReadFile(".slyds.yaml")
+	if strings.Contains(string(data), "slides:") {
+		t.Error("read-only Describe() wrote slides: section to manifest")
+	}
+}
+
+// TestScaffold_AssignsSlideIDs verifies that newly scaffolded decks have
+// slide_id records for every slide in the manifest from day one.
+func TestScaffold_AssignsSlideIDs(t *testing.T) {
+	mfs := templar.NewMemFS()
+	d, err := ScaffoldDeck(mfs, ScaffoldOpts{
+		Title:      "ID Test",
+		SlideCount: 5,
+		ThemeName:  "default",
+	})
+	if err != nil {
+		t.Fatalf("ScaffoldDeck: %v", err)
+	}
+
+	if len(d.Manifest.Slides) != 5 {
+		t.Fatalf("expected 5 slide records, got %d", len(d.Manifest.Slides))
+	}
+
+	ids := make(map[string]bool)
+	for _, rec := range d.Manifest.Slides {
+		if !IsSlideID(rec.ID) {
+			t.Errorf("invalid slide_id format: %q", rec.ID)
+		}
+		if ids[rec.ID] {
+			t.Errorf("duplicate slide_id: %q", rec.ID)
+		}
+		ids[rec.ID] = true
+	}
+}
+
+// TestDescribe_IncludesSlideID verifies that Describe() populates the
+// SlideID field on every SlideDescription when the manifest has
+// slide records. This is how the MCP describe_deck / list_slides
+// tools expose slide_ids to agents.
+func TestDescribe_IncludesSlideID(t *testing.T) {
+	mfs := templar.NewMemFS()
+	d, err := ScaffoldDeck(mfs, ScaffoldOpts{
+		Title:      "Describe ID Test",
+		SlideCount: 3,
+		ThemeName:  "default",
+	})
+	if err != nil {
+		t.Fatalf("ScaffoldDeck: %v", err)
+	}
+
+	desc, err := d.Describe()
+	if err != nil {
+		t.Fatalf("Describe: %v", err)
+	}
+	for i, s := range desc.Slides {
+		if !IsSlideID(s.SlideID) {
+			t.Errorf("slides[%d].SlideID = %q, want sl_-prefixed id", i, s.SlideID)
 		}
 	}
 }

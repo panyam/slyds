@@ -44,7 +44,7 @@
 - [x] ~~mcpkit v0.1.15 adoption — single-struct registration, per-tool timeouts, StructuredResult, error handler, EventStore (#71)~~
 - [x] ~~Workspace abstraction — `cmd/workspace.go`, `slyds ws` CLI, MCP middleware-based deck resolution (#74, PR 1 of 4)~~
 - [x] ~~Slug-as-ID in MCP tools + slug uniqueness — `Slug` field, priority-chain `ResolveSlide`, scaffolder fix, `slide` param on read/edit (#78, #74 PR 2 of 4)~~
-- [ ] Persistent slide IDs in `.slyds.yaml` for rename-safe identity (#83, next subtask)
+- [x] ~~Persistent slide IDs in `.slyds.yaml` — rename-safe `sl_` IDs stored per-slide in manifest, auto-migrated, ResolveSlide priority-0 branch (#83)~~
 - [ ] Optimistic versioning on MCP mutations (#79, locks on slide_id)
 - [ ] Multi-root workspace.yaml config (#80)
 - [ ] Slide folders with co-located assets (e.g., `slides/03-architecture/slide.html` + `diagram.png`)

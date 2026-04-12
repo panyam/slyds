@@ -18,30 +18,45 @@ import (
 
 var includeRe = regexp.MustCompile(`\{\{#\s*include\s+"(slides/[^"]+)"\s*#\}\}`)
 
-// DeckManifest holds the parsed .slyds.yaml configuration.
-type DeckManifest struct {
-	Theme string `yaml:"theme" json:"theme"`
-	Title string `yaml:"title" json:"title"`
-}
-
 // Deck represents an opened slyds presentation deck.
 // All I/O goes through the FS field (templar.WritableFS), making it portable.
+//
+// Deck is NOT safe for concurrent use. Mutation methods assume a single
+// caller at a time; hosted multi-tenant deployments (#76) will need a
+// concurrency layer above this.
 type Deck struct {
 	// FS is the writable filesystem backing this deck.
 	FS templar.WritableFS
 
-	// Manifest is the parsed .slyds.yaml configuration. May be nil if none exists.
-	Manifest *DeckManifest
+	// Manifest is the parsed .slyds.yaml configuration. May be nil if
+	// none exists on disk yet. Mutation methods that touch the slide set
+	// populate and persist it on demand.
+	Manifest *Manifest
+
+	// Derived id→file and file→id indices, rebuilt from Manifest.Slides
+	// on OpenDeck and after every mutation. Not persisted, not exported:
+	// ResolveSlide and the mutation methods use them for O(1) lookups
+	// instead of linearly scanning Manifest.Slides on every call. See
+	// rebuildIndices and ensureSlideIDs in slide_ids.go.
+	idByFile map[string]string
+	fileByID map[string]string
 }
 
 // OpenDeck opens an existing deck from the given filesystem.
 // The FS root should be the deck directory (containing index.html).
+//
+// The manifest's Slides records (if any) are loaded into derived
+// id→file indices for O(1) lookup. Read-only operations do NOT
+// auto-migrate legacy decks — that only happens on the first mutation
+// via ensureSlideIDs.
 func OpenDeck(fsys templar.WritableFS) (*Deck, error) {
 	if _, err := fsys.ReadFile("index.html"); err != nil {
 		return nil, fmt.Errorf("no index.html found — is this a slyds presentation?")
 	}
 	manifest := readManifest(fsys)
-	return &Deck{FS: fsys, Manifest: manifest}, nil
+	d := &Deck{FS: fsys, Manifest: manifest}
+	d.rebuildIndices()
+	return d, nil
 }
 
 // Title returns the deck's title from the manifest, or "" if unknown.
@@ -121,15 +136,19 @@ func (d *Deck) EditSlideContent(position int, content string) error {
 
 // RewriteSlideOrder renumbers slide files and rebuilds index.html to match
 // the given ordering. Files are renamed via temp names to avoid collisions.
+// After the rename pass, the slide_id mapping in the manifest is updated
+// to reflect the new filenames and persisted to .slyds.yaml.
 func (d *Deck) RewriteSlideOrder(orderedFiles []string) error {
 	type renamePair struct{ from, to string }
 	var renames []renamePair
+	renameMap := make(map[string]string) // oldName → newName
 
 	for i, oldName := range orderedFiles {
 		namePart := ExtractNamePart(oldName)
 		newName := fmt.Sprintf("%02d-%s", i+1, namePart)
 		if oldName != newName {
 			renames = append(renames, renamePair{oldName, newName})
+			renameMap[oldName] = newName
 		}
 		orderedFiles[i] = newName
 	}
@@ -141,7 +160,7 @@ func (d *Deck) RewriteSlideOrder(orderedFiles []string) error {
 		d.FS.Rename("slides/"+r.from+".tmp", "slides/"+r.to)
 	}
 
-	indexData, err := d.FS.ReadFile( "index.html")
+	indexData, err := d.FS.ReadFile("index.html")
 	if err != nil {
 		return err
 	}
@@ -163,12 +182,25 @@ func (d *Deck) RewriteSlideOrder(orderedFiles []string) error {
 		newLines = append(newLines, line)
 	}
 
-	return d.FS.WriteFile("index.html", []byte(strings.Join(newLines, "\n")), 0644)
+	if err := d.FS.WriteFile("index.html", []byte(strings.Join(newLines, "\n")), 0644); err != nil {
+		return err
+	}
+
+	// Update slide_id mapping for any renamed files and persist.
+	if len(renameMap) > 0 && d.Manifest != nil && len(d.Manifest.Slides) > 0 {
+		d.updateSlideFilenames(renameMap)
+		return d.saveManifest()
+	}
+	return nil
 }
 
 // AddSlide creates a new slide file at the given position with the given content,
-// inserts it into the ordering, and renumbers all slides.
+// inserts it into the ordering, assigns a slide_id, and renumbers all slides.
 func (d *Deck) AddSlide(position int, filename string, content string) error {
+	if err := d.ensureSlideIDs(); err != nil {
+		return err
+	}
+
 	existing, err := d.SlideFilenames()
 	if err != nil {
 		return err
@@ -182,6 +214,15 @@ func (d *Deck) AddSlide(position int, filename string, content string) error {
 		return err
 	}
 
+	// Assign a slide_id to the new file before RewriteSlideOrder renames it.
+	usedIDs := make(map[string]bool, len(d.Manifest.Slides))
+	for _, rec := range d.Manifest.Slides {
+		usedIDs[rec.ID] = true
+	}
+	newID := uniqueSlideID(usedIDs)
+	d.Manifest.Slides = append(d.Manifest.Slides, SlideRecord{ID: newID, File: filename})
+	d.rebuildIndices()
+
 	newOrder := make([]string, 0, len(existing)+1)
 	newOrder = append(newOrder, existing[:position-1]...)
 	newOrder = append(newOrder, filename)
@@ -190,8 +231,13 @@ func (d *Deck) AddSlide(position int, filename string, content string) error {
 	return d.RewriteSlideOrder(newOrder)
 }
 
-// RemoveSlide removes a slide by filename, renumbers remaining slides.
+// RemoveSlide removes a slide by filename, drops its slide_id record,
+// and renumbers remaining slides.
 func (d *Deck) RemoveSlide(filename string) error {
+	if err := d.ensureSlideIDs(); err != nil {
+		return err
+	}
+
 	existing, err := d.SlideFilenames()
 	if err != nil {
 		return err
@@ -199,6 +245,17 @@ func (d *Deck) RemoveSlide(filename string) error {
 	if err := d.FS.Remove("slides/" + filename); err != nil {
 		return err
 	}
+
+	// Remove the slide_id record for the deleted file.
+	kept := d.Manifest.Slides[:0]
+	for _, rec := range d.Manifest.Slides {
+		if rec.File != filename {
+			kept = append(kept, rec)
+		}
+	}
+	d.Manifest.Slides = kept
+	d.rebuildIndices()
+
 	var remaining []string
 	for _, f := range existing {
 		if f != filename {
@@ -209,7 +266,12 @@ func (d *Deck) RemoveSlide(filename string) error {
 }
 
 // MoveSlide reorders a slide from one position to another (1-based).
+// Slide IDs are preserved — only positions and filename prefixes change.
 func (d *Deck) MoveSlide(from, to int) error {
+	if err := d.ensureSlideIDs(); err != nil {
+		return err
+	}
+
 	existing, err := d.SlideFilenames()
 	if err != nil {
 		return err
@@ -231,8 +293,14 @@ func (d *Deck) MoveSlide(from, to int) error {
 
 // SlugifySlides renames slides based on their <h1> headings.
 // The slugFn parameter converts a heading string to a slug.
-// Returns the number of slides renamed.
+// Returns the number of slides renamed. Slide IDs are preserved
+// across the rename — the id→file mapping is updated to reflect
+// the new filenames.
 func (d *Deck) SlugifySlides(slugFn func(string) string) (int, error) {
+	if err := d.ensureSlideIDs(); err != nil {
+		return 0, err
+	}
+
 	slides, err := d.SlideFilenames()
 	if err != nil {
 		return 0, err
@@ -247,7 +315,7 @@ func (d *Deck) SlugifySlides(slugFn func(string) string) (int, error) {
 		heading := ExtractFirstHeading(content)
 		if heading == "" {
 			newNames[i] = filename
-			slug := strings.TrimSuffix(ExtractNamePart(filename), ".html")
+			slug := slideSlugFromFile(filename)
 			usedSlugs[slug]++
 			continue
 		}
@@ -269,13 +337,22 @@ func (d *Deck) SlugifySlides(slugFn func(string) string) (int, error) {
 		return 0, nil
 	}
 
+	// Build the rename map for the slug portion. RewriteSlideOrder will
+	// handle the numeric-prefix portion and update the manifest mapping.
+	slugRenames := make(map[string]string)
 	type renamePair struct{ from, to string }
 	var renames []renamePair
 	for i, oldName := range slides {
 		if newNames[i] != oldName {
 			renames = append(renames, renamePair{oldName, newNames[i]})
+			slugRenames[oldName] = newNames[i]
 		}
 	}
+
+	// Update the manifest mapping for slug changes BEFORE the filesystem
+	// rename, so RewriteSlideOrder sees the new filenames.
+	d.updateSlideFilenames(slugRenames)
+
 	for _, r := range renames {
 		d.FS.Rename("slides/"+r.from, "slides/"+r.from+".tmp")
 	}
@@ -283,7 +360,15 @@ func (d *Deck) SlugifySlides(slugFn func(string) string) (int, error) {
 		d.FS.Rename("slides/"+r.from+".tmp", "slides/"+r.to)
 	}
 
-	return renamed, d.RewriteSlideOrder(newNames)
+	if err := d.RewriteSlideOrder(newNames); err != nil {
+		return renamed, err
+	}
+	// RewriteSlideOrder only saves the manifest when it renames files
+	// (NN- prefix changes). After SlugifySlides' own rename pass, the
+	// prefixes are already correct, so RewriteSlideOrder skips the save.
+	// We must save explicitly here to persist the slug→file mapping
+	// changes that updateSlideFilenames applied in memory.
+	return renamed, d.saveManifest()
 }
 
 // InsertSlide renders a new slide from the named layout template and inserts
@@ -292,14 +377,13 @@ func (d *Deck) SlugifySlides(slugFn func(string) string) (int, error) {
 // auto-suffixed with -2, -3, ... (same convention as SlugifySlides) to keep
 // slugs unique within a deck.
 //
-// Returns the final slug actually used (may differ from the requested name
-// if auto-suffix was applied) and any error encountered.
+// Returns the final slug, the assigned slide_id, and any error. The
+// slide_id is the rename-safe handle for this slide — it survives every
+// future mutation including renames. Agents should prefer slide_id for
+// follow-up references when they plan to cache the identifier.
 //
 // Title overrides the display title (otherwise derived from the slug).
-//
-// TODO(#83): also return assigned slide_id once .slyds.yaml stores per-slide
-// metadata — gives callers a rename-safe handle separate from the slug.
-func (d *Deck) InsertSlide(position int, name, layoutName, title string) (string, error) {
+func (d *Deck) InsertSlide(position int, name, layoutName, title string) (string, string, error) {
 	finalName := d.uniqueSlug(name)
 
 	displayName := slugToTitle(finalName)
@@ -312,14 +396,25 @@ func (d *Deck) InsertSlide(position int, name, layoutName, title string) (string
 		"Number": position,
 	})
 	if err != nil {
-		return "", fmt.Errorf("layout %q: %w", layoutName, err)
+		return "", "", fmt.Errorf("layout %q: %w", layoutName, err)
 	}
 
 	filename := fmt.Sprintf("%02d-%s.html", position, finalName)
 	if err := d.AddSlide(position, filename, content); err != nil {
-		return "", err
+		return "", "", err
 	}
-	return finalName, nil
+
+	// After AddSlide, the file may have been renumbered. Look up the
+	// slide_id from the derived indices (AddSlide already assigned one
+	// and called RewriteSlideOrder which updated the mapping).
+	slideID := ""
+	for _, rec := range d.Manifest.Slides {
+		if slideSlugFromFile(rec.File) == finalName {
+			slideID = rec.ID
+			break
+		}
+	}
+	return finalName, slideID, nil
 }
 
 // uniqueSlug returns the desired slug if no existing slide uses it, otherwise
@@ -405,12 +500,15 @@ func (d *Deck) listSlideFiles() []string {
 	return files
 }
 
-func readManifest(fsys templar.WritableFS) *DeckManifest {
+// readManifest reads and parses .slyds.yaml into the full Manifest type.
+// Returns nil on any error (missing file, malformed yaml) — callers treat
+// a nil manifest as "legacy deck with no config" and degrade gracefully.
+func readManifest(fsys templar.WritableFS) *Manifest {
 	data, err := fsys.ReadFile(".slyds.yaml")
 	if err != nil {
 		return nil
 	}
-	var m DeckManifest
+	var m Manifest
 	if err := yaml.Unmarshal(data, &m); err != nil {
 		return nil
 	}

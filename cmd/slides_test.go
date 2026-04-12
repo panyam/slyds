@@ -17,7 +17,7 @@ func runInsert(root string, pos int, name, layoutName, title string) error {
 	if err != nil {
 		return err
 	}
-	_, err = d.InsertSlide(pos, name, layoutName, title)
+	_, _, err = d.InsertSlide(pos, name, layoutName, title)
 	return err
 }
 

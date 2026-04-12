@@ -21,6 +21,20 @@ type SourceConfig struct {
 	Exclude []string `yaml:"exclude,omitempty"`
 }
 
+// SlideRecord maps a stable slide_id to the slide's current filename.
+// The id is assigned by slyds at slide creation time and survives every
+// subsequent mutation: inserts, removes, moves, renumbers, even
+// slugify-style renames. Only the File field changes as the underlying
+// file is renamed on disk. Agents can reference a slide by id for
+// rename-safe access across tool calls.
+//
+// SlideRecord is the per-slide part of the Manifest schema introduced
+// in issue #83.
+type SlideRecord struct {
+	ID   string `yaml:"id"`
+	File string `yaml:"file"`
+}
+
 // Manifest represents the .slyds.yaml file stored in a presentation directory.
 type Manifest struct {
 	Theme           string                  `yaml:"theme"`
@@ -28,6 +42,11 @@ type Manifest struct {
 	Sources         map[string]SourceConfig `yaml:"sources,omitempty"`
 	ModulesDir      string                  `yaml:"modules_dir,omitempty"`
 	AgentIncludeMCP *bool                   `yaml:"agent_include_mcp,omitempty"`
+
+	// Slides is the list of slide_id → filename records. Empty for
+	// legacy decks that predate #83 — they get auto-migrated on the
+	// next mutation. Read-only operations tolerate the empty state.
+	Slides []SlideRecord `yaml:"slides,omitempty"`
 }
 
 // DefaultModulesDir is the default directory name for vendored modules.

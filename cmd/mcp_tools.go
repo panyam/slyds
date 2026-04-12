@@ -403,18 +403,21 @@ func addSlideTool() server.Tool {
 			if errResult != nil {
 				return *errResult, nil
 			}
-			finalSlug, err := d.InsertSlide(p.Position, p.Name, p.Layout, p.Title)
+			finalSlug, slideID, err := d.InsertSlide(p.Position, p.Name, p.Layout, p.Title)
 			if err != nil {
 				return mcpcore.ErrorResult(err.Error()), nil
 			}
 			mcpcore.NotifyResourcesChanged(ctx)
 			if finalSlug != p.Name {
 				return mcpcore.TextResult(fmt.Sprintf(
-					"Slide %q inserted at position %d (slug auto-suffixed to %q to avoid collision).",
-					p.Name, p.Position, finalSlug,
+					"Slide %q inserted at position %d (slug auto-suffixed to %q to avoid collision, slide_id: %q).",
+					p.Name, p.Position, finalSlug, slideID,
 				)), nil
 			}
-			return mcpcore.TextResult(fmt.Sprintf("Slide %q inserted at position %d.", p.Name, p.Position)), nil
+			return mcpcore.TextResult(fmt.Sprintf(
+				"Slide %q inserted at position %d (slide_id: %q).",
+				p.Name, p.Position, slideID,
+			)), nil
 		},
 	}
 }

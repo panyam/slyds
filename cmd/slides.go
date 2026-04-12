@@ -52,7 +52,7 @@ var addCmd = &cobra.Command{
 		}
 
 		layoutName := resolveLayoutFlag(slideLayout, slideType)
-		finalName, err := d.InsertSlide(position, name, layoutName, "")
+		finalName, _, err := d.InsertSlide(position, name, layoutName, "")
 		if err != nil {
 			return err
 		}
@@ -231,7 +231,7 @@ after insertion to maintain consistent NN-name.html naming.`,
 		}
 
 		layoutName := resolveLayoutFlag(insertLayout, insertType)
-		finalName, err := d.InsertSlide(pos, name, layoutName, insertTitle)
+		finalName, _, err := d.InsertSlide(pos, name, layoutName, insertTitle)
 		if err != nil {
 			return err
 		}

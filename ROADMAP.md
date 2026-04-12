@@ -66,6 +66,9 @@ Introduced a `Workspace` interface (`cmd/workspace.go`) to decouple MCP tool and
 ## Phase 9i — Slug-as-ID in MCP tools (done)
 Made slug (the non-prefix portion of `NN-slug.html`) the stable handle for slide references in the MCP API. `SlideDescription` grew a `Slug` field returned by `describe_deck` / `list_slides`. `ResolveSlide` rewritten with a priority chain (numeric → exact filename → exact slug → substring fallback) and new `ErrAmbiguousSlideRef` for multi-match cases. `InsertSlide` auto-suffixes colliding slugs via the same `-N` pattern `SlugifySlides` already uses, and now returns `(finalSlug, error)` so callers can surface the actual name. Scaffolder fixed so `slyds init --slides 5` produces unique slugs by default (`slide`, `slide-2`, `slide-3`). MCP `read_slide` and `edit_slide` accept a new `slide` string parameter (slug, filename, or position) alongside the existing `position` int for backward compat. `TestE2E_SlugRefSurvivesInsert` is the canonical integration test proving slug stability across position shifts.
 
+## Phase 9j — Persistent slide IDs (done)
+Added a rename-safe `slide_id` per slide, stored as `slides: [{id, file}]` records in `.slyds.yaml`. IDs are `sl_` + 8 hex chars, generated at slide creation time via `crypto/rand`, and survive every mutation including inserts, removes, moves, and slugify renames. `Deck.Manifest` unified from the minimal `DeckManifest` to the full `Manifest` type. `writeManifestFS` unified from a hand-formatted string to the exported `yaml.Marshal` path. `ResolveSlide` gains a priority-0 branch for `sl_`-prefixed references. `SlideDescription` gains a `SlideID` field populated by `Describe()`. Legacy decks auto-migrate on first mutation. Scaffolder assigns IDs at creation time. Canonical test: `TestE2E_SlideIDSurvivesRename`.
+
 ## Phase 10 — Slide Folders
 Support `slides/03-name/slide.html` with co-located assets (images, per-slide CSS). Auto-detect folder vs file slides.
 
