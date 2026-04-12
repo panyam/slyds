@@ -125,7 +125,7 @@ Agents should prefer **slug** for references that survive insert/remove operatio
 
 Slug is **not rename-safe**: `slyds slides slugify` changes slugs based on `<h1>` headings. A truly rename-safe `slide_id` (stored in `.slyds.yaml`) is planned for a follow-up PR.
 
-## Server Configuration (mcpkit v0.1.15)
+## Server Configuration (mcpkit v0.1.24)
 
 ### Per-Tool Timeouts
 
