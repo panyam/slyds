@@ -10,6 +10,7 @@ import (
 	"os"
 	"os/signal"
 	"strings"
+	"time"
 
 	mcpcore "github.com/panyam/mcpkit/core"
 	"github.com/panyam/mcpkit/ext/ui"
@@ -110,7 +111,11 @@ func runMCPServer() error {
 
 	var transport string
 	if mcpUseSSE {
-		transportOpts = append(transportOpts, server.WithSSE(true), server.WithStreamableHTTP(false))
+		transportOpts = append(transportOpts,
+			server.WithSSE(true),
+			server.WithStreamableHTTP(false),
+			server.WithSSEGracePeriod(30*time.Second),
+		)
 		transport = "SSE"
 	} else {
 		transportOpts = append(transportOpts,

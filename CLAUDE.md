@@ -55,8 +55,8 @@ All Deck I/O goes through `templar.WritableFS` (v0.1.0). No `os.*`/`filepath.*` 
 | Component | Version | Notes |
 |-----------|---------|-------|
 | templar | v0.1.0 | WritableFS, FSFolder, MemFS, module system |
-| mcpkit | v0.1.15 | Split packages, SSE + Streamable HTTP + stdio, per-tool timeout, error handler, StructuredResult, ToolCallTyped, EventStore |
-| mcpkit/ext/ui | v0.1.15 | MCP Apps extension (inline HTML previews via io.modelcontextprotocol/ui) |
+| mcpkit | v0.1.24 | Split packages, SSE + Streamable HTTP + stdio, per-tool timeout, error handler, StructuredResult, ToolCallTyped, EventStore, SSE grace period, schema validation, streaming results, pagination, roots lifecycle, ToolExec |
+| mcpkit/ext/ui | v0.1.24 | MCP Apps extension (inline HTML previews via io.modelcontextprotocol/ui) |
 
 See [Stackfile.md](Stackfile.md) for full dependency list.
 
