@@ -482,7 +482,7 @@ func extractRegisteredTool(root, name string) server.Tool {
 		if tool.Name == name {
 			return server.Tool{
 				ToolDef: tool,
-				Handler: func(ctx context.Context, req mcpcore.ToolRequest) (mcpcore.ToolResult, error) {
+				Handler: func(ctx mcpcore.ToolContext, req mcpcore.ToolRequest) (mcpcore.ToolResult, error) {
 					args, _ := json.Marshal(map[string]any{"name": name, "arguments": json.RawMessage(req.Arguments)})
 					callReq := &mcpcore.Request{
 						JSONRPC: "2.0",

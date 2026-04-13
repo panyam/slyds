@@ -4,9 +4,9 @@ go 1.26.1
 
 require (
 	github.com/PuerkitoBio/goquery v1.12.0
-	github.com/panyam/mcpkit v0.1.31
-	github.com/panyam/mcpkit/ext/ui v0.1.31
-	github.com/panyam/servicekit v0.0.24
+	github.com/panyam/mcpkit v0.2.2
+	github.com/panyam/mcpkit/ext/ui v0.2.2
+	github.com/panyam/servicekit v0.0.25
 	github.com/panyam/templar v0.1.0
 	github.com/spf13/cobra v1.10.2
 	gopkg.in/yaml.v3 v3.0.1

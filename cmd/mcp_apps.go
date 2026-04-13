@@ -149,7 +149,7 @@ func registerAppTools(srv *server.Server) {
 		},
 		ResourceURI:           "ui://slyds/preview-deck",
 		SupportedDisplayModes: previewDisplayModes,
-		ToolHandler: func(ctx context.Context, req mcpcore.ToolRequest) (mcpcore.ToolResult, error) {
+		ToolHandler: func(ctx mcpcore.ToolContext, req mcpcore.ToolRequest) (mcpcore.ToolResult, error) {
 			var p struct {
 				Deck        string `json:"deck"`
 				DisplayMode string `json:"display_mode"`
@@ -187,7 +187,7 @@ func registerAppTools(srv *server.Server) {
 			}
 			return mcpcore.TextResult(summary), nil
 		},
-		ResourceHandler: func(ctx context.Context, req mcpcore.ResourceRequest) (mcpcore.ResourceResult, error) {
+		ResourceHandler: func(ctx mcpcore.ResourceContext, req mcpcore.ResourceRequest) (mcpcore.ResourceResult, error) {
 			html, err := buildPreviewForRef(ctx, previewDeckRef)
 			if err != nil {
 				return mcpcore.ResourceResult{}, err
@@ -220,7 +220,7 @@ func registerAppTools(srv *server.Server) {
 		},
 		ResourceURI:           "ui://slyds/preview-slide",
 		SupportedDisplayModes: previewDisplayModes,
-		ToolHandler: func(ctx context.Context, req mcpcore.ToolRequest) (mcpcore.ToolResult, error) {
+		ToolHandler: func(ctx mcpcore.ToolContext, req mcpcore.ToolRequest) (mcpcore.ToolResult, error) {
 			var p struct {
 				Deck     string `json:"deck"`
 				Position int    `json:"position"`
@@ -269,7 +269,7 @@ func registerAppTools(srv *server.Server) {
 			}
 			return mcpcore.TextResult(summary), nil
 		},
-		ResourceHandler: func(ctx context.Context, req mcpcore.ResourceRequest) (mcpcore.ResourceResult, error) {
+		ResourceHandler: func(ctx mcpcore.ResourceContext, req mcpcore.ResourceRequest) (mcpcore.ResourceResult, error) {
 			html, err := buildPreviewForRef(ctx, previewSlideRef)
 			if err != nil {
 				return mcpcore.ResourceResult{}, err
@@ -297,7 +297,7 @@ func registerAppTools(srv *server.Server) {
 				Description: "Full navigable deck preview by name (MCP Apps)",
 				MimeType:    mcpcore.AppMIMEType,
 			},
-			Handler: func(ctx context.Context, uri string, params map[string]string) (mcpcore.ResourceResult, error) {
+			Handler: func(ctx mcpcore.ResourceContext, uri string, params map[string]string) (mcpcore.ResourceResult, error) {
 				html, err := buildPreviewHTML(ctx, params["deck"], 0)
 				if err != nil {
 					return mcpcore.ResourceResult{}, err
@@ -318,7 +318,7 @@ func registerAppTools(srv *server.Server) {
 				Description: "Deck preview opened on a specific slide (MCP Apps)",
 				MimeType:    mcpcore.AppMIMEType,
 			},
-			Handler: func(ctx context.Context, uri string, params map[string]string) (mcpcore.ResourceResult, error) {
+			Handler: func(ctx mcpcore.ResourceContext, uri string, params map[string]string) (mcpcore.ResourceResult, error) {
 				position := 0
 				if posStr, ok := params["position"]; ok {
 					n, err := strconv.Atoi(posStr)

@@ -25,7 +25,7 @@ func registerResources(srv *server.Server) {
 				Description: "slyds MCP server version, capabilities, and workspace root",
 				MimeType:    "application/json",
 			},
-			Handler: func(ctx context.Context, req mcpcore.ResourceRequest) (mcpcore.ResourceResult, error) {
+			Handler: func(ctx mcpcore.ResourceContext, req mcpcore.ResourceRequest) (mcpcore.ResourceResult, error) {
 				ws := workspaceFromContext(ctx)
 				info := map[string]any{
 					"name":    "slyds",
@@ -56,7 +56,7 @@ func registerResources(srv *server.Server) {
 				Description: "List all presentation decks visible to the current workspace",
 				MimeType:    "application/json",
 			},
-			Handler: func(ctx context.Context, uri string, params map[string]string) (mcpcore.ResourceResult, error) {
+			Handler: func(ctx mcpcore.ResourceContext, uri string, params map[string]string) (mcpcore.ResourceResult, error) {
 				ws := workspaceFromContext(ctx)
 				if ws == nil {
 					return mcpcore.ResourceResult{}, fmt.Errorf("internal: no workspace on context")
@@ -98,7 +98,7 @@ func registerResources(srv *server.Server) {
 				Description: "Structured description of a deck: title, theme, slides with metadata",
 				MimeType:    "application/json",
 			},
-			Handler: func(ctx context.Context, uri string, params map[string]string) (mcpcore.ResourceResult, error) {
+			Handler: func(ctx mcpcore.ResourceContext, uri string, params map[string]string) (mcpcore.ResourceResult, error) {
 				d, err := openDeckForResource(ctx, params["name"])
 				if err != nil {
 					return mcpcore.ResourceResult{}, err
@@ -126,7 +126,7 @@ func registerResources(srv *server.Server) {
 				Description: "List all slides in a deck with position, filename, layout, title, and word count",
 				MimeType:    "application/json",
 			},
-			Handler: func(ctx context.Context, uri string, params map[string]string) (mcpcore.ResourceResult, error) {
+			Handler: func(ctx mcpcore.ResourceContext, uri string, params map[string]string) (mcpcore.ResourceResult, error) {
 				d, err := openDeckForResource(ctx, params["name"])
 				if err != nil {
 					return mcpcore.ResourceResult{}, err
@@ -154,7 +154,7 @@ func registerResources(srv *server.Server) {
 				Description: "Raw HTML content of a specific slide by position (1-based)",
 				MimeType:    "text/html",
 			},
-			Handler: func(ctx context.Context, uri string, params map[string]string) (mcpcore.ResourceResult, error) {
+			Handler: func(ctx mcpcore.ResourceContext, uri string, params map[string]string) (mcpcore.ResourceResult, error) {
 				d, err := openDeckForResource(ctx, params["name"])
 				if err != nil {
 					return mcpcore.ResourceResult{}, err
@@ -185,7 +185,7 @@ func registerResources(srv *server.Server) {
 				Description: "Raw .slyds.yaml manifest content",
 				MimeType:    "text/yaml",
 			},
-			Handler: func(ctx context.Context, uri string, params map[string]string) (mcpcore.ResourceResult, error) {
+			Handler: func(ctx mcpcore.ResourceContext, uri string, params map[string]string) (mcpcore.ResourceResult, error) {
 				d, err := openDeckForResource(ctx, params["name"])
 				if err != nil {
 					return mcpcore.ResourceResult{}, err
@@ -212,7 +212,7 @@ func registerResources(srv *server.Server) {
 				Description: "AGENT.md content for the deck — commands, layouts, hooks, and conventions",
 				MimeType:    "text/markdown",
 			},
-			Handler: func(ctx context.Context, uri string, params map[string]string) (mcpcore.ResourceResult, error) {
+			Handler: func(ctx mcpcore.ResourceContext, uri string, params map[string]string) (mcpcore.ResourceResult, error) {
 				d, err := openDeckForResource(ctx, params["name"])
 				if err != nil {
 					return mcpcore.ResourceResult{}, err
