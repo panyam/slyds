@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"path/filepath"
 	"strings"
 	"testing"
 	"time"
@@ -61,6 +62,19 @@ func toolCallTyped[T any](t *testing.T, tc *testutil.TestClient, name string, ar
 		t.Fatalf("ToolCallTyped(%s): %v", name, err)
 	}
 	return result
+}
+
+// readSlideContent calls read_slide via the TestClient and extracts the
+// HTML content from the JSON response. read_slide now returns structured
+// JSON with {content, version, deck_version} for optimistic concurrency.
+func readSlideContent(t *testing.T, c *testutil.TestClient, args map[string]any) string {
+	t.Helper()
+	raw := c.ToolCall("read_slide", args)
+	var parsed slideReadResult
+	if err := json.Unmarshal([]byte(raw), &parsed); err != nil {
+		t.Fatalf("read_slide response not JSON: %v\nraw: %s", err, raw)
+	}
+	return parsed.Content
 }
 
 // newSlydsMCPClient creates a TestClient connected to a slyds MCP server
@@ -143,10 +157,10 @@ func TestE2E_FullAgentWorkflow(t *testing.T) {
 	})
 
 	// 8. Verify edit via read_slide tool
-	readResult := c.ToolCall("read_slide", map[string]any{
+	readContent := readSlideContent(t, c, map[string]any{
 		"deck": "new-deck", "position": 1,
 	})
-	if !strings.Contains(readResult, "Modified") {
+	if !strings.Contains(readContent, "Modified") {
 		t.Error("edit not persisted")
 	}
 
@@ -393,10 +407,10 @@ func TestE2E_SlugOnlyDeckWorkflow(t *testing.T) {
 	}
 
 	// 3. Read slide by slug — works the same as numbered.
-	readResult := c.ToolCall("read_slide", map[string]any{
+	readContent := readSlideContent(t, c, map[string]any{
 		"deck": "slugonly", "slide": "slide",
 	})
-	if !strings.Contains(readResult, `class="slide`) {
+	if !strings.Contains(readContent, `class="slide`) {
 		t.Error("read_slide by slug failed on slug-only deck")
 	}
 
@@ -407,10 +421,10 @@ func TestE2E_SlugOnlyDeckWorkflow(t *testing.T) {
 	})
 
 	// 5. Verify edit persisted.
-	readResult = c.ToolCall("read_slide", map[string]any{
+	readContent = readSlideContent(t, c, map[string]any{
 		"deck": "slugonly", "slide": "slide",
 	})
-	if !strings.Contains(readResult, "Edited Slug Only") {
+	if !strings.Contains(readContent, "Edited Slug Only") {
 		t.Error("edit not persisted on slug-only deck")
 	}
 
@@ -553,11 +567,11 @@ func TestE2E_SlideIDSurvivesRename(t *testing.T) {
 	c2 := newSlydsMCPClient(t, root)
 
 	// 5. Read the slide by its ORIGINAL slide_id — should still work!
-	readResult := c2.ToolCall("read_slide", map[string]any{
+	readContent := readSlideContent(t, c2, map[string]any{
 		"deck": "test-deck", "slide": slideID,
 	})
-	if !strings.Contains(readResult, "marker-rename") {
-		t.Errorf("read by slide_id after rename didn't return the edited content: %s", readResult[:min(200, len(readResult))])
+	if !strings.Contains(readContent, "marker-rename") {
+		t.Errorf("read by slide_id after rename didn't return the edited content: %s", readContent[:min(200, len(readContent))])
 	}
 }
 
@@ -595,12 +609,12 @@ func TestE2E_SlugRefSurvivesInsert(t *testing.T) {
 	}
 
 	// Read by slug and verify the first edit landed.
-	content := c.ToolCall("read_slide", map[string]any{
+	slideContent := readSlideContent(t, c, map[string]any{
 		"deck":  "test-deck",
 		"slide": "slide-2",
 	})
-	if !strings.Contains(content, "First Edit") {
-		t.Fatalf("first edit content not found: %s", content)
+	if !strings.Contains(slideContent, "First Edit") {
+		t.Fatalf("first edit content not found: %s", slideContent)
 	}
 
 	// 2. Insert a new slide at position 2. The original "slide-2" shifts
@@ -629,21 +643,205 @@ func TestE2E_SlugRefSurvivesInsert(t *testing.T) {
 	// 4. Read by slug — must return the second edit's content, proving
 	//    the slug reference stayed pointed at the same file across the
 	//    position shift.
-	content = c.ToolCall("read_slide", map[string]any{
+	slideContent = readSlideContent(t, c, map[string]any{
 		"deck":  "test-deck",
 		"slide": "slide-2",
 	})
-	if !strings.Contains(content, "Second Edit") {
-		t.Errorf("second edit by slug didn't land on the original slide: %s", content)
+	if !strings.Contains(slideContent, "Second Edit") {
+		t.Errorf("second edit by slug didn't land on the original slide: %s", slideContent)
 	}
 
 	// Sanity: position 2 now holds the newly inserted slide, NOT slide-2.
-	content = c.ToolCall("read_slide", map[string]any{
+	slideContent = readSlideContent(t, c, map[string]any{
 		"deck":     "test-deck",
 		"position": 2,
 	})
-	if strings.Contains(content, "Second Edit") || strings.Contains(content, "marker-2") {
+	if strings.Contains(slideContent, "Second Edit") || strings.Contains(slideContent, "marker-2") {
 		t.Error("the second edit accidentally landed at position 2 (the inserted slide)")
+	}
+}
+
+// TestE2E_ReadSlideReturnsVersion verifies that read_slide returns a
+// structured JSON response with content, version, and deck_version fields.
+func TestE2E_ReadSlideReturnsVersion(t *testing.T) {
+	root := t.TempDir()
+	core.CreateInDir("Version Test", 3, "default", filepath.Join(root, "deck"), true)
+
+	c := newSlydsMCPClient(t, root)
+
+	raw := c.ToolCall("read_slide", map[string]any{"deck": "deck", "position": 1})
+	var parsed slideReadResult
+	if err := json.Unmarshal([]byte(raw), &parsed); err != nil {
+		t.Fatalf("read_slide not JSON: %v", err)
+	}
+	if parsed.Content == "" {
+		t.Error("read_slide content is empty")
+	}
+	if len(parsed.Version) != 16 {
+		t.Errorf("version length = %d, want 16", len(parsed.Version))
+	}
+	if len(parsed.DeckVersion) != 16 {
+		t.Errorf("deck_version length = %d, want 16", len(parsed.DeckVersion))
+	}
+}
+
+// TestE2E_EditSlideVersionConflict verifies that edit_slide rejects a write
+// when expected_version doesn't match the current slide version.
+func TestE2E_EditSlideVersionConflict(t *testing.T) {
+	root := t.TempDir()
+	core.CreateInDir("Conflict Test", 3, "default", filepath.Join(root, "deck"), true)
+
+	c := newSlydsMCPClient(t, root)
+
+	// Read the current version.
+	// Edit with the WRONG version → should fail.
+	_, err := c.Client.ToolCall("edit_slide", map[string]any{
+		"deck":             "deck",
+		"position":         1,
+		"content":          `<div class="slide"><h1>Conflict</h1></div>`,
+		"expected_version": "0000000000000000",
+	})
+	if err == nil {
+		t.Fatal("expected version_conflict error")
+	}
+	errorText := err.Error()
+	if !strings.Contains(errorText, "version_conflict") {
+		t.Errorf("error should contain version_conflict: %s", errorText)
+	}
+}
+
+// TestE2E_EditSlideVersionMatch verifies that edit_slide succeeds when
+// expected_version matches, and returns the new version.
+func TestE2E_EditSlideVersionMatch(t *testing.T) {
+	root := t.TempDir()
+	core.CreateInDir("Match Test", 3, "default", filepath.Join(root, "deck"), true)
+
+	c := newSlydsMCPClient(t, root)
+
+	// Read current version.
+	raw := c.ToolCall("read_slide", map[string]any{"deck": "deck", "position": 1})
+	var readRes slideReadResult
+	json.Unmarshal([]byte(raw), &readRes)
+
+	// Edit with correct version → should succeed.
+	editRaw := c.ToolCall("edit_slide", map[string]any{
+		"deck":             "deck",
+		"position":         1,
+		"content":          `<div class="slide"><h1>Updated</h1></div>`,
+		"expected_version": readRes.Version,
+	})
+	var editRes slideEditResult
+	if err := json.Unmarshal([]byte(editRaw), &editRes); err != nil {
+		t.Fatalf("edit result not JSON: %v\nraw: %s", err, editRaw)
+	}
+	if editRes.Version == readRes.Version {
+		t.Error("version should change after edit")
+	}
+	if len(editRes.Version) != 16 {
+		t.Errorf("new version length = %d, want 16", len(editRes.Version))
+	}
+}
+
+// TestE2E_EditSlideLatestBypass verifies that expected_version="latest"
+// always succeeds regardless of the current version.
+func TestE2E_EditSlideLatestBypass(t *testing.T) {
+	root := t.TempDir()
+	core.CreateInDir("Latest Test", 3, "default", filepath.Join(root, "deck"), true)
+
+	c := newSlydsMCPClient(t, root)
+
+	result := c.ToolCall("edit_slide", map[string]any{
+		"deck":             "deck",
+		"position":         1,
+		"content":          `<div class="slide"><h1>Latest</h1></div>`,
+		"expected_version": "latest",
+	})
+	if strings.Contains(result, "version_conflict") {
+		t.Error("'latest' should bypass version check")
+	}
+}
+
+// TestE2E_EditSlideEmptyVersionBackwardCompat verifies that omitting
+// expected_version succeeds (backward compatibility).
+func TestE2E_EditSlideEmptyVersionBackwardCompat(t *testing.T) {
+	root := t.TempDir()
+	core.CreateInDir("Compat Test", 3, "default", filepath.Join(root, "deck"), true)
+
+	c := newSlydsMCPClient(t, root)
+
+	result := c.ToolCall("edit_slide", map[string]any{
+		"deck":     "deck",
+		"position": 1,
+		"content":  `<div class="slide"><h1>No Version</h1></div>`,
+	})
+	if strings.Contains(result, "version_conflict") {
+		t.Error("omitting expected_version should skip version check")
+	}
+}
+
+// TestE2E_AddSlideDeckVersionConflict verifies that add_slide rejects
+// when expected_deck_version doesn't match.
+func TestE2E_AddSlideDeckVersionConflict(t *testing.T) {
+	root := t.TempDir()
+	core.CreateInDir("Add Conflict", 3, "default", filepath.Join(root, "deck"), true)
+
+	c := newSlydsMCPClient(t, root)
+
+	_, err := c.Client.ToolCall("add_slide", map[string]any{
+		"deck":                  "deck",
+		"position":              2,
+		"name":                  "extra",
+		"expected_deck_version": "0000000000000000",
+	})
+	if err == nil {
+		t.Fatal("expected version_conflict error")
+	}
+	if !strings.Contains(err.Error(), "version_conflict") {
+		t.Errorf("error should contain version_conflict: %s", err.Error())
+	}
+}
+
+// TestE2E_RemoveSlideDeckVersionConflict verifies that remove_slide rejects
+// when expected_deck_version doesn't match.
+func TestE2E_RemoveSlideDeckVersionConflict(t *testing.T) {
+	root := t.TempDir()
+	core.CreateInDir("Remove Conflict", 3, "default", filepath.Join(root, "deck"), true)
+
+	c := newSlydsMCPClient(t, root)
+
+	_, err := c.Client.ToolCall("remove_slide", map[string]any{
+		"deck":                  "deck",
+		"slide":                 "1",
+		"expected_deck_version": "0000000000000000",
+	})
+	if err == nil {
+		t.Fatal("expected version_conflict error")
+	}
+	if !strings.Contains(err.Error(), "version_conflict") {
+		t.Errorf("error should contain version_conflict: %s", err.Error())
+	}
+}
+
+// TestE2E_DescribeIncludesVersions verifies that describe_deck returns
+// deck_version and per-slide version fields.
+func TestE2E_DescribeIncludesVersions(t *testing.T) {
+	root := t.TempDir()
+	core.CreateInDir("Describe Version", 3, "default", filepath.Join(root, "deck"), true)
+
+	c := newSlydsMCPClient(t, root)
+
+	raw := c.ToolCall("describe_deck", map[string]any{"deck": "deck"})
+	var desc core.DeckDescription
+	if err := json.Unmarshal([]byte(raw), &desc); err != nil {
+		t.Fatalf("describe_deck not JSON: %v", err)
+	}
+	if len(desc.DeckVersion) != 16 {
+		t.Errorf("deck_version length = %d, want 16", len(desc.DeckVersion))
+	}
+	for i, s := range desc.Slides {
+		if len(s.Version) != 16 {
+			t.Errorf("slide %d version length = %d, want 16", i+1, len(s.Version))
+		}
 	}
 }
 

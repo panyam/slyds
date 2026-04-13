@@ -97,8 +97,8 @@ func TestListSlidesTool(t *testing.T) {
 	}
 }
 
-// TestReadSlideTool verifies that read_slide returns the raw HTML content
-// of a slide at a given position, including the slide class and title.
+// TestReadSlideTool verifies that read_slide returns structured JSON with
+// the slide content, content version, and deck version.
 func TestReadSlideTool(t *testing.T) {
 	root := scaffoldTestDeck(t, "test-deck", "Read Test", "default", 3)
 	tool := readSlideTool()
@@ -109,11 +109,21 @@ func TestReadSlideTool(t *testing.T) {
 	}
 
 	text := toolText(result)
-	if !strings.Contains(text, `class="slide`) {
-		t.Error("read_slide missing slide class")
+	var parsed slideReadResult
+	if err := json.Unmarshal([]byte(text), &parsed); err != nil {
+		t.Fatalf("read_slide result is not JSON: %v\nraw: %s", err, text)
 	}
-	if !strings.Contains(text, "Read Test") {
-		t.Error("read_slide missing title content")
+	if !strings.Contains(parsed.Content, `class="slide`) {
+		t.Error("read_slide content missing slide class")
+	}
+	if !strings.Contains(parsed.Content, "Read Test") {
+		t.Error("read_slide content missing title")
+	}
+	if len(parsed.Version) != 16 {
+		t.Errorf("read_slide version length = %d, want 16", len(parsed.Version))
+	}
+	if len(parsed.DeckVersion) != 16 {
+		t.Errorf("read_slide deck_version length = %d, want 16", len(parsed.DeckVersion))
 	}
 }
 
@@ -286,7 +296,11 @@ func TestReadSlideTool_BySlideParam(t *testing.T) {
 	if result.IsError {
 		t.Fatalf("read_slide by slide: %s", toolText(result))
 	}
-	if !strings.Contains(toolText(result), `data-layout="content"`) {
+	var parsed slideReadResult
+	if err := json.Unmarshal([]byte(toolText(result)), &parsed); err != nil {
+		t.Fatalf("read_slide result not JSON: %v", err)
+	}
+	if !strings.Contains(parsed.Content, `data-layout="content"`) {
 		t.Error("read_slide by slug didn't return the content slide")
 	}
 }
