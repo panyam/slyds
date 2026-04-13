@@ -3,6 +3,7 @@ package cmd
 import (
 	"context"
 	"fmt"
+	"strconv"
 	"strings"
 
 	"github.com/PuerkitoBio/goquery"
@@ -13,25 +14,17 @@ import (
 	"github.com/panyam/slyds/core"
 )
 
-// previewRef stores which deck (and optional slide position) the last
-// preview tool call requested. The resource handler reads this ref and
-// builds through the workspace on demand — no HTML is cached.
+// previewRef stores which deck (and optional slide position) a preview
+// resource should render. Written by tool handlers, read by the concrete
+// resource handlers that hosts like VS Code fetch from _meta.ui.resourceUri.
 //
-// This replaced the old previewCache (a gocurrent.SyncMap storing rendered
-// HTML keyed by resource URI). The old cache was not tenant-scoped: in a
-// multi-tenant deployment, user A's preview HTML could leak to user B.
-// By storing only the deck reference and building through workspace on
-// every resource read, the authz layer (Workspace.OpenDeck) naturally
-// prevents cross-tenant access — no HTML blob ever sits in shared memory.
+// Template resource handlers (ui://slyds/decks/{deck}/preview) extract the
+// deck name from URI params and don't use these refs at all.
 type previewRef struct {
 	Deck     string
 	Position int // 0 = full deck, >0 = open on this slide
 }
 
-// previewTarget stores the last-requested preview reference per resource URI.
-// Written by tool handlers, read by resource handlers. Thread-safe via
-// the sync.Map underneath gocurrent.SyncMap (replaced by a plain sync.Map
-// since we dropped the gocurrent dependency for this file).
 var previewDeckRef previewRef
 var previewSlideRef previewRef
 
@@ -86,16 +79,11 @@ func injectInitialSlide(html string, position int) (string, error) {
 	return doc.Html()
 }
 
-// buildPreviewForResource builds a preview HTML for the given ref by
-// opening the deck through the workspace (enforcing authz) and running
-// Build(). If the ref includes a slide position, injects an init script
-// to open the deck on that slide. Returns the HTML ready for MCP Apps
-// resource serving.
-func buildPreviewForResource(ctx context.Context, ref previewRef) (string, error) {
-	if ref.Deck == "" {
-		return "", fmt.Errorf("no preview available — call preview_deck or preview_slide first")
-	}
-	d, err := openDeckForResource(ctx, ref.Deck)
+// buildPreviewHTML builds a preview HTML for the given deck, optionally
+// opening on a specific slide. Used by both concrete and template resource
+// handlers.
+func buildPreviewHTML(ctx context.Context, deckName string, position int) (string, error) {
+	d, err := openDeckForResource(ctx, deckName)
 	if err != nil {
 		return "", err
 	}
@@ -104,8 +92,8 @@ func buildPreviewForResource(ctx context.Context, ref previewRef) (string, error
 		return "", err
 	}
 	html := result.HTML
-	if ref.Position > 0 {
-		html, err = injectInitialSlide(html, ref.Position)
+	if position > 0 {
+		html, err = injectInitialSlide(html, position)
 		if err != nil {
 			return "", err
 		}
@@ -113,31 +101,58 @@ func buildPreviewForResource(ctx context.Context, ref previewRef) (string, error
 	return applyMCPAppEmbedHints(html), nil
 }
 
+// buildPreviewForRef builds preview HTML from a previewRef. Used by the
+// concrete resource handlers that current hosts (VS Code, Claude Desktop)
+// fetch via the literal _meta.ui.resourceUri.
+func buildPreviewForRef(ctx context.Context, ref previewRef) (string, error) {
+	if ref.Deck == "" {
+		return "", fmt.Errorf("no preview available — call preview_deck or preview_slide first")
+	}
+	return buildPreviewHTML(ctx, ref.Deck, ref.Position)
+}
+
+// previewDisplayModes is the set of display modes supported by slyds preview
+// tools. Declared as inline/fullscreen so hosts can offer mode switching.
+var previewDisplayModes = []mcpcore.DisplayMode{
+	mcpcore.DisplayModeInline,
+	mcpcore.DisplayModeFullscreen,
+}
+
 // registerAppTools registers MCP Apps (UI extension) tools that render
 // slide previews as inline HTML iframes in LLM hosts. Handlers resolve the
 // active Workspace from request context so the same registration works
 // for localhost and future hosted deployments.
 //
-// Preview HTML is NOT cached — each resource read builds fresh through
-// the workspace. This ensures authz is always checked (no cross-tenant
-// leaks) and the preview is never stale. Caching can be layered on top
-// later if Build() latency becomes a measured problem.
+// Each tool is registered with a concrete resourceUri (e.g. ui://slyds/preview-deck)
+// because current hosts (VS Code, Claude Desktop) fetch _meta.ui.resourceUri
+// literally — they don't substitute template variables. The concrete resource
+// handler reads from previewRef (set by the tool handler).
+//
+// Template resources (ui://slyds/decks/{deck}/preview) are registered
+// separately for advanced clients that construct URIs from tool arguments.
+// These extract the deck name from URI params and don't use previewRef.
+//
+// TODO(mcpkit#213): once RegisterAppTool auto-generates a concrete fallback
+// for template URIs, remove previewRef and switch to template-only registration.
 func registerAppTools(srv *server.Server) {
 	// preview_deck — full navigable presentation
 	ui.RegisterAppTool(srv, ui.AppToolConfig{
 		Name:        "preview_deck",
-		Description: "Build and preview a full presentation deck rendered with its theme. The host renders the deck as an interactive iframe.",
+		Description: "Build and preview a full presentation deck rendered with its theme. The host renders the deck as an interactive iframe. Pass display_mode='fullscreen' for presentation mode.",
 		InputSchema: map[string]any{
 			"type": "object",
 			"properties": map[string]any{
-				"deck": propString("Deck name (workspace-scoped identifier)"),
+				"deck":         propString("Deck name (workspace-scoped identifier)"),
+				"display_mode": propString("Display mode: 'inline' (default) or 'fullscreen' for presentation mode"),
 			},
 			"required": []string{"deck"},
 		},
-		ResourceURI: "ui://slyds/preview-deck",
-		ToolHandler: func(ctx context.Context, req mcpcore.ToolRequest) (mcpcore.ToolResult, error) {
+		ResourceURI:           "ui://slyds/preview-deck",
+		SupportedDisplayModes: previewDisplayModes,
+		ToolHandler: func(ctx mcpcore.ToolContext, req mcpcore.ToolRequest) (mcpcore.ToolResult, error) {
 			var p struct {
-				Deck string `json:"deck"`
+				Deck        string `json:"deck"`
+				DisplayMode string `json:"display_mode"`
 			}
 			if err := req.Bind(&p); err != nil {
 				return mcpcore.ErrorResult(err.Error()), nil
@@ -146,6 +161,11 @@ func registerAppTools(srv *server.Server) {
 			if errResult != nil {
 				return *errResult, nil
 			}
+
+			// Store the deck reference early — hosts may fetch the resource
+			// URI in parallel with the tool call, before the handler returns.
+			previewDeckRef = previewRef{Deck: p.Deck}
+
 			mcpcore.EmitContent(ctx, req.RequestID, mcpcore.Content{
 				Type: "text", Text: fmt.Sprintf("Building preview for %q...", p.Deck),
 			})
@@ -154,9 +174,10 @@ func registerAppTools(srv *server.Server) {
 				return mcpcore.ErrorResult(err.Error()), nil
 			}
 
-			// Store the deck reference so the resource handler knows what
-			// to build. No HTML stored — built fresh on resource read.
-			previewDeckRef = previewRef{Deck: p.Deck}
+			// Request fullscreen if the agent asked for presentation mode.
+			if p.DisplayMode == "fullscreen" {
+				ui.RequestDisplayMode(ctx, mcpcore.DisplayModeFullscreen)
+			}
 
 			desc, _ := d.Describe()
 			summary := fmt.Sprintf("Built deck %q (%d slides, theme: %s). Preview available.",
@@ -166,8 +187,8 @@ func registerAppTools(srv *server.Server) {
 			}
 			return mcpcore.TextResult(summary), nil
 		},
-		ResourceHandler: func(ctx context.Context, req mcpcore.ResourceRequest) (mcpcore.ResourceResult, error) {
-			html, err := buildPreviewForResource(ctx, previewDeckRef)
+		ResourceHandler: func(ctx mcpcore.ResourceContext, req mcpcore.ResourceRequest) (mcpcore.ResourceResult, error) {
+			html, err := buildPreviewForRef(ctx, previewDeckRef)
 			if err != nil {
 				return mcpcore.ResourceResult{}, err
 			}
@@ -197,8 +218,9 @@ func registerAppTools(srv *server.Server) {
 			},
 			"required": []string{"deck", "position"},
 		},
-		ResourceURI: "ui://slyds/preview-slide",
-		ToolHandler: func(ctx context.Context, req mcpcore.ToolRequest) (mcpcore.ToolResult, error) {
+		ResourceURI:           "ui://slyds/preview-slide",
+		SupportedDisplayModes: previewDisplayModes,
+		ToolHandler: func(ctx mcpcore.ToolContext, req mcpcore.ToolRequest) (mcpcore.ToolResult, error) {
 			var p struct {
 				Deck     string `json:"deck"`
 				Position int    `json:"position"`
@@ -210,9 +232,6 @@ func registerAppTools(srv *server.Server) {
 			if errResult != nil {
 				return *errResult, nil
 			}
-			// Validate position against the deck's slide list. This also
-			// lets us surface a helpful "out of range" error before spending
-			// cycles on the full Build().
 			desc, err := d.Describe()
 			if err != nil {
 				return mcpcore.ErrorResult(err.Error()), nil
@@ -222,6 +241,9 @@ func registerAppTools(srv *server.Server) {
 					"slide %d out of range (deck has %d slides)", p.Position, desc.SlideCount,
 				)), nil
 			}
+
+			// Store the ref early — hosts may fetch the resource in parallel.
+			previewSlideRef = previewRef{Deck: p.Deck, Position: p.Position}
 
 			mcpcore.EmitContent(ctx, req.RequestID, mcpcore.Content{
 				Type: "text", Text: fmt.Sprintf("Building preview for %q (slide %d)...", p.Deck, p.Position),
@@ -234,13 +256,8 @@ func registerAppTools(srv *server.Server) {
 			if err != nil {
 				return mcpcore.ErrorResult(err.Error()), nil
 			}
-			// Verify the build succeeded (we don't store the HTML).
 			_ = html
 
-			// Store the deck + position reference for the resource handler.
-			previewSlideRef = previewRef{Deck: p.Deck, Position: p.Position}
-
-			// Build a text summary for non-UI clients.
 			heading := ""
 			if content, err := d.GetSlideContent(p.Position); err == nil {
 				heading = core.ExtractFirstHeading(content)
@@ -252,8 +269,8 @@ func registerAppTools(srv *server.Server) {
 			}
 			return mcpcore.TextResult(summary), nil
 		},
-		ResourceHandler: func(ctx context.Context, req mcpcore.ResourceRequest) (mcpcore.ResourceResult, error) {
-			html, err := buildPreviewForResource(ctx, previewSlideRef)
+		ResourceHandler: func(ctx mcpcore.ResourceContext, req mcpcore.ResourceRequest) (mcpcore.ResourceResult, error) {
+			html, err := buildPreviewForRef(ctx, previewSlideRef)
 			if err != nil {
 				return mcpcore.ResourceResult{}, err
 			}
@@ -268,4 +285,60 @@ func registerAppTools(srv *server.Server) {
 		Visibility: []mcpcore.UIVisibility{mcpcore.UIVisibilityModel, mcpcore.UIVisibilityApp},
 		Domain:     "slyds",
 	})
+
+	// Template resources — registered separately for clients that can
+	// construct concrete URIs from tool arguments. These don't require
+	// a prior tool call; the deck name (and position) come from the URI.
+	srv.Register(
+		server.ResourceTemplate{
+			ResourceTemplate: mcpcore.ResourceTemplate{
+				URITemplate: "ui://slyds/decks/{deck}/preview",
+				Name:        "Deck Preview",
+				Description: "Full navigable deck preview by name (MCP Apps)",
+				MimeType:    mcpcore.AppMIMEType,
+			},
+			Handler: func(ctx mcpcore.ResourceContext, uri string, params map[string]string) (mcpcore.ResourceResult, error) {
+				html, err := buildPreviewHTML(ctx, params["deck"], 0)
+				if err != nil {
+					return mcpcore.ResourceResult{}, err
+				}
+				return mcpcore.ResourceResult{
+					Contents: []mcpcore.ResourceReadContent{{
+						URI:      uri,
+						MimeType: mcpcore.AppMIMEType,
+						Text:     html,
+					}},
+				}, nil
+			},
+		},
+		server.ResourceTemplate{
+			ResourceTemplate: mcpcore.ResourceTemplate{
+				URITemplate: "ui://slyds/decks/{deck}/slides/{position}/preview",
+				Name:        "Slide Preview",
+				Description: "Deck preview opened on a specific slide (MCP Apps)",
+				MimeType:    mcpcore.AppMIMEType,
+			},
+			Handler: func(ctx mcpcore.ResourceContext, uri string, params map[string]string) (mcpcore.ResourceResult, error) {
+				position := 0
+				if posStr, ok := params["position"]; ok {
+					n, err := strconv.Atoi(posStr)
+					if err != nil {
+						return mcpcore.ResourceResult{}, fmt.Errorf("invalid slide position %q", posStr)
+					}
+					position = n
+				}
+				html, err := buildPreviewHTML(ctx, params["deck"], position)
+				if err != nil {
+					return mcpcore.ResourceResult{}, err
+				}
+				return mcpcore.ResourceResult{
+					Contents: []mcpcore.ResourceReadContent{{
+						URI:      uri,
+						MimeType: mcpcore.AppMIMEType,
+						Text:     html,
+					}},
+				}, nil
+			},
+		},
+	)
 }

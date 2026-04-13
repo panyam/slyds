@@ -42,7 +42,7 @@ func workspaceCtx(t *testing.T, root string) context.Context {
 func callTool(t *testing.T, root string, handler mcpcore.ToolHandler, args any) mcpcore.ToolResult {
 	t.Helper()
 	data, _ := json.Marshal(args)
-	result, err := handler(workspaceCtx(t, root), mcpcore.ToolRequest{
+	result, err := handler(mcpcore.NewToolContext(workspaceCtx(t, root)), mcpcore.ToolRequest{
 		Arguments: data,
 	})
 	if err != nil {
@@ -389,7 +389,7 @@ func TestMCPTools_NoWorkspaceReturnsError(t *testing.T) {
 	for name, handler := range tools {
 		t.Run(name, func(t *testing.T) {
 			// Bare context, no workspace installed.
-			result, err := handler(context.Background(), mcpcore.ToolRequest{
+			result, err := handler(mcpcore.NewToolContext(context.Background()), mcpcore.ToolRequest{
 				Arguments: json.RawMessage(`{"deck":"whatever"}`),
 			})
 			if err != nil {

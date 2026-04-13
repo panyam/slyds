@@ -1,7 +1,6 @@
 package cmd
 
 import (
-	"context"
 	"encoding/json"
 	"fmt"
 	"time"
@@ -61,7 +60,7 @@ func listDecksTool() server.Tool {
 				"properties": map[string]any{},
 			},
 		},
-		Handler: func(ctx context.Context, req mcpcore.ToolRequest) (mcpcore.ToolResult, error) {
+		Handler: func(ctx mcpcore.ToolContext, req mcpcore.ToolRequest) (mcpcore.ToolResult, error) {
 			ws, errResult := requireWorkspace(ctx)
 			if errResult != nil {
 				return *errResult, nil
@@ -105,7 +104,7 @@ func createDeckTool() server.Tool {
 				"required": []string{"name", "title"},
 			},
 		},
-		Handler: func(ctx context.Context, req mcpcore.ToolRequest) (mcpcore.ToolResult, error) {
+		Handler: func(ctx mcpcore.ToolContext, req mcpcore.ToolRequest) (mcpcore.ToolResult, error) {
 			ws, errResult := requireWorkspace(ctx)
 			if errResult != nil {
 				return *errResult, nil
@@ -130,6 +129,7 @@ func createDeckTool() server.Tool {
 				return mcpcore.ErrorResult(err.Error()), nil
 			}
 			mcpcore.NotifyResourcesChanged(ctx)
+			mcpcore.NotifyResourceUpdated(ctx, "ui://slyds/decks/"+p.Name+"/preview")
 			desc, err := d.Describe()
 			if err != nil {
 				return mcpcore.TextResult(fmt.Sprintf("Deck %q created.", p.Name)), nil
@@ -146,7 +146,7 @@ func describeDeckTool() server.Tool {
 			Description: "Get structured metadata for a deck: title, theme, slide list with layouts, word counts, and notes status.",
 			InputSchema: deckOnlySchema(),
 		},
-		Handler: func(ctx context.Context, req mcpcore.ToolRequest) (mcpcore.ToolResult, error) {
+		Handler: func(ctx mcpcore.ToolContext, req mcpcore.ToolRequest) (mcpcore.ToolResult, error) {
 			p, err := bindDeckParam(req)
 			if err != nil {
 				return mcpcore.ErrorResult(err.Error()), nil
@@ -171,7 +171,7 @@ func listSlidesTool() server.Tool {
 			Description: "List all slides in a deck with filenames, layouts, titles, and word counts.",
 			InputSchema: deckOnlySchema(),
 		},
-		Handler: func(ctx context.Context, req mcpcore.ToolRequest) (mcpcore.ToolResult, error) {
+		Handler: func(ctx mcpcore.ToolContext, req mcpcore.ToolRequest) (mcpcore.ToolResult, error) {
 			p, err := bindDeckParam(req)
 			if err != nil {
 				return mcpcore.ErrorResult(err.Error()), nil
@@ -204,7 +204,7 @@ func readSlideTool() server.Tool {
 				"required": []string{"deck"},
 			},
 		},
-		Handler: func(ctx context.Context, req mcpcore.ToolRequest) (mcpcore.ToolResult, error) {
+		Handler: func(ctx mcpcore.ToolContext, req mcpcore.ToolRequest) (mcpcore.ToolResult, error) {
 			var p struct {
 				Deck     string `json:"deck"`
 				Slide    string `json:"slide"`
@@ -246,7 +246,7 @@ func editSlideTool() server.Tool {
 				"required": []string{"deck", "content"},
 			},
 		},
-		Handler: func(ctx context.Context, req mcpcore.ToolRequest) (mcpcore.ToolResult, error) {
+		Handler: func(ctx mcpcore.ToolContext, req mcpcore.ToolRequest) (mcpcore.ToolResult, error) {
 			var p struct {
 				Deck     string `json:"deck"`
 				Slide    string `json:"slide"`
@@ -267,7 +267,8 @@ func editSlideTool() server.Tool {
 			if err := d.EditSlideContent(pos, p.Content); err != nil {
 				return mcpcore.ErrorResult(err.Error()), nil
 			}
-			mcpcore.NotifyResourcesChanged(ctx)
+			mcpcore.NotifyResourceUpdated(ctx, fmt.Sprintf("ui://slyds/decks/%s/preview", p.Deck))
+			mcpcore.NotifyResourceUpdated(ctx, fmt.Sprintf("ui://slyds/decks/%s/slides/%d/preview", p.Deck, pos))
 			return mcpcore.TextResult(fmt.Sprintf("Slide %d updated.", pos)), nil
 		},
 	}
@@ -326,7 +327,7 @@ func querySlideTool() server.Tool {
 				"required": []string{"deck", "slide", "selector"},
 			},
 		},
-		Handler: func(ctx context.Context, req mcpcore.ToolRequest) (mcpcore.ToolResult, error) {
+		Handler: func(ctx mcpcore.ToolContext, req mcpcore.ToolRequest) (mcpcore.ToolResult, error) {
 			var p struct {
 				Deck     string  `json:"deck"`
 				Slide    string  `json:"slide"`
@@ -385,7 +386,7 @@ func addSlideTool() server.Tool {
 				"required": []string{"deck", "position", "name"},
 			},
 		},
-		Handler: func(ctx context.Context, req mcpcore.ToolRequest) (mcpcore.ToolResult, error) {
+		Handler: func(ctx mcpcore.ToolContext, req mcpcore.ToolRequest) (mcpcore.ToolResult, error) {
 			var p struct {
 				Deck     string `json:"deck"`
 				Position int    `json:"position"`
@@ -408,6 +409,7 @@ func addSlideTool() server.Tool {
 				return mcpcore.ErrorResult(err.Error()), nil
 			}
 			mcpcore.NotifyResourcesChanged(ctx)
+			mcpcore.NotifyResourceUpdated(ctx, "ui://slyds/decks/"+p.Deck+"/preview")
 			if finalSlug != p.Name {
 				return mcpcore.TextResult(fmt.Sprintf(
 					"Slide %q inserted at position %d (slug auto-suffixed to %q to avoid collision, slide_id: %q).",
@@ -436,7 +438,7 @@ func removeSlideTool() server.Tool {
 				"required": []string{"deck", "slide"},
 			},
 		},
-		Handler: func(ctx context.Context, req mcpcore.ToolRequest) (mcpcore.ToolResult, error) {
+		Handler: func(ctx mcpcore.ToolContext, req mcpcore.ToolRequest) (mcpcore.ToolResult, error) {
 			var p struct {
 				Deck  string `json:"deck"`
 				Slide string `json:"slide"`
@@ -457,6 +459,7 @@ func removeSlideTool() server.Tool {
 				return mcpcore.ErrorResult(err.Error()), nil
 			}
 			mcpcore.NotifyResourcesChanged(ctx)
+			mcpcore.NotifyResourceUpdated(ctx, "ui://slyds/decks/"+p.Deck+"/preview")
 			return mcpcore.TextResult(fmt.Sprintf("Slide %q removed.", filename)), nil
 		},
 	}
@@ -470,7 +473,7 @@ func checkDeckTool() server.Tool {
 			InputSchema: deckOnlySchema(),
 			Timeout:     10 * time.Second,
 		},
-		Handler: func(ctx context.Context, req mcpcore.ToolRequest) (mcpcore.ToolResult, error) {
+		Handler: func(ctx mcpcore.ToolContext, req mcpcore.ToolRequest) (mcpcore.ToolResult, error) {
 			p, err := bindDeckParam(req)
 			if err != nil {
 				return mcpcore.ErrorResult(err.Error()), nil
@@ -499,7 +502,7 @@ func buildDeckTool() server.Tool {
 			InputSchema: deckOnlySchema(),
 			Timeout:     30 * time.Second,
 		},
-		Handler: func(ctx context.Context, req mcpcore.ToolRequest) (mcpcore.ToolResult, error) {
+		Handler: func(ctx mcpcore.ToolContext, req mcpcore.ToolRequest) (mcpcore.ToolResult, error) {
 			p, err := bindDeckParam(req)
 			if err != nil {
 				return mcpcore.ErrorResult(err.Error()), nil
