@@ -37,7 +37,7 @@ func ScaffoldFromThemeDir(fsys templar.WritableFS, title string, slideCount int,
 	}
 
 	// Generate slides from theme templates
-	slideFiles, err := generateSlidesFromThemeFS(fsys, readTmpl, title, slideCount)
+	slideFiles, err := generateSlidesFromThemeFS(fsys, readTmpl, title, slideCount, NumberedScheme{})
 	if err != nil {
 		return err
 	}
@@ -95,7 +95,7 @@ func renderTemplateToFS(fsys templar.WritableFS, readTmpl func(string) ([]byte, 
 }
 
 // generateSlidesFromThemeFS creates slide files from a theme's templates via FS.
-func generateSlidesFromThemeFS(fsys templar.WritableFS, readTmpl func(string) ([]byte, error), title string, count int) ([]string, error) {
+func generateSlidesFromThemeFS(fsys templar.WritableFS, readTmpl func(string) ([]byte, error), title string, count int, scheme NamingScheme) ([]string, error) {
 	if count < 1 {
 		count = 3
 	}
@@ -106,7 +106,7 @@ func generateSlidesFromThemeFS(fsys templar.WritableFS, readTmpl func(string) ([
 	}
 
 	// Title slide
-	name := "01-title.html"
+	name := scheme.Format(1, "title")
 	if err := render("slides/title.html.tmpl", map[string]any{"Title": title, "Number": 1}, name); err != nil {
 		return nil, fmt.Errorf("title slide: %w", err)
 	}
@@ -118,7 +118,7 @@ func generateSlidesFromThemeFS(fsys templar.WritableFS, readTmpl func(string) ([
 		if i > 2 {
 			slug = fmt.Sprintf("slide-%d", i-1)
 		}
-		name = fmt.Sprintf("%02d-%s.html", i, slug)
+		name = scheme.Format(i, slug)
 		if err := render("slides/content.html.tmpl", map[string]any{"Title": title, "Number": i}, name); err != nil {
 			return nil, fmt.Errorf("content slide %d: %w", i, err)
 		}
@@ -126,7 +126,7 @@ func generateSlidesFromThemeFS(fsys templar.WritableFS, readTmpl func(string) ([
 	}
 
 	// Closing slide
-	name = fmt.Sprintf("%02d-closing.html", count)
+	name = scheme.Format(count, "closing")
 	if err := render("slides/closing.html.tmpl", map[string]any{"Title": title, "Number": count}, name); err != nil {
 		return nil, fmt.Errorf("closing slide: %w", err)
 	}

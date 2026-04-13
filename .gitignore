@@ -7,3 +7,4 @@ examples/*/dist/
 examples/dist/
 _site/
 .slyds-modules/
+tests/reports/

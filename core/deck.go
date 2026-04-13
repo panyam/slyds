@@ -33,6 +33,10 @@ type Deck struct {
 	// populate and persist it on demand.
 	Manifest *Manifest
 
+	// scheme controls how slide files are named. Set from
+	// Manifest.FilenameStyle on OpenDeck; defaults to NumberedScheme.
+	scheme NamingScheme
+
 	// Derived id→file and file→id indices, rebuilt from Manifest.Slides
 	// on OpenDeck and after every mutation. Not persisted, not exported:
 	// ResolveSlide and the mutation methods use them for O(1) lookups
@@ -42,19 +46,35 @@ type Deck struct {
 	fileByID map[string]string
 }
 
+// Scheme returns the deck's filename scheme. Defaults to NumberedScheme
+// if not set (backward compat for decks opened without a manifest or
+// constructed directly in tests).
+func (d *Deck) NamingScheme() NamingScheme {
+	if d.scheme == nil {
+		return NumberedScheme{}
+	}
+	return d.scheme
+}
+
 // OpenDeck opens an existing deck from the given filesystem.
 // The FS root should be the deck directory (containing index.html).
 //
 // The manifest's Slides records (if any) are loaded into derived
-// id→file indices for O(1) lookup. Read-only operations do NOT
-// auto-migrate legacy decks — that only happens on the first mutation
-// via ensureSlideIDs.
+// id→file indices for O(1) lookup. The filename scheme is set from
+// Manifest.FilenameStyle. Read-only operations do NOT auto-migrate
+// legacy decks — that only happens on the first mutation via
+// ensureSlideIDs.
 func OpenDeck(fsys templar.WritableFS) (*Deck, error) {
 	if _, err := fsys.ReadFile("index.html"); err != nil {
 		return nil, fmt.Errorf("no index.html found — is this a slyds presentation?")
 	}
 	manifest := readManifest(fsys)
 	d := &Deck{FS: fsys, Manifest: manifest}
+	if manifest != nil {
+		d.scheme = SchemeForStyle(manifest.FilenameStyle)
+	} else {
+		d.scheme = NumberedScheme{}
+	}
 	d.rebuildIndices()
 	return d, nil
 }
@@ -76,9 +96,11 @@ func (d *Deck) Theme() string {
 }
 
 // SlideFilenames returns the ordered list of slide filenames from index.html.
-// Falls back to alphabetical filesystem listing if no includes are found.
+// Falls back to manifest Slides records (preserves insertion order), then to
+// alphabetical filesystem listing. The manifest fallback is critical for
+// slug-only decks where alphabetical order doesn't match presentation order.
 func (d *Deck) SlideFilenames() ([]string, error) {
-	data, err := d.FS.ReadFile( "index.html")
+	data, err := d.FS.ReadFile("index.html")
 	if err != nil {
 		return nil, err
 	}
@@ -90,11 +112,21 @@ func (d *Deck) SlideFilenames() ([]string, error) {
 			slides = append(slides, name)
 		}
 	}
-
-	if len(slides) == 0 {
-		return d.listSlideFiles(), nil
+	if len(slides) > 0 {
+		return slides, nil
 	}
-	return slides, nil
+
+	// Fallback: manifest Slides records (reliable for both schemes).
+	if d.Manifest != nil && len(d.Manifest.Slides) > 0 {
+		var files []string
+		for _, rec := range d.Manifest.Slides {
+			files = append(files, rec.File)
+		}
+		return files, nil
+	}
+
+	// Last resort: alphabetical sort (only reliable for numbered scheme).
+	return d.listSlideFiles(), nil
 }
 
 // SlideCount returns the number of slides in the deck.
@@ -135,17 +167,19 @@ func (d *Deck) EditSlideContent(position int, content string) error {
 }
 
 // RewriteSlideOrder renumbers slide files and rebuilds index.html to match
-// the given ordering. Files are renamed via temp names to avoid collisions.
-// After the rename pass, the slide_id mapping in the manifest is updated
-// to reflect the new filenames and persisted to .slyds.yaml.
+// the given ordering. In numbered mode, files are renamed via temp names to
+// avoid collisions. In slug-only mode, file renames are skipped entirely —
+// only index.html is rewritten. After the rename pass, the slide_id mapping
+// in the manifest is updated to reflect the new filenames and persisted.
 func (d *Deck) RewriteSlideOrder(orderedFiles []string) error {
+	scheme := d.NamingScheme()
 	type renamePair struct{ from, to string }
 	var renames []renamePair
 	renameMap := make(map[string]string) // oldName → newName
 
 	for i, oldName := range orderedFiles {
-		namePart := ExtractNamePart(oldName)
-		newName := fmt.Sprintf("%02d-%s", i+1, namePart)
+		slug := scheme.ExtractSlug(oldName)
+		newName := scheme.Format(i+1, slug)
 		if oldName != newName {
 			renames = append(renames, renamePair{oldName, newName})
 			renameMap[oldName] = newName
@@ -326,7 +360,7 @@ func (d *Deck) SlugifySlides(slugFn func(string) string) (int, error) {
 			slug = fmt.Sprintf("%s-%d", slug, usedSlugs[slug])
 		}
 
-		newName := fmt.Sprintf("%02d-%s.html", i+1, slug)
+		newName := d.NamingScheme().Format(i+1, slug)
 		newNames[i] = newName
 		if newName != filename {
 			renamed++
@@ -399,7 +433,7 @@ func (d *Deck) InsertSlide(position int, name, layoutName, title string) (string
 		return "", "", fmt.Errorf("layout %q: %w", layoutName, err)
 	}
 
-	filename := fmt.Sprintf("%02d-%s.html", position, finalName)
+	filename := d.NamingScheme().Format(position, finalName)
 	if err := d.AddSlide(position, filename, content); err != nil {
 		return "", "", err
 	}

@@ -47,6 +47,12 @@ type Manifest struct {
 	// legacy decks that predate #83 — they get auto-migrated on the
 	// next mutation. Read-only operations tolerate the empty state.
 	Slides []SlideRecord `yaml:"slides,omitempty"`
+
+	// FilenameStyle controls how slide files are named: "numbered"
+	// (default, NN-slug.html with rename-on-reorder) or "slug-only"
+	// (slug.html, no renames). Set via slyds init --filename-style.
+	// Empty defaults to "numbered" for backward compatibility.
+	FilenameStyle string `yaml:"filename_style,omitempty"`
 }
 
 // DefaultModulesDir is the default directory name for vendored modules.

@@ -1,8 +1,10 @@
 .PHONY: build setup-tools install test clean version examples examples-serve gh-pages \
-       demo demo-smoke dev-http dev-sse dev-stdio dev-http-auth dev-sse-auth tunnel
+       demo demo-smoke dev-http dev-sse dev-stdio dev-http-auth dev-sse-auth tunnel \
+       cover cover-html cover-func
 
 VERSION ?= $(shell git describe --tags --always --dirty 2>/dev/null || echo "dev")
 LDFLAGS := -X github.com/panyam/slyds/cmd.Version=$(VERSION)
+REPORT_DIR := tests/reports
 
 # Build the slyds binary
 build:
@@ -16,8 +18,8 @@ setup-tools:
 install:
 	go build -ldflags="$(LDFLAGS)" -o ${GOBIN}/slyds .
 
-# Run All tests
-testall: test e2e
+# Run all tests + E2E + coverage report
+testall: test e2e cover-html
 
 # Run tests
 test:
@@ -26,6 +28,23 @@ test:
 # Run MCP e2e tests only (full agent workflow via httptest)
 e2e:
 	go test ./cmd/... -run E2E -v
+
+# Coverage summary
+cover:
+	go test -cover ./... -count=1
+
+# Coverage with HTML report
+cover-html:
+	@mkdir -p $(REPORT_DIR)
+	go test -coverprofile=$(REPORT_DIR)/coverage.out ./... -count=1
+	go tool cover -html=$(REPORT_DIR)/coverage.out -o $(REPORT_DIR)/coverage.html
+	@echo "Coverage report: $(REPORT_DIR)/coverage.html"
+
+# Per-function coverage sorted by lowest
+cover-func:
+	@mkdir -p $(REPORT_DIR)
+	go test -coverprofile=$(REPORT_DIR)/coverage.out ./... -count=1
+	go tool cover -func=$(REPORT_DIR)/coverage.out | sort -k3 -n | head -30
 
 # Print the version that would be injected
 version:
