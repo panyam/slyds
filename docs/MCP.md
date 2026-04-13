@@ -375,15 +375,20 @@ The `display_mode` parameter on `preview_deck` triggers a `notifications/ui/disp
 
 ### VS Code: iframe sizing
 
-VS Code's MCP Apps iframe uses a fixed height that's too short for presentations. To increase it:
+VS Code's MCP Apps iframe uses a fixed height (~300px) that's too short for presentations. To increase it:
 
 1. Install the **[Custom CSS and JS Loader](https://marketplace.visualstudio.com/items?itemName=be5invis.vscode-custom-css)** extension
-2. Add to your VS Code **user** `settings.json`:
+2. Add to your VS Code **user** settings.json (**not** workspace settings — Custom CSS patches VS Code's core UI, which requires user-level config):
+   ```
+   Cmd+Shift+P → "Preferences: Open User Settings (JSON)"
+   ```
    ```json
    "vscode_custom_css.imports": ["file:///path/to/slyds/.vscode/mcp-apps.css"]
    ```
    (A ready-made CSS file is included at `.vscode/mcp-apps.css` in this repo — adjust the path to your clone)
-3. Cmd+Shift+P → **"Enable Custom CSS and JS"** → restart VS Code
+3. Cmd+Shift+P → **"Enable Custom CSS and JS"** → restart VS Code when prompted
+
+**Important**: Adding this to `.vscode/settings.json` (workspace settings) will **not** work — the Custom CSS extension only reads from user-level settings.
 
 The CSS sets `.mcp-app-webview` to 600px — edit the file to adjust. This is a VS Code limitation; the MCP Apps spec doesn't yet support server-declared preferred sizes.
 
