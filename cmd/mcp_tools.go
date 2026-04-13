@@ -130,6 +130,7 @@ func createDeckTool() server.Tool {
 				return mcpcore.ErrorResult(err.Error()), nil
 			}
 			mcpcore.NotifyResourcesChanged(ctx)
+			mcpcore.NotifyResourceUpdated(ctx, "ui://slyds/decks/"+p.Name+"/preview")
 			desc, err := d.Describe()
 			if err != nil {
 				return mcpcore.TextResult(fmt.Sprintf("Deck %q created.", p.Name)), nil
@@ -267,7 +268,8 @@ func editSlideTool() server.Tool {
 			if err := d.EditSlideContent(pos, p.Content); err != nil {
 				return mcpcore.ErrorResult(err.Error()), nil
 			}
-			mcpcore.NotifyResourcesChanged(ctx)
+			mcpcore.NotifyResourceUpdated(ctx, fmt.Sprintf("ui://slyds/decks/%s/preview", p.Deck))
+			mcpcore.NotifyResourceUpdated(ctx, fmt.Sprintf("ui://slyds/decks/%s/slides/%d/preview", p.Deck, pos))
 			return mcpcore.TextResult(fmt.Sprintf("Slide %d updated.", pos)), nil
 		},
 	}
@@ -408,6 +410,7 @@ func addSlideTool() server.Tool {
 				return mcpcore.ErrorResult(err.Error()), nil
 			}
 			mcpcore.NotifyResourcesChanged(ctx)
+			mcpcore.NotifyResourceUpdated(ctx, "ui://slyds/decks/"+p.Deck+"/preview")
 			if finalSlug != p.Name {
 				return mcpcore.TextResult(fmt.Sprintf(
 					"Slide %q inserted at position %d (slug auto-suffixed to %q to avoid collision, slide_id: %q).",
@@ -457,6 +460,7 @@ func removeSlideTool() server.Tool {
 				return mcpcore.ErrorResult(err.Error()), nil
 			}
 			mcpcore.NotifyResourcesChanged(ctx)
+			mcpcore.NotifyResourceUpdated(ctx, "ui://slyds/decks/"+p.Deck+"/preview")
 			return mcpcore.TextResult(fmt.Sprintf("Slide %q removed.", filename)), nil
 		},
 	}

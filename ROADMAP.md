@@ -72,6 +72,9 @@ Added a rename-safe `slide_id` per slide, stored as `slides: [{id, file}]` recor
 ## Phase 9k — NamingScheme abstraction (done)
 Introduced a `NamingScheme` interface to decouple slide filename generation from the hardcoded `NN-slug.html` format. Two implementations: `NumberedScheme` (default, current behavior) and `SlugOnlyScheme` (no numeric prefix, no renames on reorder). Configured per-deck via `filename_style` in `.slyds.yaml`. `RewriteSlideOrder` skips the entire two-pass rename loop in slug-only mode — only rewrites `index.html`. All 7+1 hardcoded `%02d-` format strings replaced with `scheme.Format()`. `SlideFilenames()` gains a manifest-based fallback before alphabetical sort. Scaffolder supports `ScaffoldOpts.FilenameStyle`.
 
+## Phase 9l — MCP Apps display modes + template resources (done)
+Adopted mcpkit v0.1.31 MCP Apps extensions: `supportedDisplayModes` (inline, fullscreen) on preview tools, `RequestDisplayMode` for presentation mode, template resource URIs (`ui://slyds/decks/{deck}/preview`, `ui://slyds/decks/{deck}/slides/{position}/preview`) eliminating mutable preview state, `NotifyResourceUpdated` for targeted resource change notifications. App elicitation deferred to follow-up.
+
 ## Phase 10 — Slide Folders
 Support `slides/03-name/slide.html` with co-located assets (images, per-slide CSS). Auto-detect folder vs file slides.
 
