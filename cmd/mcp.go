@@ -36,12 +36,13 @@ and deck content as browsable resources.
 }
 
 var (
-	mcpListen    string
-	mcpToken     string
-	mcpPublicURL string
-	mcpUseSSE    bool
-	mcpUseStdio  bool
-	mcpDeckRoot  string
+	mcpListen       string
+	mcpToken        string
+	mcpPublicURL    string
+	mcpUseSSE       bool
+	mcpUseStdio     bool
+	mcpDeckRoot     string
+	mcpAllowOrigins []string
 )
 
 func init() {
@@ -51,6 +52,7 @@ func init() {
 	mcpCmd.Flags().BoolVar(&mcpUseSSE, "sse", false, "Use legacy HTTP+SSE transport")
 	mcpCmd.Flags().BoolVar(&mcpUseStdio, "stdio", false, "Use stdio transport (Content-Length framed JSON-RPC on stdin/stdout)")
 	mcpCmd.Flags().StringVar(&mcpDeckRoot, "deck-root", "", "Root directory for deck discovery (default: $SLYDS_DECK_ROOT, or current directory)")
+	mcpCmd.Flags().StringSliceVar(&mcpAllowOrigins, "allow-origin", nil, "Allowed Origin headers (default: localhost only). Use '*' to allow all origins (e.g. behind a tunnel)")
 	rootCmd.AddCommand(mcpCmd)
 }
 
@@ -107,6 +109,9 @@ func runMCPServer() error {
 	var transportOpts []server.TransportOption
 	if mcpPublicURL != "" {
 		transportOpts = append(transportOpts, server.WithPublicURL(mcpPublicURL))
+	}
+	if len(mcpAllowOrigins) > 0 {
+		transportOpts = append(transportOpts, server.WithAllowedOrigins(mcpAllowOrigins...))
 	}
 
 	var transport string
