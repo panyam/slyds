@@ -131,6 +131,9 @@ var previewDisplayModes = []mcpcore.DisplayMode{
 // Template resources (ui://slyds/decks/{deck}/preview) are registered
 // separately for advanced clients that construct URIs from tool arguments.
 // These extract the deck name from URI params and don't use previewRef.
+//
+// TODO(mcpkit#213): once RegisterAppTool auto-generates a concrete fallback
+// for template URIs, remove previewRef and switch to template-only registration.
 func registerAppTools(srv *server.Server) {
 	// preview_deck — full navigable presentation
 	ui.RegisterAppTool(srv, ui.AppToolConfig{
