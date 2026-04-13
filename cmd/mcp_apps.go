@@ -161,6 +161,11 @@ func registerAppTools(srv *server.Server) {
 			if errResult != nil {
 				return *errResult, nil
 			}
+
+			// Store the deck reference early — hosts may fetch the resource
+			// URI in parallel with the tool call, before the handler returns.
+			previewDeckRef = previewRef{Deck: p.Deck}
+
 			mcpcore.EmitContent(ctx, req.RequestID, mcpcore.Content{
 				Type: "text", Text: fmt.Sprintf("Building preview for %q...", p.Deck),
 			})
@@ -173,9 +178,6 @@ func registerAppTools(srv *server.Server) {
 			if p.DisplayMode == "fullscreen" {
 				ui.RequestDisplayMode(ctx, mcpcore.DisplayModeFullscreen)
 			}
-
-			// Store the deck reference for the concrete resource handler.
-			previewDeckRef = previewRef{Deck: p.Deck}
 
 			desc, _ := d.Describe()
 			summary := fmt.Sprintf("Built deck %q (%d slides, theme: %s). Preview available.",
@@ -240,6 +242,9 @@ func registerAppTools(srv *server.Server) {
 				)), nil
 			}
 
+			// Store the ref early — hosts may fetch the resource in parallel.
+			previewSlideRef = previewRef{Deck: p.Deck, Position: p.Position}
+
 			mcpcore.EmitContent(ctx, req.RequestID, mcpcore.Content{
 				Type: "text", Text: fmt.Sprintf("Building preview for %q (slide %d)...", p.Deck, p.Position),
 			})
@@ -252,9 +257,6 @@ func registerAppTools(srv *server.Server) {
 				return mcpcore.ErrorResult(err.Error()), nil
 			}
 			_ = html
-
-			// Store the deck + position reference for the concrete resource handler.
-			previewSlideRef = previewRef{Deck: p.Deck, Position: p.Position}
 
 			heading := ""
 			if content, err := d.GetSlideContent(p.Position); err == nil {
