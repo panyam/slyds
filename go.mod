@@ -4,7 +4,6 @@ go 1.26.1
 
 require (
 	github.com/PuerkitoBio/goquery v1.12.0
-	github.com/panyam/gocurrent v0.1.0
 	github.com/panyam/mcpkit v0.1.24
 	github.com/panyam/mcpkit/ext/ui v0.1.24
 	github.com/panyam/servicekit v0.0.24
@@ -17,6 +16,7 @@ require (
 	github.com/andybalholm/cascadia v1.3.3 // indirect
 	github.com/gorilla/websocket v1.5.0 // indirect
 	github.com/inconshreveable/mousetrap v1.1.0 // indirect
+	github.com/panyam/gocurrent v0.1.0 // indirect
 	github.com/panyam/goutils v0.1.13 // indirect
 	github.com/santhosh-tekuri/jsonschema/v6 v6.0.2 // indirect
 	github.com/spf13/pflag v1.0.10 // indirect

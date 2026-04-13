@@ -36,9 +36,9 @@ func newSlydsMCPClientWithUI(t *testing.T, root string) *testutil.TestClient {
 }
 
 // TestPreviewDeckReturnsHTML verifies that the preview_deck tool handler
-// builds a full deck preview, stores it in the preview cache, and returns
-// a text summary containing the deck title. The cached HTML should contain
-// inlined CSS (<style>) and the deck's slide content.
+// builds a full deck preview and returns a text summary containing the
+// deck title. The preview reference is stored so the resource handler
+// can build on demand — no HTML is cached.
 func TestPreviewDeckReturnsHTML(t *testing.T) {
 	root := scaffoldTestDeck(t, "test-deck", "Preview Deck", "default", 3)
 
@@ -56,25 +56,15 @@ func TestPreviewDeckReturnsHTML(t *testing.T) {
 		t.Error("preview_deck summary missing 'Preview available'")
 	}
 
-	// Verify cache has HTML
-	html, ok := previewCache.Load("ui://slyds/preview-deck")
-	if !ok {
-		t.Fatal("preview cache empty after preview_deck call")
-	}
-	if !strings.Contains(html, "<style>") {
-		t.Error("cached deck HTML missing <style>")
-	}
-	if !strings.Contains(html, "Preview Deck") {
-		t.Error("cached deck HTML missing deck title")
+	// Verify the deck reference was stored (not the HTML).
+	if previewDeckRef.Deck != "test-deck" {
+		t.Errorf("previewDeckRef.Deck = %q, want test-deck", previewDeckRef.Deck)
 	}
 }
 
-// TestPreviewSlideReturnsHTML verifies that preview_slide now goes through
-// the same Build() pipeline as preview_deck and injects an init script that
-// opens the deck on the requested slide. The cached HTML must be a full
-// presentation (multiple slides, navigation, slyds.js) with the hash-setter
-// in place so slyds.js's getSlideFromHash() picks up the right starting
-// position on load. Navigation (Prev/Next) remains functional from there.
+// TestPreviewSlideReturnsHTML verifies that preview_slide stores the deck +
+// position reference and returns a text summary. The resource handler builds
+// on demand through the workspace — no HTML is cached.
 func TestPreviewSlideReturnsHTML(t *testing.T) {
 	root := scaffoldTestDeck(t, "test-deck", "Slide Preview", "dark", 3)
 
@@ -92,28 +82,12 @@ func TestPreviewSlideReturnsHTML(t *testing.T) {
 		t.Error("preview_slide summary missing 'Preview available'")
 	}
 
-	// Verify cache has a full deck HTML, not a single-slide preview.
-	html, ok := previewCache.Load("ui://slyds/preview-slide")
-	if !ok {
-		t.Fatal("preview cache empty after preview_slide call")
+	// Verify the slide reference was stored (not the HTML).
+	if previewSlideRef.Deck != "test-deck" {
+		t.Errorf("previewSlideRef.Deck = %q, want test-deck", previewSlideRef.Deck)
 	}
-	if !strings.Contains(html, `data-theme="dark"`) {
-		t.Error("cached slide HTML missing data-theme attribute")
-	}
-	if !strings.Contains(html, "<style>") {
-		t.Error("cached slide HTML missing <style> (CSS not inlined)")
-	}
-	if !strings.Contains(html, `class="slide`) {
-		t.Error("cached slide HTML missing slide class")
-	}
-	// Full deck markers: navigation buttons + slyds.js engine runtime.
-	if !strings.Contains(html, `id="prevBtn"`) || !strings.Contains(html, `id="nextBtn"`) {
-		t.Error("cached slide HTML missing navigation buttons — preview_slide is not going through Build()")
-	}
-	// Init script must set the hash to the requested slide BEFORE slyds.js
-	// runs so the initial render lands on position 2.
-	if !strings.Contains(html, `window.location.hash='2'`) {
-		t.Errorf("cached slide HTML missing init script for position 2:\n%s", snippet(html, 500))
+	if previewSlideRef.Position != 2 {
+		t.Errorf("previewSlideRef.Position = %d, want 2", previewSlideRef.Position)
 	}
 }
 
@@ -141,27 +115,25 @@ func TestPreviewSlideZeroPosition(t *testing.T) {
 }
 
 // TestPreviewSlideMatchesPreviewDeck verifies the unification: the HTML
-// cached by preview_slide is the HTML cached by preview_deck *plus* the
-// injected init script. If this test fails, the two tools have drifted
-// apart again — fix whichever one is doing something bespoke.
+// served by preview_slide is the HTML served by preview_deck *plus* the
+// injected init script. Both are built on demand through the workspace.
+// If this test fails, the two tools have drifted apart — fix whichever
+// one is doing something bespoke.
 func TestPreviewSlideMatchesPreviewDeck(t *testing.T) {
 	root := scaffoldTestDeck(t, "parity", "Parity Deck", "default", 4)
 
-	_, deckHandler := previewDeckToolParts(root)
-	_, slideHandler := previewSlideToolParts(root)
+	c := newSlydsMCPClientWithUI(t, root)
 
-	if r := callTool(t, root, deckHandler, map[string]string{"deck": "parity"}); r.IsError {
-		t.Fatalf("preview_deck: %s", toolText(r))
-	}
-	if r := callTool(t, root, slideHandler, map[string]any{"deck": "parity", "position": 3}); r.IsError {
-		t.Fatalf("preview_slide: %s", toolText(r))
-	}
+	// Call both tools to set the preview references.
+	c.ToolCall("preview_deck", map[string]any{"deck": "parity"})
+	c.ToolCall("preview_slide", map[string]any{"deck": "parity", "position": 3})
 
-	deckHTML, _ := previewCache.Load("ui://slyds/preview-deck")
-	slideHTML, _ := previewCache.Load("ui://slyds/preview-slide")
+	// Read resources — these now build on demand through the workspace.
+	deckHTML := c.ReadResource("ui://slyds/preview-deck")
+	slideHTML := c.ReadResource("ui://slyds/preview-slide")
 
 	if deckHTML == "" || slideHTML == "" {
-		t.Fatal("preview cache empty after calls")
+		t.Fatal("empty HTML from preview resources")
 	}
 
 	// preview_slide HTML must contain the init script; preview_deck HTML
@@ -173,9 +145,8 @@ func TestPreviewSlideMatchesPreviewDeck(t *testing.T) {
 		t.Error("preview_slide HTML missing init hash script for position 3")
 	}
 
-	// Removing the init script from preview_slide should leave HTML that
-	// matches preview_deck structurally (same deck title, same slide count,
-	// same asset inlining).
+	// Both should share the same structural markers (same deck, same
+	// Build() pipeline, same asset inlining).
 	for _, marker := range []string{
 		`class="slideshow-container"`,
 		`id="prevBtn"`,
@@ -269,6 +240,121 @@ func TestE2E_PreviewSlideResource(t *testing.T) {
 	}
 	if !strings.Contains(html, `class="slide`) {
 		t.Error("preview-slide resource missing slide content")
+	}
+}
+
+// TestE2E_PreviewResourceBeforeToolCall verifies that reading the preview
+// resource before any tool call returns a clear error instead of panicking
+// or returning stale/empty HTML. This is the "cold start" case — the host
+// somehow fetches the resource URI before the agent calls the tool.
+func TestE2E_PreviewResourceBeforeToolCall(t *testing.T) {
+	root := t.TempDir()
+	core.CreateInDir("Cold Start", 2, "default", filepath.Join(root, "deck"), true)
+
+	c := newSlydsMCPClientWithUI(t, root)
+
+	// Reset the preview refs to simulate a fresh server (no prior tool call).
+	previewDeckRef = previewRef{}
+
+	// Reading the resource without a prior tool call should fail gracefully.
+	_, err := c.Client.ReadResource("ui://slyds/preview-deck")
+	if err == nil {
+		t.Error("expected error reading preview resource before tool call")
+	}
+}
+
+// TestE2E_PreviewReflectsEdits verifies the freshness guarantee: after
+// editing a slide, the preview resource reflects the edit immediately on
+// the next read — without needing to call the preview tool again. This is
+// the key behavioral improvement from removing the HTML cache: previews
+// are always built from the current disk state.
+func TestE2E_PreviewReflectsEdits(t *testing.T) {
+	root := t.TempDir()
+	core.CreateInDir("Fresh Test", 3, "default", filepath.Join(root, "deck"), true)
+
+	c := newSlydsMCPClientWithUI(t, root)
+
+	// 1. Call preview_deck to set the reference.
+	c.ToolCall("preview_deck", map[string]any{"deck": "deck"})
+
+	// 2. Read the resource — should contain the original title.
+	html := c.ReadResource("ui://slyds/preview-deck")
+	if !strings.Contains(html, "Fresh Test") {
+		t.Fatal("preview missing original title")
+	}
+
+	// 3. Edit slide 1 to change the content.
+	c.ToolCall("edit_slide", map[string]any{
+		"deck":     "deck",
+		"position": 1,
+		"content":  `<div class="slide"><h1>EDITED CONTENT</h1></div>`,
+	})
+
+	// 4. Re-read the preview WITHOUT calling preview_deck again.
+	//    The resource handler builds fresh from disk, so the edit
+	//    should be reflected immediately.
+	html = c.ReadResource("ui://slyds/preview-deck")
+	if !strings.Contains(html, "EDITED CONTENT") {
+		t.Error("preview did not reflect the edit — still showing stale content")
+	}
+}
+
+// TestE2E_PreviewSwitchesDecks verifies that calling preview_deck for
+// deck A, then for deck B, then reading the resource returns deck B's
+// HTML — proving the reference is updated correctly and the old deck's
+// content doesn't leak.
+func TestE2E_PreviewSwitchesDecks(t *testing.T) {
+	root := t.TempDir()
+	core.CreateInDir("Deck Alpha", 2, "default", filepath.Join(root, "alpha"), true)
+	core.CreateInDir("Deck Beta", 2, "dark", filepath.Join(root, "beta"), true)
+
+	c := newSlydsMCPClientWithUI(t, root)
+
+	// Preview deck Alpha.
+	c.ToolCall("preview_deck", map[string]any{"deck": "alpha"})
+	html := c.ReadResource("ui://slyds/preview-deck")
+	if !strings.Contains(html, "Deck Alpha") {
+		t.Fatal("preview should show Deck Alpha")
+	}
+
+	// Switch to deck Beta.
+	c.ToolCall("preview_deck", map[string]any{"deck": "beta"})
+	html = c.ReadResource("ui://slyds/preview-deck")
+	if !strings.Contains(html, "Deck Beta") {
+		t.Error("preview should show Deck Beta after switching")
+	}
+	if strings.Contains(html, "Deck Alpha") {
+		t.Error("preview still shows Deck Alpha content after switching to Beta")
+	}
+}
+
+// TestE2E_PreviewDeckResource_HTMLStructure verifies the full HTML
+// structure returned by the preview resource: inlined CSS, navigation
+// buttons, and MCP Apps embed hints. These assertions were previously
+// done via the previewCache; now they go through the E2E resource read
+// to verify the on-demand build produces complete HTML.
+func TestE2E_PreviewDeckResource_HTMLStructure(t *testing.T) {
+	root := t.TempDir()
+	core.CreateInDir("Structure Test", 3, "default", filepath.Join(root, "deck"), true)
+
+	c := newSlydsMCPClientWithUI(t, root)
+	c.ToolCall("preview_deck", map[string]any{"deck": "deck"})
+
+	html := c.ReadResource("ui://slyds/preview-deck")
+
+	checks := map[string]string{
+		"<style>":                      "inlined CSS",
+		`class="slideshow-container"`:  "slideshow container",
+		`id="prevBtn"`:                 "prev navigation button",
+		`id="nextBtn"`:                 "next navigation button",
+		"Structure Test":               "deck title",
+		`class="slyds-mcp-embed"`:      "MCP Apps embed class",
+		`id="slyds-mcp-embed"`:         "MCP Apps embed CSS",
+	}
+	for marker, desc := range checks {
+		if !strings.Contains(html, marker) {
+			t.Errorf("preview HTML missing %s (marker: %q)", desc, marker)
+		}
 	}
 }
 
