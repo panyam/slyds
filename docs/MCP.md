@@ -130,6 +130,14 @@ Slug is **not rename-safe**: `slyds slides slugify` changes slugs based on `<h1>
 
 ## Server Configuration (mcpkit v0.1.24)
 
+### Streaming Progress
+
+`build_deck`, `check_deck`, `preview_deck`, and `preview_slide` emit progress chunks via `EmitContent` before the main operation runs (e.g., "Building deck 'q3-review'..."). Clients connected via SSE or Streamable HTTP with a content chunk handler see real-time progress; clients without chunk support see only the final result. The final result is authoritative — chunks are purely informational.
+
+### Schema Validation
+
+Server-side JSON Schema validation is active by default. Tool arguments are validated against the declared `InputSchema` before the handler runs. Malformed arguments (wrong type, missing required fields) produce a `-32602 Invalid Params` JSON-RPC error with structured error data. Agents can parse the error to identify which field needs correction without a handler round-trip.
+
 ### Per-Tool Timeouts
 
 `build_deck` (30s) and `check_deck` (10s) have per-tool timeouts via `ToolDef.Timeout`. Other tools use the server default. This prevents long-running builds from being killed by a short global timeout while keeping fast tools responsive.

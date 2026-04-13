@@ -97,6 +97,9 @@ func registerAppTools(srv *server.Server) {
 			if errResult != nil {
 				return *errResult, nil
 			}
+			mcpcore.EmitContent(ctx, req.RequestID, mcpcore.Content{
+				Type: "text", Text: fmt.Sprintf("Building preview for %q...", p.Deck),
+			})
 			result, err := buildDeckForPreview(d)
 			if err != nil {
 				return mcpcore.ErrorResult(err.Error()), nil
@@ -168,6 +171,9 @@ func registerAppTools(srv *server.Server) {
 				)), nil
 			}
 
+			mcpcore.EmitContent(ctx, req.RequestID, mcpcore.Content{
+				Type: "text", Text: fmt.Sprintf("Building preview for %q (slide %d)...", p.Deck, p.Position),
+			})
 			result, err := buildDeckForPreview(d)
 			if err != nil {
 				return mcpcore.ErrorResult(err.Error()), nil
