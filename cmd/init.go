@@ -9,10 +9,11 @@ import (
 )
 
 var (
-	initSlideCount int
-	initTheme      string
-	initDir        string
-	initMCPDocs    bool
+	initSlideCount    int
+	initTheme         string
+	initDir           string
+	initMCPDocs       bool
+	initFilenameStyle string
 )
 
 var initCmd = &cobra.Command{
@@ -33,7 +34,13 @@ var initCmd = &cobra.Command{
 			outDir = core.Slugify(title)
 		}
 
-		dir, err := core.CreateInDir(title, initSlideCount, initTheme, outDir, initMCPDocs)
+		dir, err := core.CreateInDirWithOpts(outDir, core.ScaffoldOpts{
+			Title:           title,
+			SlideCount:      initSlideCount,
+			ThemeName:       initTheme,
+			IncludeMCPAgent: initMCPDocs,
+			FilenameStyle:   initFilenameStyle,
+		})
 		if err != nil {
 			return err
 		}
@@ -53,5 +60,6 @@ func init() {
 	initCmd.Flags().StringVar(&initTheme, "theme", "default", "theme to use ("+strings.Join(themes, ", ")+")")
 	initCmd.Flags().StringVar(&initDir, "dir", "", "output directory (default: slugified title)")
 	initCmd.Flags().BoolVar(&initMCPDocs, "mcp", true, "include MCP setup section in AGENT.md (stored in .slyds.yaml as agent_include_mcp)")
+	initCmd.Flags().StringVar(&initFilenameStyle, "filename-style", "", "slide filename format: 'numbered' (default: 01-title.html) or 'slug-only' (title.html)")
 	rootCmd.AddCommand(initCmd)
 }

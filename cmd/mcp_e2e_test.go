@@ -355,6 +355,92 @@ func TestPerToolTimeout(t *testing.T) {
 	}
 }
 
+// TestE2E_SlugOnlyDeckWorkflow exercises the full MCP agent lifecycle on a
+// deck scaffolded with filename_style: slug-only. This proves that the
+// entire MCP stack — workspace resolution, tool dispatch, slide identity
+// (slug + slide_id), build, and describe — works correctly when slide files
+// have no NN- numeric prefix. The test mirrors TestE2E_FullAgentWorkflow
+// but on a slug-only deck.
+func TestE2E_SlugOnlyDeckWorkflow(t *testing.T) {
+	root := t.TempDir()
+	// Scaffold a slug-only deck via CreateInDirWithOpts.
+	core.CreateInDirWithOpts(
+		fmt.Sprintf("%s/slugonly", root),
+		core.ScaffoldOpts{
+			Title:           "Slug Only E2E",
+			SlideCount:      3,
+			ThemeName:       "default",
+			IncludeMCPAgent: true,
+			FilenameStyle:   "slug-only",
+		},
+	)
+
+	c := newSlydsMCPClient(t, root)
+
+	// 1. List decks — slug-only deck should appear.
+	listResult := c.ToolCall("list_decks", map[string]any{})
+	if !strings.Contains(listResult, "slugonly") {
+		t.Fatalf("list_decks missing slug-only deck: %s", listResult)
+	}
+
+	// 2. Describe — slide filenames should have no NN- prefix.
+	descResult := c.ToolCall("describe_deck", map[string]any{"deck": "slugonly"})
+	if !strings.Contains(descResult, "title.html") {
+		t.Errorf("describe_deck should show title.html (no prefix): %s", descResult[:min(200, len(descResult))])
+	}
+	if strings.Contains(descResult, "01-title.html") {
+		t.Error("describe_deck shows numbered filename on a slug-only deck")
+	}
+
+	// 3. Read slide by slug — works the same as numbered.
+	readResult := c.ToolCall("read_slide", map[string]any{
+		"deck": "slugonly", "slide": "slide",
+	})
+	if !strings.Contains(readResult, `class="slide`) {
+		t.Error("read_slide by slug failed on slug-only deck")
+	}
+
+	// 4. Edit slide by slug.
+	c.ToolCall("edit_slide", map[string]any{
+		"deck": "slugonly", "slide": "slide",
+		"content": `<div class="slide" data-layout="content"><h1>Edited Slug Only</h1></div>`,
+	})
+
+	// 5. Verify edit persisted.
+	readResult = c.ToolCall("read_slide", map[string]any{
+		"deck": "slugonly", "slide": "slide",
+	})
+	if !strings.Contains(readResult, "Edited Slug Only") {
+		t.Error("edit not persisted on slug-only deck")
+	}
+
+	// 6. Add a slide — should get a slug-only filename (no prefix).
+	addResult := c.ToolCall("add_slide", map[string]any{
+		"deck": "slugonly", "position": 2, "name": "bonus", "layout": "content",
+	})
+	if !strings.Contains(addResult, "inserted at position 2") {
+		t.Fatalf("add_slide: %s", addResult)
+	}
+
+	// 7. Describe again — the new slide should have slug-only filename.
+	descResult = c.ToolCall("describe_deck", map[string]any{"deck": "slugonly"})
+	if !strings.Contains(descResult, "bonus.html") {
+		t.Errorf("new slide should be bonus.html (no prefix): %s", descResult[:min(300, len(descResult))])
+	}
+	if strings.Contains(descResult, "02-bonus.html") {
+		t.Error("new slide got a numbered filename on a slug-only deck")
+	}
+
+	// 8. Build — should produce valid self-contained HTML.
+	buildResult := c.ToolCall("build_deck", map[string]any{"deck": "slugonly"})
+	if !strings.Contains(buildResult, "<style>") {
+		t.Error("build missing inlined CSS on slug-only deck")
+	}
+	if !strings.Contains(buildResult, "Edited Slug Only") {
+		t.Error("build missing edited content on slug-only deck")
+	}
+}
+
 // TestE2E_SchemaValidation_RejectsInvalidArgs verifies that mcpkit's
 // server-side JSON Schema validation (active by default in v0.1.24)
 // rejects malformed tool arguments with a -32602 error before the

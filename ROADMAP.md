@@ -69,6 +69,9 @@ Made slug (the non-prefix portion of `NN-slug.html`) the stable handle for slide
 ## Phase 9j — Persistent slide IDs (done)
 Added a rename-safe `slide_id` per slide, stored as `slides: [{id, file}]` records in `.slyds.yaml`. IDs are `sl_` + 8 hex chars, generated at slide creation time via `crypto/rand`, and survive every mutation including inserts, removes, moves, and slugify renames. `Deck.Manifest` unified from the minimal `DeckManifest` to the full `Manifest` type. `writeManifestFS` unified from a hand-formatted string to the exported `yaml.Marshal` path. `ResolveSlide` gains a priority-0 branch for `sl_`-prefixed references. `SlideDescription` gains a `SlideID` field populated by `Describe()`. Legacy decks auto-migrate on first mutation. Scaffolder assigns IDs at creation time. Canonical test: `TestE2E_SlideIDSurvivesRename`.
 
+## Phase 9k — NamingScheme abstraction (done)
+Introduced a `NamingScheme` interface to decouple slide filename generation from the hardcoded `NN-slug.html` format. Two implementations: `NumberedScheme` (default, current behavior) and `SlugOnlyScheme` (no numeric prefix, no renames on reorder). Configured per-deck via `filename_style` in `.slyds.yaml`. `RewriteSlideOrder` skips the entire two-pass rename loop in slug-only mode — only rewrites `index.html`. All 7+1 hardcoded `%02d-` format strings replaced with `scheme.Format()`. `SlideFilenames()` gains a manifest-based fallback before alphabetical sort. Scaffolder supports `ScaffoldOpts.FilenameStyle`.
+
 ## Phase 10 — Slide Folders
 Support `slides/03-name/slide.html` with co-located assets (images, per-slide CSS). Auto-detect folder vs file slides.
 

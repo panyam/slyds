@@ -18,6 +18,7 @@ type ScaffoldOpts struct {
 	Theme           *Theme // nil = use default embedded theme
 	ThemeName       string // used if Theme is nil (e.g., "dark", "corporate")
 	IncludeMCPAgent bool   // include MCP section in AGENT.md
+	FilenameStyle   string // "numbered" (default) or "slug-only"
 }
 
 // ScaffoldDeck creates a new presentation on the given WritableFS.
@@ -62,14 +63,20 @@ func ScaffoldDeck(fsys templar.WritableFS, opts ScaffoldOpts) (*Deck, error) {
 	renderEmbeddedTemplateFS(fsys, themeName, "theme.css.tmpl", themeData, "theme.css")
 
 	// Generate slide files
-	slideFiles, err := generateSlidesFS(fsys, themeName, opts.Title, opts.SlideCount)
+	scheme := SchemeForStyle(opts.FilenameStyle)
+	slideFiles, err := generateSlidesFS(fsys, themeName, opts.Title, opts.SlideCount, scheme)
 	if err != nil {
 		return nil, err
 	}
 
-	// Render index.html
+	// Render index.html. For numbered scheme, sorting alphabetically gives
+	// correct order (01-title < 02-slide < 03-closing). For slug-only,
+	// we preserve generation order (title, slide, closing) since
+	// alphabetical would put closing before slide.
 	var includes strings.Builder
-	sort.Strings(slideFiles)
+	if scheme.ShouldRenumber() {
+		sort.Strings(slideFiles)
+	}
 	for _, name := range slideFiles {
 		fmt.Fprintf(&includes, "    {{# include \"slides/%s\" #}}\n", name)
 	}
@@ -93,9 +100,10 @@ func ScaffoldDeck(fsys templar.WritableFS, opts ScaffoldOpts) (*Deck, error) {
 		slideRecords = append(slideRecords, SlideRecord{ID: id, File: f})
 	}
 	manifest := Manifest{
-		Theme:  themeName,
-		Title:  opts.Title,
-		Slides: slideRecords,
+		Theme:         themeName,
+		Title:         opts.Title,
+		Slides:        slideRecords,
+		FilenameStyle: opts.FilenameStyle,
 	}
 	if !opts.IncludeMCPAgent {
 		f := false
@@ -155,14 +163,14 @@ func readEmbeddedTemplate(theme, name string) ([]byte, error) {
 }
 
 // generateSlidesFS creates slide files via FS. Returns the list of filenames.
-func generateSlidesFS(fsys templar.WritableFS, theme, title string, count int) ([]string, error) {
+func generateSlidesFS(fsys templar.WritableFS, theme, title string, count int, scheme NamingScheme) ([]string, error) {
 	if count < 1 {
 		count = 3
 	}
 	var files []string
 
 	// Title slide — prefer layout system (has data-layout, data-slot)
-	name := "01-title.html"
+	name := scheme.Format(1, "title")
 	data := map[string]any{"Title": title, "Number": 1}
 	content, err := Render("title", data)
 	if err != nil {
@@ -184,7 +192,7 @@ func generateSlidesFS(fsys templar.WritableFS, theme, title string, count int) (
 		if i > 2 {
 			slug = fmt.Sprintf("slide-%d", i-1)
 		}
-		name = fmt.Sprintf("%02d-%s.html", i, slug)
+		name = scheme.Format(i, slug)
 		data = map[string]any{"Title": fmt.Sprintf("Slide %d", i), "Number": i}
 		content, err = Render("content", data)
 		if err != nil {
@@ -198,7 +206,7 @@ func generateSlidesFS(fsys templar.WritableFS, theme, title string, count int) (
 	}
 
 	// Closing slide
-	name = fmt.Sprintf("%02d-closing.html", count)
+	name = scheme.Format(count, "closing")
 	data = map[string]any{"Title": "Thank You", "Number": count}
 	content, err = Render("closing", data)
 	if err != nil {

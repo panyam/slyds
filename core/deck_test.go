@@ -949,3 +949,196 @@ func TestDescribe_IncludesSlideID(t *testing.T) {
 		}
 	}
 }
+
+// --- NamingScheme tests (#90) ---
+
+// makeDeckWithScheme constructs an in-memory deck with the given filename
+// scheme. Slide files are created directly (not via InsertSlide) so the
+// test controls exact filenames. The scheme is set on the manifest so
+// OpenDeck reads it.
+func makeDeckWithScheme(t *testing.T, style string, slides ...string) *Deck {
+	t.Helper()
+	mfs := templar.NewMemFS()
+	var includes []byte
+	for _, f := range slides {
+		includes = append(includes, []byte(`{{# include "slides/`+f+`" #}}`+"\n")...)
+		mfs.SetFile("slides/"+f, []byte(`<section><h1>`+f+`</h1></section>`))
+	}
+	mfs.SetFile("index.html", includes)
+	manifest := Manifest{Theme: "default", Title: "Test", FilenameStyle: style}
+	WriteManifestFS(mfs, manifest)
+	d, err := OpenDeck(mfs)
+	if err != nil {
+		t.Fatalf("OpenDeck: %v", err)
+	}
+	return d
+}
+
+// TestInsertSlide_SlugOnly verifies that InsertSlide on a slug-only deck
+// produces filenames without the NN- numeric prefix. This is the core
+// guarantee of the slug-only scheme — filenames are just slug.html.
+func TestInsertSlide_SlugOnly(t *testing.T) {
+	d := makeDeckWithScheme(t, "slug-only", "title.html", "closing.html")
+
+	slug, _, err := d.InsertSlide(2, "middle", "content", "Middle")
+	if err != nil {
+		t.Fatalf("InsertSlide: %v", err)
+	}
+	if slug != "middle" {
+		t.Errorf("slug = %q, want middle", slug)
+	}
+
+	slides, _ := d.SlideFilenames()
+	// Expected: title.html, middle.html, closing.html — no NN- prefix.
+	for _, f := range slides {
+		if f != ExtractNamePart(f) && strings.Contains(f, "-") {
+			// ExtractNamePart returns original if no NN- prefix match.
+			// If they differ AND have a hyphen, it means there's a number prefix.
+			// But "middle.html" has no prefix, so ExtractNamePart returns "middle.html".
+		}
+	}
+	found := false
+	for _, f := range slides {
+		if f == "middle.html" {
+			found = true
+		}
+	}
+	if !found {
+		t.Errorf("expected middle.html in slides, got %v", slides)
+	}
+}
+
+// TestRewriteSlideOrder_SlugOnly_NoRenames verifies the key performance
+// optimization: in slug-only mode, RewriteSlideOrder does NOT rename any
+// files when positions shift. Only index.html is rewritten.
+func TestRewriteSlideOrder_SlugOnly_NoRenames(t *testing.T) {
+	d := makeDeckWithScheme(t, "slug-only", "alpha.html", "beta.html", "gamma.html")
+
+	// Insert at position 2 — pushes beta and gamma but should NOT rename them.
+	d.FS.WriteFile("slides/inserted.html", []byte(`<h1>Inserted</h1>`), 0644)
+	d.ensureSlideIDs()
+	d.Manifest.Slides = append(d.Manifest.Slides, SlideRecord{ID: "sl_test1234", File: "inserted.html"})
+	d.rebuildIndices()
+
+	newOrder := []string{"alpha.html", "inserted.html", "beta.html", "gamma.html"}
+	if err := d.RewriteSlideOrder(newOrder); err != nil {
+		t.Fatalf("RewriteSlideOrder: %v", err)
+	}
+
+	// Verify: all files still have their original names (no NN- prefix added).
+	slides, _ := d.SlideFilenames()
+	for _, f := range slides {
+		if strings.HasPrefix(f, "0") || strings.HasPrefix(f, "1") {
+			t.Errorf("slug-only file got a numeric prefix: %q", f)
+		}
+	}
+
+	// Verify the ordering in index.html matches what we requested.
+	if len(slides) != 4 {
+		t.Fatalf("expected 4 slides, got %d: %v", len(slides), slides)
+	}
+	if slides[0] != "alpha.html" || slides[1] != "inserted.html" || slides[2] != "beta.html" || slides[3] != "gamma.html" {
+		t.Errorf("unexpected ordering: %v", slides)
+	}
+}
+
+// TestScaffold_SlugOnly verifies that scaffolding with FilenameStyle
+// "slug-only" produces slide files without NN- numeric prefixes.
+func TestScaffold_SlugOnly(t *testing.T) {
+	mfs := templar.NewMemFS()
+	d, err := ScaffoldDeck(mfs, ScaffoldOpts{
+		Title:         "Slug Only",
+		SlideCount:    3,
+		ThemeName:     "default",
+		FilenameStyle: "slug-only",
+	})
+	if err != nil {
+		t.Fatalf("ScaffoldDeck: %v", err)
+	}
+
+	slides, _ := d.SlideFilenames()
+	expected := []string{"title.html", "slide.html", "closing.html"}
+	if len(slides) != len(expected) {
+		t.Fatalf("got %d slides, want %d: %v", len(slides), len(expected), slides)
+	}
+	for i, want := range expected {
+		if slides[i] != want {
+			t.Errorf("slides[%d] = %q, want %q", i, slides[i], want)
+		}
+	}
+
+	// Verify the manifest records the filename_style.
+	m, _ := ReadManifestFS(mfs)
+	if m.FilenameStyle != "slug-only" {
+		t.Errorf("manifest filename_style = %q, want slug-only", m.FilenameStyle)
+	}
+}
+
+// TestScaffold_NumberedDefault verifies that scaffolding without a
+// FilenameStyle still produces the traditional NN-slug.html filenames.
+// Regression guard — ensures backward compat.
+func TestScaffold_NumberedDefault(t *testing.T) {
+	mfs := templar.NewMemFS()
+	d, err := ScaffoldDeck(mfs, ScaffoldOpts{
+		Title:      "Numbered",
+		SlideCount: 3,
+		ThemeName:  "default",
+	})
+	if err != nil {
+		t.Fatalf("ScaffoldDeck: %v", err)
+	}
+
+	slides, _ := d.SlideFilenames()
+	expected := []string{"01-title.html", "02-slide.html", "03-closing.html"}
+	if len(slides) != len(expected) {
+		t.Fatalf("got %d slides, want %d: %v", len(slides), len(expected), slides)
+	}
+	for i, want := range expected {
+		if slides[i] != want {
+			t.Errorf("slides[%d] = %q, want %q", i, slides[i], want)
+		}
+	}
+}
+
+// TestSlideFilenames_ManifestFallback verifies that when index.html has
+// no include directives, SlideFilenames falls back to the manifest's
+// Slides records (preserving insertion order) before the alphabetical
+// sort. This is critical for slug-only decks where alphabetical order
+// doesn't match presentation order.
+func TestSlideFilenames_ManifestFallback(t *testing.T) {
+	mfs := templar.NewMemFS()
+	// index.html with no includes.
+	mfs.SetFile("index.html", []byte(`<html><body></body></html>`))
+	// Slide files on disk.
+	mfs.SetFile("slides/charlie.html", []byte(`C`))
+	mfs.SetFile("slides/alpha.html", []byte(`A`))
+	mfs.SetFile("slides/beta.html", []byte(`B`))
+	// Manifest with slides in non-alphabetical order.
+	WriteManifestFS(mfs, Manifest{
+		Theme:         "default",
+		Title:         "Fallback Test",
+		FilenameStyle: "slug-only",
+		Slides: []SlideRecord{
+			{ID: "sl_00000001", File: "charlie.html"},
+			{ID: "sl_00000002", File: "alpha.html"},
+			{ID: "sl_00000003", File: "beta.html"},
+		},
+	})
+
+	d, _ := OpenDeck(mfs)
+	slides, err := d.SlideFilenames()
+	if err != nil {
+		t.Fatalf("SlideFilenames: %v", err)
+	}
+
+	// Should match manifest order, NOT alphabetical.
+	want := []string{"charlie.html", "alpha.html", "beta.html"}
+	if len(slides) != len(want) {
+		t.Fatalf("got %d slides, want %d", len(slides), len(want))
+	}
+	for i, w := range want {
+		if slides[i] != w {
+			t.Errorf("slides[%d] = %q, want %q (manifest order, not alphabetical)", i, slides[i], w)
+		}
+	}
+}

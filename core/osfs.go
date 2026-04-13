@@ -51,8 +51,25 @@ func CreateWithTheme(title string, slideCount int, theme string) (string, error)
 }
 
 // CreateInDir scaffolds a new presentation in the specified output directory.
-// Validates the directory, creates it, delegates to ScaffoldDeck(LocalFS), and creates the CLAUDE.md symlink.
+// Validates the directory, creates it, delegates to ScaffoldDeck(LocalFS),
+// and creates the CLAUDE.md symlink. This is the common convenience entry
+// point; callers that need full control (e.g., filename_style) should use
+// CreateInDirWithOpts instead.
 func CreateInDir(title string, slideCount int, theme string, outDir string, includeMCPInAgent bool) (string, error) {
+	return CreateInDirWithOpts(outDir, ScaffoldOpts{
+		Title:           title,
+		SlideCount:      slideCount,
+		ThemeName:       theme,
+		IncludeMCPAgent: includeMCPInAgent,
+	})
+}
+
+// CreateInDirWithOpts scaffolds a new presentation in the specified output
+// directory using the full ScaffoldOpts. Validates the directory, creates
+// it, delegates to ScaffoldDeck(LocalFS), and creates the CLAUDE.md symlink.
+// This is the entry point for callers that need to set filename_style or
+// other scaffold options that CreateInDir doesn't expose.
+func CreateInDirWithOpts(outDir string, opts ScaffoldOpts) (string, error) {
 	dir, err := filepath.Abs(outDir)
 	if err != nil {
 		return "", err
@@ -75,12 +92,7 @@ func CreateInDir(title string, slideCount int, theme string, outDir string, incl
 	}
 
 	fsys := templar.NewLocalFS(dir)
-	_, err = ScaffoldDeck(fsys, ScaffoldOpts{
-		Title:           title,
-		SlideCount:      slideCount,
-		ThemeName:       theme,
-		IncludeMCPAgent: includeMCPInAgent,
-	})
+	_, err = ScaffoldDeck(fsys, opts)
 	if err != nil {
 		return "", err
 	}
