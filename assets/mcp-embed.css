@@ -9,51 +9,52 @@
  * The `html.slyds-mcp-embed` class is added by applyMCPAppEmbedHints in
  * cmd/mcp_apps.go, so these rules are scoped and do not affect normal
  * `slyds serve` / `slyds build` output.
+ *
+ * Layout: html/body fill the iframe viewport (100%), slideshow-container
+ * is a flex column filling that space, the active slide gets overflow-y:auto
+ * so only the slide content scrolls — nav bar stays pinned at the bottom.
  */
 
-html.slyds-mcp-embed {
+html.slyds-mcp-embed,
+html.slyds-mcp-embed body {
   height: 100%;
-  overflow-y: auto;
-  overflow-x: hidden;
+  margin: 0;
+  overflow: hidden;
+  box-sizing: border-box;
 }
 
 html.slyds-mcp-embed body {
-  height: auto;
-  min-height: 100%;
-  margin: 0;
-  overflow: visible;
   display: flex !important;
   flex-direction: column;
   align-items: stretch;
   justify-content: flex-start;
-  box-sizing: border-box;
 }
 
-/* Override the fixed viewport sizing from slyds.css. In an MCP iframe the
- * viewport is whatever the host gives us — often too small for 100vh layouts.
- * Use 100% of the available space and allow scrolling. */
+/* Fill the iframe, no margins/radius — the host provides the chrome. */
 html.slyds-mcp-embed .slideshow-container {
   width: 100%;
-  height: auto;
-  min-height: 400px;
+  height: 100%;
   max-width: none;
   margin: 0;
-  flex: 1 1 auto;
+  border-radius: 0;
+  flex: 1 1 0;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+/* Only the active slide scrolls — nav bar stays pinned. */
+html.slyds-mcp-embed .slide.active {
+  flex: 1 1 0;
+  min-height: 0;
   overflow-y: auto !important;
   overflow-x: hidden;
   overscroll-behavior: contain;
   -webkit-overflow-scrolling: touch;
-  box-sizing: border-box;
-  border-radius: 0;
 }
 
-/* Active slide should be visible and scrollable, not clipped. */
-html.slyds-mcp-embed .slide.active {
-  overflow-y: auto !important;
-  overflow-x: hidden;
-}
-
-/* Nav bar should always be visible at the bottom. */
+/* Nav bar pinned at the bottom, never scrolls away. */
 html.slyds-mcp-embed .slide-nav {
   flex-shrink: 0;
 }
