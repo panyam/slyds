@@ -22,10 +22,10 @@ github.com/panyam/gocurrent v0.1.0 h1:AW8ctsSQHtoj8QXN55e9n+TYxtq+noF/ikPsRLiihi
 github.com/panyam/gocurrent v0.1.0/go.mod h1:jIIhcNfNnnIe2JXH8aY2+ba+/5G1fzwCWoZXdcMNw6o=
 github.com/panyam/goutils v0.1.13 h1:V819IdZTEJ3rpu33ZqohC6O9ou7KOu6cxfigoYT12OQ=
 github.com/panyam/goutils v0.1.13/go.mod h1:vd3iFcv1DjaeV6h8tslIJh9d09RLndg8UYNSGROBrM4=
-github.com/panyam/mcpkit v0.2.2 h1:aMFyp22RIRCsm0snlBnNziEz0HldJcJJJ/HoP4tI53w=
-github.com/panyam/mcpkit v0.2.2/go.mod h1:KFZkDQ6TKD83JiXx/gC28yVvxd3VGOUc7OkN2/32/U8=
-github.com/panyam/mcpkit/ext/ui v0.2.2 h1:hqF5JEgyzvlHVWTV+h0k4LLBnzTHZDMIh12Q6uEwr54=
-github.com/panyam/mcpkit/ext/ui v0.2.2/go.mod h1:HOuVugkEURFgZX7x6ceBs/3xSCcF+iHDMPxPe6nzdCY=
+github.com/panyam/mcpkit v0.2.3 h1:CUMXkrLQuc8pf5TyM3lubvZvWYXAUGdyd+sTg4xslso=
+github.com/panyam/mcpkit v0.2.3/go.mod h1:KFZkDQ6TKD83JiXx/gC28yVvxd3VGOUc7OkN2/32/U8=
+github.com/panyam/mcpkit/ext/ui v0.2.3 h1:myUO7HW8zmp7RTDtX8/sy3JibDdAEY5OUYU8uLSkwcM=
+github.com/panyam/mcpkit/ext/ui v0.2.3/go.mod h1:RKjo3Zbc6SubXZzNfijkFFtFp3YUpLGGk3224NoRSEE=
 github.com/panyam/servicekit v0.0.25 h1:JeTRyz5ZZY3beENg0N3tLW+O39/foTuHMPAf+rpwYhM=
 github.com/panyam/servicekit v0.0.25/go.mod h1:9TkF2LRqiPC9bgu0bYVdky7rnHEuBvzGzrsoL++Ra5c=
 github.com/panyam/templar v0.1.0 h1:yy4sqois9gvNhIy2xsNyRoI5r/qvz1tVY+YuxnmzbWY=
