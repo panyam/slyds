@@ -48,6 +48,32 @@ type buildWarningResult struct {
 	Warnings []string `json:"warnings"`
 }
 
+// slideReadResult is the structured response from read_slide, including
+// the content version for optimistic concurrency.
+type slideReadResult struct {
+	Content     string `json:"content"`
+	Version     string `json:"version"`
+	DeckVersion string `json:"deck_version"`
+}
+
+// slideEditResult is the structured response from edit_slide after a
+// successful write, including the new content version.
+type slideEditResult struct {
+	Message     string `json:"message"`
+	Version     string `json:"version"`
+	DeckVersion string `json:"deck_version"`
+}
+
+// versionConflict is returned as an error result when expected_version
+// doesn't match the current content. Includes the current state so the
+// agent can recover without an extra round-trip.
+type versionConflict struct {
+	Error          string `json:"error"`
+	CurrentVersion string `json:"current_version"`
+	CurrentContent string `json:"current_content,omitempty"`
+	DeckVersion    string `json:"deck_version,omitempty"`
+}
+
 // --- Tool definitions and handlers ---
 
 func listDecksTool() server.Tool {
@@ -225,7 +251,13 @@ func readSlideTool() server.Tool {
 			if err != nil {
 				return mcpcore.ErrorResult(err.Error()), nil
 			}
-			return mcpcore.TextResult(content), nil
+			ver, _ := d.SlideVersion(pos)
+			deckVer, _ := d.DeckVersion()
+			return jsonResult(slideReadResult{
+				Content:     content,
+				Version:     ver,
+				DeckVersion: deckVer,
+			})
 		},
 	}
 }
@@ -234,24 +266,26 @@ func editSlideTool() server.Tool {
 	return server.Tool{
 		ToolDef: mcpcore.ToolDef{
 			Name:        "edit_slide",
-			Description: "Replace the HTML content of a slide. Supply either 'slide' (preferred: slug, filename, or position as string) or 'position' (legacy: 1-based integer).",
+			Description: "Replace the HTML content of a slide. Supply either 'slide' (preferred: slug, filename, or position as string) or 'position' (legacy: 1-based integer). Pass expected_version (from read_slide or describe_deck) for optimistic concurrency; omit or pass 'latest' for last-write-wins.",
 			InputSchema: map[string]any{
 				"type": "object",
 				"properties": map[string]any{
-					"deck":     propString("Deck name"),
-					"slide":    propString("Slide reference: slug (e.g. 'metrics'), filename (e.g. '02-metrics.html'), or position number as string"),
-					"position": propInt("Slide position (1-based). Legacy — prefer 'slide' for stability across inserts."),
-					"content":  propString("New HTML content for the slide"),
+					"deck":             propString("Deck name"),
+					"slide":            propString("Slide reference: slug (e.g. 'metrics'), filename (e.g. '02-metrics.html'), or position number as string"),
+					"position":         propInt("Slide position (1-based). Legacy — prefer 'slide' for stability across inserts."),
+					"content":          propString("New HTML content for the slide"),
+					"expected_version": propString("Expected slide version from read_slide. Omit or pass 'latest' to skip the check."),
 				},
 				"required": []string{"deck", "content"},
 			},
 		},
 		Handler: func(ctx mcpcore.ToolContext, req mcpcore.ToolRequest) (mcpcore.ToolResult, error) {
 			var p struct {
-				Deck     string `json:"deck"`
-				Slide    string `json:"slide"`
-				Position int    `json:"position"`
-				Content  string `json:"content"`
+				Deck            string `json:"deck"`
+				Slide           string `json:"slide"`
+				Position        int    `json:"position"`
+				Content         string `json:"content"`
+				ExpectedVersion string `json:"expected_version"`
 			}
 			if err := req.Bind(&p); err != nil {
 				return mcpcore.ErrorResult(err.Error()), nil
@@ -264,12 +298,36 @@ func editSlideTool() server.Tool {
 			if err != nil {
 				return mcpcore.ErrorResult(err.Error()), nil
 			}
+			// Optimistic version check
+			if p.ExpectedVersion != "" && p.ExpectedVersion != "latest" {
+				currentVer, err := d.SlideVersion(pos)
+				if err != nil {
+					return mcpcore.ErrorResult(err.Error()), nil
+				}
+				if currentVer != p.ExpectedVersion {
+					currentContent, _ := d.GetSlideContent(pos)
+					deckVer, _ := d.DeckVersion()
+					conflict, _ := json.Marshal(versionConflict{
+						Error:          "version_conflict",
+						CurrentVersion: currentVer,
+						CurrentContent: currentContent,
+						DeckVersion:    deckVer,
+					})
+					return mcpcore.ErrorResult(string(conflict)), nil
+				}
+			}
 			if err := d.EditSlideContent(pos, p.Content); err != nil {
 				return mcpcore.ErrorResult(err.Error()), nil
 			}
+			newVer, _ := d.SlideVersion(pos)
+			deckVer, _ := d.DeckVersion()
 			mcpcore.NotifyResourceUpdated(ctx, fmt.Sprintf("ui://slyds/decks/%s/preview", p.Deck))
 			mcpcore.NotifyResourceUpdated(ctx, fmt.Sprintf("ui://slyds/decks/%s/slides/%d/preview", p.Deck, pos))
-			return mcpcore.TextResult(fmt.Sprintf("Slide %d updated.", pos)), nil
+			return jsonResult(slideEditResult{
+				Message:     fmt.Sprintf("Slide %d updated.", pos),
+				Version:     newVer,
+				DeckVersion: deckVer,
+			})
 		},
 	}
 }
@@ -373,26 +431,28 @@ func addSlideTool() server.Tool {
 	return server.Tool{
 		ToolDef: mcpcore.ToolDef{
 			Name:        "add_slide",
-			Description: "Insert a new slide at the given position using a layout template.",
+			Description: "Insert a new slide at the given position using a layout template. Pass expected_deck_version (from describe_deck or read_slide) for optimistic concurrency; omit or pass 'latest' for last-write-wins.",
 			InputSchema: map[string]any{
 				"type": "object",
 				"properties": map[string]any{
-					"deck":     propString("Deck name"),
-					"position": propInt("Position to insert at (1-based)"),
-					"name":     propString("Slide filename (without .html extension or number prefix)"),
-					"layout":   propString("Layout template: title, content, two-col, section, blank, closing"),
-					"title":    propString("Slide title (used in template rendering)"),
+					"deck":                  propString("Deck name"),
+					"position":              propInt("Position to insert at (1-based)"),
+					"name":                  propString("Slide filename (without .html extension or number prefix)"),
+					"layout":                propString("Layout template: title, content, two-col, section, blank, closing"),
+					"title":                 propString("Slide title (used in template rendering)"),
+					"expected_deck_version": propString("Expected deck version from describe_deck or read_slide. Omit or pass 'latest' to skip."),
 				},
 				"required": []string{"deck", "position", "name"},
 			},
 		},
 		Handler: func(ctx mcpcore.ToolContext, req mcpcore.ToolRequest) (mcpcore.ToolResult, error) {
 			var p struct {
-				Deck     string `json:"deck"`
-				Position int    `json:"position"`
-				Name     string `json:"name"`
-				Layout   string `json:"layout"`
-				Title    string `json:"title"`
+				Deck                string `json:"deck"`
+				Position            int    `json:"position"`
+				Name                string `json:"name"`
+				Layout              string `json:"layout"`
+				Title               string `json:"title"`
+				ExpectedDeckVersion string `json:"expected_deck_version"`
 			}
 			if err := req.Bind(&p); err != nil {
 				return mcpcore.ErrorResult(err.Error()), nil
@@ -404,21 +464,37 @@ func addSlideTool() server.Tool {
 			if errResult != nil {
 				return *errResult, nil
 			}
+			// Optimistic deck version check
+			if p.ExpectedDeckVersion != "" && p.ExpectedDeckVersion != "latest" {
+				currentDeckVer, err := d.DeckVersion()
+				if err != nil {
+					return mcpcore.ErrorResult(err.Error()), nil
+				}
+				if currentDeckVer != p.ExpectedDeckVersion {
+					conflict, _ := json.Marshal(versionConflict{
+						Error:          "version_conflict",
+						CurrentVersion: currentDeckVer,
+						DeckVersion:    currentDeckVer,
+					})
+					return mcpcore.ErrorResult(string(conflict)), nil
+				}
+			}
 			finalSlug, slideID, err := d.InsertSlide(p.Position, p.Name, p.Layout, p.Title)
 			if err != nil {
 				return mcpcore.ErrorResult(err.Error()), nil
 			}
+			deckVer, _ := d.DeckVersion()
 			mcpcore.NotifyResourcesChanged(ctx)
 			mcpcore.NotifyResourceUpdated(ctx, "ui://slyds/decks/"+p.Deck+"/preview")
 			if finalSlug != p.Name {
 				return mcpcore.TextResult(fmt.Sprintf(
-					"Slide %q inserted at position %d (slug auto-suffixed to %q to avoid collision, slide_id: %q).",
-					p.Name, p.Position, finalSlug, slideID,
+					"Slide %q inserted at position %d (slug auto-suffixed to %q to avoid collision, slide_id: %q, deck_version: %q).",
+					p.Name, p.Position, finalSlug, slideID, deckVer,
 				)), nil
 			}
 			return mcpcore.TextResult(fmt.Sprintf(
-				"Slide %q inserted at position %d (slide_id: %q).",
-				p.Name, p.Position, slideID,
+				"Slide %q inserted at position %d (slide_id: %q, deck_version: %q).",
+				p.Name, p.Position, slideID, deckVer,
 			)), nil
 		},
 	}
@@ -428,20 +504,22 @@ func removeSlideTool() server.Tool {
 	return server.Tool{
 		ToolDef: mcpcore.ToolDef{
 			Name:        "remove_slide",
-			Description: "Remove a slide by filename or position number. Remaining slides are renumbered.",
+			Description: "Remove a slide by filename or position number. Remaining slides are renumbered. Pass expected_deck_version for optimistic concurrency; omit or pass 'latest' for last-write-wins.",
 			InputSchema: map[string]any{
 				"type": "object",
 				"properties": map[string]any{
-					"deck":  propString("Deck name"),
-					"slide": propString("Slide reference: slug (e.g. 'metrics'), filename (e.g. '02-metrics.html'), or position number as string"),
+					"deck":                  propString("Deck name"),
+					"slide":                 propString("Slide reference: slug (e.g. 'metrics'), filename (e.g. '02-metrics.html'), or position number as string"),
+					"expected_deck_version": propString("Expected deck version. Omit or pass 'latest' to skip."),
 				},
 				"required": []string{"deck", "slide"},
 			},
 		},
 		Handler: func(ctx mcpcore.ToolContext, req mcpcore.ToolRequest) (mcpcore.ToolResult, error) {
 			var p struct {
-				Deck  string `json:"deck"`
-				Slide string `json:"slide"`
+				Deck                string `json:"deck"`
+				Slide               string `json:"slide"`
+				ExpectedDeckVersion string `json:"expected_deck_version"`
 			}
 			if err := req.Bind(&p); err != nil {
 				return mcpcore.ErrorResult(err.Error()), nil
@@ -450,7 +528,21 @@ func removeSlideTool() server.Tool {
 			if errResult != nil {
 				return *errResult, nil
 			}
-			// Resolve slide reference to filename
+			// Optimistic deck version check
+			if p.ExpectedDeckVersion != "" && p.ExpectedDeckVersion != "latest" {
+				currentDeckVer, err := d.DeckVersion()
+				if err != nil {
+					return mcpcore.ErrorResult(err.Error()), nil
+				}
+				if currentDeckVer != p.ExpectedDeckVersion {
+					conflict, _ := json.Marshal(versionConflict{
+						Error:          "version_conflict",
+						CurrentVersion: currentDeckVer,
+						DeckVersion:    currentDeckVer,
+					})
+					return mcpcore.ErrorResult(string(conflict)), nil
+				}
+			}
 			filename, err := d.ResolveSlide(p.Slide)
 			if err != nil {
 				return mcpcore.ErrorResult(err.Error()), nil
@@ -458,9 +550,10 @@ func removeSlideTool() server.Tool {
 			if err := d.RemoveSlide(filename); err != nil {
 				return mcpcore.ErrorResult(err.Error()), nil
 			}
+			deckVer, _ := d.DeckVersion()
 			mcpcore.NotifyResourcesChanged(ctx)
 			mcpcore.NotifyResourceUpdated(ctx, "ui://slyds/decks/"+p.Deck+"/preview")
-			return mcpcore.TextResult(fmt.Sprintf("Slide %q removed.", filename)), nil
+			return mcpcore.TextResult(fmt.Sprintf("Slide %q removed (deck_version: %q).", filename, deckVer)), nil
 		},
 	}
 }

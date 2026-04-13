@@ -11,6 +11,7 @@ type DeckDescription struct {
 	Title            string             `yaml:"title" json:"title"`
 	Theme            string             `yaml:"theme" json:"theme"`
 	SlideCount       int                `yaml:"slide_count" json:"slide_count"`
+	DeckVersion      string             `yaml:"deck_version" json:"deck_version"`
 	LayoutsUsed      []string           `yaml:"layouts_used" json:"layouts_used"`
 	Slides           []SlideDescription `yaml:"slides" json:"slides"`
 	ThemesAvailable  []string           `yaml:"themes_available" json:"themes_available"`
@@ -38,7 +39,8 @@ type SlideDescription struct {
 	Title    string `yaml:"title" json:"title"`
 	Words    int    `yaml:"words" json:"words"`
 	HasNotes bool   `yaml:"has_notes" json:"has_notes"`
-	Images   int    `yaml:"images" json:"images"`
+	Images  int    `yaml:"images" json:"images"`
+	Version string `yaml:"version" json:"version"`
 }
 
 var descTagRe = regexp.MustCompile(`<[^>]+>`)
@@ -76,6 +78,8 @@ func (d *Deck) Describe() (*DeckDescription, error) {
 		images := len(descImgRe.FindAllString(content, -1))
 		hasNotes := descNotesRe.MatchString(content)
 
+		slideVer, _ := d.SlideVersion(i + 1)
+
 		slideDescs = append(slideDescs, SlideDescription{
 			Position: i + 1,
 			File:     f,
@@ -86,6 +90,7 @@ func (d *Deck) Describe() (*DeckDescription, error) {
 			Words:    wordCount,
 			HasNotes: hasNotes,
 			Images:   images,
+			Version:  slideVer,
 		})
 	}
 
@@ -97,11 +102,13 @@ func (d *Deck) Describe() (*DeckDescription, error) {
 
 	themes := AvailableThemeNames()
 	layouts, _ := ListLayouts()
+	deckVer, _ := d.DeckVersion()
 
 	return &DeckDescription{
 		Title:            d.Title(),
 		Theme:            d.Theme(),
 		SlideCount:       len(slides),
+		DeckVersion:      deckVer,
 		LayoutsUsed:      layoutsUsed,
 		Slides:           slideDescs,
 		ThemesAvailable:  themes,
