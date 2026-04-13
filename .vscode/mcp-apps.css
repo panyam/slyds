@@ -1,0 +1,20 @@
+/* slyds — VS Code MCP Apps iframe sizing
+ *
+ * VS Code's MCP Apps iframes use a fixed height that's too short for
+ * slide presentations. This override gives the iframe enough room to
+ * show a full slide without scrolling.
+ *
+ * Usage:
+ *   1. Install the "Custom CSS and JS Loader" extension (be5invis.vscode-custom-css)
+ *   2. Add to your VS Code user settings.json:
+ *      "vscode_custom_css.imports": ["file:///path/to/slyds/.vscode/mcp-apps.css"]
+ *   3. Cmd+Shift+P → "Enable Custom CSS and JS" → restart VS Code
+ *
+ * Adjust the height value to taste. 600px works well for 16:9 content
+ * in a typical chat panel width.
+ */
+
+.mcp-app-webview {
+  height: 600px !important;
+  min-height: 600px !important;
+}

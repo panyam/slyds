@@ -368,9 +368,24 @@ The `display_mode` parameter on `preview_deck` triggers a `notifications/ui/disp
 | Symptom | Cause | Fix |
 |---------|-------|-----|
 | Preview shows text instead of iframe | Host doesn't support MCP Apps | Use a supported host, or `slyds build <deck>` for HTML |
-| Iframe too small / slides clipped | Host panel is narrow | Use `display_mode: "fullscreen"`, or resize the panel |
+| Iframe too small / slides clipped | Host panel is narrow | Use `display_mode: "fullscreen"`, or resize the panel. For VS Code, see iframe sizing below. |
 | "No preview available" error | Resource read before tool call on old server | Update to latest slyds — template resources don't need prior tool calls |
 | Slides not updating after edit | Stale resource cache in host | The server always builds fresh; if the host caches, close and re-read the resource |
+| Agent sends local file paths as deck names | Agent guesses from workspace files instead of MCP discovery | Error message guides it to call `list_decks`. Start `--deck-root` at the directory containing your decks. |
+
+### VS Code: iframe sizing
+
+VS Code's MCP Apps iframe uses a fixed height that's too short for presentations. To increase it:
+
+1. Install the **[Custom CSS and JS Loader](https://marketplace.visualstudio.com/items?itemName=be5invis.vscode-custom-css)** extension
+2. Add to your VS Code **user** `settings.json`:
+   ```json
+   "vscode_custom_css.imports": ["file:///path/to/slyds/.vscode/mcp-apps.css"]
+   ```
+   (A ready-made CSS file is included at `.vscode/mcp-apps.css` in this repo — adjust the path to your clone)
+3. Cmd+Shift+P → **"Enable Custom CSS and JS"** → restart VS Code
+
+The CSS sets `.mcp-app-webview` to 600px — edit the file to adjust. This is a VS Code limitation; the MCP Apps spec doesn't yet support server-declared preferred sizes.
 
 ---
 
