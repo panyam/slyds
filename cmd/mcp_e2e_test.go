@@ -355,6 +355,59 @@ func TestPerToolTimeout(t *testing.T) {
 	}
 }
 
+// TestE2E_SchemaValidation_RejectsInvalidArgs verifies that mcpkit's
+// server-side JSON Schema validation (active by default in v0.1.24)
+// rejects malformed tool arguments with a -32602 error before the
+// handler runs. This is the contract that lets agents rely on structured
+// error data (field path, keyword) to fix their arguments without a
+// round-trip through the handler's error handling.
+func TestE2E_SchemaValidation_RejectsInvalidArgs(t *testing.T) {
+	root := t.TempDir()
+	core.CreateInDir("Schema Test", 2, "default", fmt.Sprintf("%s/test-deck", root), true)
+
+	c := newSlydsMCPClient(t, root)
+
+	// Call read_slide with position as a string instead of the required int.
+	// The schema declares position as "type": "integer"; a string should be
+	// rejected by the schema validator, not by the handler.
+	_, err := c.Client.ToolCall("read_slide", map[string]any{
+		"deck":     "test-deck",
+		"position": "not-a-number",
+	})
+	if err == nil {
+		t.Fatal("expected error for invalid position type, got nil")
+	}
+	errMsg := err.Error()
+	// mcpkit returns -32602 for schema validation failures.
+	if !strings.Contains(errMsg, "-32602") && !strings.Contains(errMsg, "validation") {
+		t.Errorf("expected -32602 schema validation error; got: %s", errMsg)
+	}
+}
+
+// TestBuildDeckTool_WithEmitContent verifies that adding EmitContent
+// progress calls to the build_deck handler doesn't change the final
+// result. EmitContent is silently dropped on the JSON path used by
+// testutil.TestClient, so this is a regression guard for the return
+// value — not a test of streaming delivery (which is an mcpkit
+// transport concern tested upstream).
+func TestBuildDeckTool_WithEmitContent(t *testing.T) {
+	root := scaffoldTestDeck(t, "test-deck", "Progress Test", "default", 3)
+	tool := buildDeckTool()
+
+	result := callTool(t, root, tool.Handler, map[string]string{"deck": "test-deck"})
+	if result.IsError {
+		t.Fatalf("build_deck error: %s", toolText(result))
+	}
+
+	text := toolText(result)
+	if !strings.Contains(text, "<style>") {
+		t.Error("build_deck missing inlined CSS after EmitContent addition")
+	}
+	if !strings.Contains(text, "Progress Test") {
+		t.Error("build_deck missing title after EmitContent addition")
+	}
+}
+
 // TestE2E_SlideIDSurvivesRename is the canonical integration test for
 // slide_id (#83): it proves that a slide_id reference survives a rename
 // (slugify) that changes the slide's slug and filename — the exact

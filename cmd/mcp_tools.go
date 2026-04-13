@@ -479,6 +479,9 @@ func checkDeckTool() server.Tool {
 			if errResult != nil {
 				return *errResult, nil
 			}
+			mcpcore.EmitContent(ctx, req.RequestID, mcpcore.Content{
+				Type: "text", Text: fmt.Sprintf("Validating deck %q...", p.Deck),
+			})
 			issues, err := d.Check()
 			if err != nil {
 				return mcpcore.ErrorResult(err.Error()), nil
@@ -505,6 +508,9 @@ func buildDeckTool() server.Tool {
 			if errResult != nil {
 				return *errResult, nil
 			}
+			mcpcore.EmitContent(ctx, req.RequestID, mcpcore.Content{
+				Type: "text", Text: fmt.Sprintf("Building deck %q...", p.Deck),
+			})
 			result, err := d.Build()
 			if err != nil {
 				return mcpcore.ErrorResult(err.Error()), nil
