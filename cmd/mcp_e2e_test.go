@@ -694,19 +694,33 @@ func TestE2E_EditSlideVersionConflict(t *testing.T) {
 	c := newSlydsMCPClient(t, root)
 
 	// Read the current version.
-	// Edit with the WRONG version → should fail.
-	_, err := c.Client.ToolCall("edit_slide", map[string]any{
+	// Edit with the WRONG version → should fail with isError result.
+	result, err := c.Client.ToolCallFull("edit_slide", map[string]any{
 		"deck":             "deck",
 		"position":         1,
 		"content":          `<div class="slide"><h1>Conflict</h1></div>`,
 		"expected_version": "0000000000000000",
 	})
-	if err == nil {
-		t.Fatal("expected version_conflict error")
+	if err != nil {
+		t.Fatalf("transport error: %v", err)
 	}
-	errorText := err.Error()
+	if !result.IsError {
+		t.Fatal("expected version_conflict error result")
+	}
+	errorText := result.Content[0].Text
 	if !strings.Contains(errorText, "version_conflict") {
 		t.Errorf("error should contain version_conflict: %s", errorText)
+	}
+	// Verify the conflict includes current_version for recovery.
+	var conflict versionConflict
+	if err := json.Unmarshal([]byte(errorText), &conflict); err != nil {
+		t.Fatalf("conflict error not parseable JSON: %v", err)
+	}
+	if len(conflict.CurrentVersion) != 16 {
+		t.Errorf("current_version length = %d, want 16", len(conflict.CurrentVersion))
+	}
+	if conflict.CurrentContent == "" {
+		t.Error("conflict should include current_content for recovery")
 	}
 }
 
@@ -787,17 +801,20 @@ func TestE2E_AddSlideDeckVersionConflict(t *testing.T) {
 
 	c := newSlydsMCPClient(t, root)
 
-	_, err := c.Client.ToolCall("add_slide", map[string]any{
+	result, err := c.Client.ToolCallFull("add_slide", map[string]any{
 		"deck":                  "deck",
 		"position":              2,
 		"name":                  "extra",
 		"expected_deck_version": "0000000000000000",
 	})
-	if err == nil {
-		t.Fatal("expected version_conflict error")
+	if err != nil {
+		t.Fatalf("transport error: %v", err)
 	}
-	if !strings.Contains(err.Error(), "version_conflict") {
-		t.Errorf("error should contain version_conflict: %s", err.Error())
+	if !result.IsError {
+		t.Fatal("expected version_conflict error result")
+	}
+	if !strings.Contains(result.Content[0].Text, "version_conflict") {
+		t.Errorf("error should contain version_conflict: %s", result.Content[0].Text)
 	}
 }
 
@@ -809,16 +826,19 @@ func TestE2E_RemoveSlideDeckVersionConflict(t *testing.T) {
 
 	c := newSlydsMCPClient(t, root)
 
-	_, err := c.Client.ToolCall("remove_slide", map[string]any{
+	result, err := c.Client.ToolCallFull("remove_slide", map[string]any{
 		"deck":                  "deck",
 		"slide":                 "1",
 		"expected_deck_version": "0000000000000000",
 	})
-	if err == nil {
-		t.Fatal("expected version_conflict error")
+	if err != nil {
+		t.Fatalf("transport error: %v", err)
 	}
-	if !strings.Contains(err.Error(), "version_conflict") {
-		t.Errorf("error should contain version_conflict: %s", err.Error())
+	if !result.IsError {
+		t.Fatal("expected version_conflict error result")
+	}
+	if !strings.Contains(result.Content[0].Text, "version_conflict") {
+		t.Errorf("error should contain version_conflict: %s", result.Content[0].Text)
 	}
 }
 
