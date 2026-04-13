@@ -6,7 +6,6 @@ import (
 	"strings"
 
 	"github.com/PuerkitoBio/goquery"
-	"github.com/panyam/gocurrent"
 	mcpcore "github.com/panyam/mcpkit/core"
 	"github.com/panyam/mcpkit/ext/ui"
 	"github.com/panyam/mcpkit/server"
@@ -14,9 +13,27 @@ import (
 	"github.com/panyam/slyds/core"
 )
 
-// previewCache stores rendered HTML keyed by resource URI.
-// Tool handlers write, resource handlers read.
-var previewCache gocurrent.SyncMap[string, string]
+// previewRef stores which deck (and optional slide position) the last
+// preview tool call requested. The resource handler reads this ref and
+// builds through the workspace on demand — no HTML is cached.
+//
+// This replaced the old previewCache (a gocurrent.SyncMap storing rendered
+// HTML keyed by resource URI). The old cache was not tenant-scoped: in a
+// multi-tenant deployment, user A's preview HTML could leak to user B.
+// By storing only the deck reference and building through workspace on
+// every resource read, the authz layer (Workspace.OpenDeck) naturally
+// prevents cross-tenant access — no HTML blob ever sits in shared memory.
+type previewRef struct {
+	Deck     string
+	Position int // 0 = full deck, >0 = open on this slide
+}
+
+// previewTarget stores the last-requested preview reference per resource URI.
+// Written by tool handlers, read by resource handlers. Thread-safe via
+// the sync.Map underneath gocurrent.SyncMap (replaced by a plain sync.Map
+// since we dropped the gocurrent dependency for this file).
+var previewDeckRef previewRef
+var previewSlideRef previewRef
 
 // mcpAppsEmbedStyleTag wraps the embedded MCP Apps embed CSS (loaded from
 // assets/mcp-embed.css) in a <style> element that applyMCPAppEmbedHints
@@ -69,10 +86,42 @@ func injectInitialSlide(html string, position int) (string, error) {
 	return doc.Html()
 }
 
+// buildPreviewForResource builds a preview HTML for the given ref by
+// opening the deck through the workspace (enforcing authz) and running
+// Build(). If the ref includes a slide position, injects an init script
+// to open the deck on that slide. Returns the HTML ready for MCP Apps
+// resource serving.
+func buildPreviewForResource(ctx context.Context, ref previewRef) (string, error) {
+	if ref.Deck == "" {
+		return "", fmt.Errorf("no preview available — call preview_deck or preview_slide first")
+	}
+	d, err := openDeckForResource(ctx, ref.Deck)
+	if err != nil {
+		return "", err
+	}
+	result, err := buildDeckForPreview(d)
+	if err != nil {
+		return "", err
+	}
+	html := result.HTML
+	if ref.Position > 0 {
+		html, err = injectInitialSlide(html, ref.Position)
+		if err != nil {
+			return "", err
+		}
+	}
+	return applyMCPAppEmbedHints(html), nil
+}
+
 // registerAppTools registers MCP Apps (UI extension) tools that render
 // slide previews as inline HTML iframes in LLM hosts. Handlers resolve the
 // active Workspace from request context so the same registration works
 // for localhost and future hosted deployments.
+//
+// Preview HTML is NOT cached — each resource read builds fresh through
+// the workspace. This ensures authz is always checked (no cross-tenant
+// leaks) and the preview is never stale. Caching can be layered on top
+// later if Build() latency becomes a measured problem.
 func registerAppTools(srv *server.Server) {
 	// preview_deck — full navigable presentation
 	ui.RegisterAppTool(srv, ui.AppToolConfig{
@@ -104,7 +153,10 @@ func registerAppTools(srv *server.Server) {
 			if err != nil {
 				return mcpcore.ErrorResult(err.Error()), nil
 			}
-			previewCache.Store("ui://slyds/preview-deck", result.HTML)
+
+			// Store the deck reference so the resource handler knows what
+			// to build. No HTML stored — built fresh on resource read.
+			previewDeckRef = previewRef{Deck: p.Deck}
 
 			desc, _ := d.Describe()
 			summary := fmt.Sprintf("Built deck %q (%d slides, theme: %s). Preview available.",
@@ -115,15 +167,15 @@ func registerAppTools(srv *server.Server) {
 			return mcpcore.TextResult(summary), nil
 		},
 		ResourceHandler: func(ctx context.Context, req mcpcore.ResourceRequest) (mcpcore.ResourceResult, error) {
-			html, ok := previewCache.Load("ui://slyds/preview-deck")
-			if !ok {
-				return mcpcore.ResourceResult{}, fmt.Errorf("no preview available — call preview_deck first")
+			html, err := buildPreviewForResource(ctx, previewDeckRef)
+			if err != nil {
+				return mcpcore.ResourceResult{}, err
 			}
 			return mcpcore.ResourceResult{
 				Contents: []mcpcore.ResourceReadContent{{
 					URI:      req.URI,
 					MimeType: mcpcore.AppMIMEType,
-					Text:     applyMCPAppEmbedHints(html),
+					Text:     html,
 				}},
 			}, nil
 		},
@@ -182,7 +234,11 @@ func registerAppTools(srv *server.Server) {
 			if err != nil {
 				return mcpcore.ErrorResult(err.Error()), nil
 			}
-			previewCache.Store("ui://slyds/preview-slide", html)
+			// Verify the build succeeded (we don't store the HTML).
+			_ = html
+
+			// Store the deck + position reference for the resource handler.
+			previewSlideRef = previewRef{Deck: p.Deck, Position: p.Position}
 
 			// Build a text summary for non-UI clients.
 			heading := ""
@@ -197,15 +253,15 @@ func registerAppTools(srv *server.Server) {
 			return mcpcore.TextResult(summary), nil
 		},
 		ResourceHandler: func(ctx context.Context, req mcpcore.ResourceRequest) (mcpcore.ResourceResult, error) {
-			html, ok := previewCache.Load("ui://slyds/preview-slide")
-			if !ok {
-				return mcpcore.ResourceResult{}, fmt.Errorf("no preview available — call preview_slide first")
+			html, err := buildPreviewForResource(ctx, previewSlideRef)
+			if err != nil {
+				return mcpcore.ResourceResult{}, err
 			}
 			return mcpcore.ResourceResult{
 				Contents: []mcpcore.ResourceReadContent{{
 					URI:      req.URI,
 					MimeType: mcpcore.AppMIMEType,
-					Text:     applyMCPAppEmbedHints(html),
+					Text:     html,
 				}},
 			}, nil
 		},

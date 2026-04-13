@@ -16,6 +16,9 @@ setup-tools:
 install:
 	go build -ldflags="$(LDFLAGS)" -o ${GOBIN}/slyds .
 
+# Run All tests
+testall: test e2e
+
 # Run tests
 test:
 	go test ./...
