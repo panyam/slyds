@@ -128,7 +128,7 @@ Slug is **not rename-safe**: `slyds slides slugify` changes slugs based on `<h1>
 
 **Legacy decks** (scaffolded before #83) start without slide IDs and get them auto-assigned on the first mutation. Until then, `describe_deck` returns `""` for `slide_id` — use slug or position instead.
 
-## Server Configuration (mcpkit v0.1.24)
+## Server Configuration (mcpkit v0.1.31)
 
 ### Streaming Progress
 

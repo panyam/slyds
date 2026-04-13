@@ -442,7 +442,7 @@ func TestE2E_SlugOnlyDeckWorkflow(t *testing.T) {
 }
 
 // TestE2E_SchemaValidation_RejectsInvalidArgs verifies that mcpkit's
-// server-side JSON Schema validation (active by default in v0.1.24)
+// server-side JSON Schema validation (active by default since v0.1.24)
 // rejects malformed tool arguments with a -32602 error before the
 // handler runs. This is the contract that lets agents rely on structured
 // error data (field path, keyword) to fix their arguments without a
