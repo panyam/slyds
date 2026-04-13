@@ -176,8 +176,28 @@ curl -s -X POST http://127.0.0.1:6274/mcp \
 
 `list_decks`, `create_deck`, `describe_deck`, `list_slides`, `read_slide`, `edit_slide`, `query_slide`, `add_slide`, `remove_slide`, `check_deck`, `build_deck`, `preview_deck`, `preview_slide`
 
-**Preview tools** (MCP Apps): `preview_deck` and `preview_slide` render inline HTML previews in hosts that support the `io.modelcontextprotocol/ui` extension (e.g., Claude Desktop). Non-UI hosts receive a text summary instead.
+**Preview tools** (MCP Apps): `preview_deck` and `preview_slide` render inline HTML previews in hosts that support the `io.modelcontextprotocol/ui` extension. Both declare `supportedDisplayModes: [inline, fullscreen]`. Use `preview_deck` with `display_mode: "fullscreen"` for presentation mode. Non-UI hosts receive a text summary instead.
 
-## MCP resources (7)
+## MCP Apps: inline previews
 
-`slyds://server/info`, `slyds://decks`, `slyds://decks/{name}`, `slyds://decks/{name}/slides`, `slyds://decks/{name}/slides/{n}`, `slyds://decks/{name}/config`, `slyds://decks/{name}/agent`
+Hosts with MCP Apps support render slide decks as interactive iframes directly in chat:
+
+| Host | Support | Enable |
+|------|---------|--------|
+| **VS Code** (Copilot) | Yes | `"chat.mcp.apps.enabled": true` in settings.json |
+| **Claude Desktop** | Yes | Built-in |
+| **Claude Code** (CLI) | No | Text fallback |
+| **Cursor** | Not yet | Text fallback |
+
+**Quick demo** (VS Code or Claude Desktop):
+1. Connect slyds MCP (see step 4 above)
+2. Ask: *"Create a presentation about AI agents with 5 slides, dark theme"*
+3. Ask: *"Preview the deck"* → navigable slide deck appears inline
+4. Ask: *"Preview in fullscreen"* → `display_mode: "fullscreen"` → full viewport
+5. Ask: *"Show me slide 3"* → `preview_slide` opens on that slide
+
+Preview resources use template URIs (`ui://slyds/decks/{deck}/preview`) — each deck has its own resource, built on demand.
+
+## MCP resources (7 + 2 preview)
+
+`slyds://server/info`, `slyds://decks`, `slyds://decks/{name}`, `slyds://decks/{name}/slides`, `slyds://decks/{name}/slides/{n}`, `slyds://decks/{name}/config`, `slyds://decks/{name}/agent`, `ui://slyds/decks/{deck}/preview`, `ui://slyds/decks/{deck}/slides/{position}/preview`

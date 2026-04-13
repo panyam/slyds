@@ -63,8 +63,10 @@ Agents call tools to create, read, modify, and build decks. Each tool takes a `d
 | `remove_slide` | `deck`, `slide` | Remove slide by filename or position |
 | `check_deck` | `deck` | Validate deck: missing files, broken includes, missing notes |
 | `build_deck` | `deck` | Build self-contained HTML (resolves includes, inlines CSS/JS/images) |
+| `preview_deck` | `deck`, `display_mode?` | Preview deck as MCP App iframe. `display_mode: "fullscreen"` for presentation mode. |
+| `preview_slide` | `deck`, `position` | Preview deck opened on a specific slide |
 
-### Resources (7)
+### Resources (7 data + 2 preview)
 
 Agents browse resources to discover and read deck content — no mutations.
 
@@ -77,6 +79,8 @@ Agents browse resources to discover and read deck content — no mutations.
 | `slyds://decks/{name}/slides/{n}` | `text/html` | Raw slide HTML by position (1-based) |
 | `slyds://decks/{name}/config` | `text/yaml` | `.slyds.yaml` manifest content |
 | `slyds://decks/{name}/agent` | `text/markdown` | AGENT.md content (commands, layouts, hooks) |
+| `ui://slyds/decks/{deck}/preview` | `text/html;profile=mcp-app` | Full navigable deck preview (MCP Apps) |
+| `ui://slyds/decks/{deck}/slides/{position}/preview` | `text/html;profile=mcp-app` | Deck preview opened on a specific slide (MCP Apps) |
 
 ### Available Themes & Layouts
 
@@ -309,6 +313,67 @@ Use **MCP: Open Workspace Folder MCP Configuration** or **MCP: Add Server** from
 
 ---
 
+## MCP Apps: Inline Slide Previews
+
+Hosts that support the [MCP Apps extension](https://modelcontextprotocol.io/specification/2025-03-26/server/utilities/mcp-apps) render slyds previews as interactive iframes directly in the chat — no external browser needed.
+
+### What you get
+
+| Feature | How it works |
+|---------|-------------|
+| **Inline preview** | Agent calls `preview_deck` → host renders a navigable slide deck in an iframe |
+| **Slide-specific preview** | Agent calls `preview_slide` with a position → deck opens on that slide |
+| **Fullscreen mode** | `preview_deck` with `display_mode: "fullscreen"` → host switches to a fullscreen overlay (fixes the iframe sizing issue in constrained panels) |
+| **Live updates** | Edit a slide → re-read the resource → preview reflects the change immediately (no tool re-call needed) |
+
+### Host support
+
+| Host | MCP Apps? | How to enable |
+|------|-----------|---------------|
+| **VS Code** (Copilot) | Yes | Enable `chat.mcp.apps.enabled` in settings.json |
+| **Claude Desktop** | Yes | Built-in (no extra config) |
+| **Claude Code** (CLI) | No | Text summary only — preview HTML not rendered |
+| **Cursor** | Not yet | Text summary fallback |
+
+### Try it
+
+1. Set up slyds MCP in your host (see setup sections above)
+2. Create a deck: *"Create a presentation about AI agents with 5 slides using the dark theme"*
+3. Preview it: *"Preview the deck"* → agent calls `preview_deck` → slide deck appears inline
+4. Navigate: use Prev/Next buttons in the iframe, or ask *"Show me slide 3"*
+5. Go fullscreen: *"Preview the deck in fullscreen"* → agent calls `preview_deck` with `display_mode: "fullscreen"`
+
+### Template resource URIs
+
+Preview resources use parameterized URIs — each deck has its own resource:
+
+| URI | Content |
+|-----|---------|
+| `ui://slyds/decks/{deck}/preview` | Full navigable presentation |
+| `ui://slyds/decks/{deck}/slides/{position}/preview` | Presentation opened on a specific slide |
+
+These are registered as MCP resource templates. Hosts that support `resources/read` with template matching can read them directly. The `TemplateHandler` extracts the deck name and slide position from the URI — no mutable server state involved.
+
+### Display modes
+
+Both preview tools declare `supportedDisplayModes: ["inline", "fullscreen"]` in their `_meta.ui` metadata. Hosts use this to:
+- Render the deck inline in the chat panel (default)
+- Offer a "fullscreen" button or honor `RequestDisplayMode` notifications
+- Show picture-in-picture if supported (future)
+
+The `display_mode` parameter on `preview_deck` triggers a `notifications/ui/displayMode` notification asking the host to switch. This is fire-and-forget — the host may ignore it if fullscreen is not supported.
+
+### Troubleshooting
+
+| Symptom | Cause | Fix |
+|---------|-------|-----|
+| Preview shows text instead of iframe | Host doesn't support MCP Apps | Use a supported host, or `slyds build <deck>` for HTML |
+| Iframe too small / slides clipped | Host panel is narrow | Use `display_mode: "fullscreen"`, or resize the panel |
+| "No preview available" error | Resource read before tool call on old server | Update to latest slyds — template resources don't need prior tool calls |
+| Slides not updating after edit | Stale resource cache in host | The server always builds fresh; if the host caches, close and re-read the resource |
+
+---
+
 ## Example Agent Workflow
 
 Here's what happens when an agent helps you with a presentation:
@@ -337,6 +402,34 @@ Agent: "Add a new slide about projections after slide 3"
 Agent: "Build it"
 → tools/call build_deck {deck:"q3-review"}
 ← <html>...(self-contained HTML)...</html>
+```
+
+### With MCP Apps (inline previews)
+
+On hosts that support MCP Apps (VS Code with Copilot, Claude Desktop):
+
+```
+Agent: "Preview the Q3 Review"
+→ tools/call preview_deck {deck:"q3-review"}
+← "Built deck 'Q3 Review' (8 slides, theme: corporate). Preview available at ui://slyds/decks/q3-review/preview"
+→ [Host renders ui://slyds/decks/q3-review/preview as an iframe]
+← [User sees a navigable slide deck inline in the chat]
+
+Agent: "Show me just slide 5"
+→ tools/call preview_slide {deck:"q3-review", position:5}
+← "Preview of 'Q3 Review' opened at slide 5/8 (Projections)."
+→ [Host renders ui://slyds/decks/q3-review/slides/5/preview]
+← [Deck opens on slide 5; user can navigate forward/backward]
+
+Agent: "Present it fullscreen"
+→ tools/call preview_deck {deck:"q3-review", display_mode:"fullscreen"}
+→ [Host receives notifications/ui/displayMode → switches to fullscreen]
+← [Full-viewport slide deck with navigation]
+
+User: [Edits slide 5 via agent]
+→ tools/call edit_slide {deck:"q3-review", slide:"projections", content:"<div class='slide'>...new content...</div>"}
+→ [Server sends notifications/resources/updated for ui://slyds/decks/q3-review/preview]
+← [Host re-reads the resource → preview updates immediately]
 ```
 
 ---
