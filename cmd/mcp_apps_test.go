@@ -35,8 +35,7 @@ func newSlydsMCPClientWithUI(t *testing.T, root string) *testutil.TestClient {
 }
 
 // TestPreviewDeckReturnsHTML verifies that the preview_deck tool handler
-// builds a full deck preview and returns a text summary containing the
-// deck title and the template resource URI.
+// builds a full deck preview, stores the previewRef, and returns a summary.
 func TestPreviewDeckReturnsHTML(t *testing.T) {
 	root := scaffoldTestDeck(t, "test-deck", "Preview Deck", "default", 3)
 
@@ -50,13 +49,16 @@ func TestPreviewDeckReturnsHTML(t *testing.T) {
 	if !strings.Contains(text, "Preview Deck") {
 		t.Error("preview_deck summary missing deck title")
 	}
-	if !strings.Contains(text, "ui://slyds/decks/test-deck/preview") {
-		t.Error("preview_deck summary missing template resource URI")
+	if !strings.Contains(text, "Preview available") {
+		t.Error("preview_deck summary missing 'Preview available'")
+	}
+	if previewDeckRef.Deck != "test-deck" {
+		t.Errorf("previewDeckRef.Deck = %q, want test-deck", previewDeckRef.Deck)
 	}
 }
 
-// TestPreviewSlideReturnsHTML verifies that preview_slide returns a text
-// summary with position info and the parameterized resource URI.
+// TestPreviewSlideReturnsHTML verifies that preview_slide stores the deck +
+// position reference and returns a text summary.
 func TestPreviewSlideReturnsHTML(t *testing.T) {
 	root := scaffoldTestDeck(t, "test-deck", "Slide Preview", "dark", 3)
 
@@ -70,8 +72,11 @@ func TestPreviewSlideReturnsHTML(t *testing.T) {
 	if !strings.Contains(text, "slide 2/3") {
 		t.Errorf("preview_slide summary missing position info: %q", text)
 	}
-	if !strings.Contains(text, "ui://slyds/decks/test-deck/slides/2/preview") {
-		t.Error("preview_slide summary missing template resource URI")
+	if previewSlideRef.Deck != "test-deck" {
+		t.Errorf("previewSlideRef.Deck = %q, want test-deck", previewSlideRef.Deck)
+	}
+	if previewSlideRef.Position != 2 {
+		t.Errorf("previewSlideRef.Position = %d, want 2", previewSlideRef.Position)
 	}
 }
 
@@ -98,29 +103,26 @@ func TestPreviewSlideZeroPosition(t *testing.T) {
 	}
 }
 
-// TestPreviewSlideMatchesPreviewDeck verifies the unification: the HTML
-// served by preview_slide is the HTML served by preview_deck *plus* the
-// injected init script. Both are built on demand through template resources.
+// TestPreviewSlideMatchesPreviewDeck verifies the unification: preview_slide
+// HTML = preview_deck HTML + init script. Tests both concrete and template
+// resource paths.
 func TestPreviewSlideMatchesPreviewDeck(t *testing.T) {
 	root := scaffoldTestDeck(t, "parity", "Parity Deck", "default", 4)
 
 	c := newSlydsMCPClientWithUI(t, root)
 
-	// Call both tools to validate them (though template resources don't need
-	// a prior tool call — each read builds from URI params).
+	// Call both tools to set previewRefs for concrete resources.
 	c.ToolCall("preview_deck", map[string]any{"deck": "parity"})
 	c.ToolCall("preview_slide", map[string]any{"deck": "parity", "position": 3})
 
-	// Read resources via template URIs.
-	deckHTML := c.ReadResource("ui://slyds/decks/parity/preview")
-	slideHTML := c.ReadResource("ui://slyds/decks/parity/slides/3/preview")
+	// Read via concrete URIs (what VS Code fetches).
+	deckHTML := c.ReadResource("ui://slyds/preview-deck")
+	slideHTML := c.ReadResource("ui://slyds/preview-slide")
 
 	if deckHTML == "" || slideHTML == "" {
-		t.Fatal("empty HTML from preview resources")
+		t.Fatal("empty HTML from concrete preview resources")
 	}
 
-	// preview_slide HTML must contain the init script; preview_deck HTML
-	// must NOT (otherwise the unification leaked the wrong way round).
 	if strings.Contains(deckHTML, "window.location.hash=") {
 		t.Error("preview_deck HTML unexpectedly contains an init hash script")
 	}
@@ -128,8 +130,18 @@ func TestPreviewSlideMatchesPreviewDeck(t *testing.T) {
 		t.Error("preview_slide HTML missing init hash script for position 3")
 	}
 
-	// Both should share the same structural markers (same deck, same
-	// Build() pipeline, same asset inlining).
+	// Also read via template URIs (advanced clients).
+	deckHTML2 := c.ReadResource("ui://slyds/decks/parity/preview")
+	slideHTML2 := c.ReadResource("ui://slyds/decks/parity/slides/3/preview")
+
+	if !strings.Contains(deckHTML2, "Parity Deck") {
+		t.Error("template deck resource missing title")
+	}
+	if !strings.Contains(slideHTML2, `window.location.hash='3'`) {
+		t.Error("template slide resource missing init hash script")
+	}
+
+	// Both paths should produce the same structural markers.
 	for _, marker := range []string{
 		`class="slideshow-container"`,
 		`id="prevBtn"`,
@@ -138,10 +150,10 @@ func TestPreviewSlideMatchesPreviewDeck(t *testing.T) {
 		`<style>`,
 	} {
 		if !strings.Contains(deckHTML, marker) {
-			t.Errorf("preview_deck HTML missing marker %q", marker)
+			t.Errorf("concrete deck HTML missing marker %q", marker)
 		}
-		if !strings.Contains(slideHTML, marker) {
-			t.Errorf("preview_slide HTML missing marker %q — divergence from preview_deck", marker)
+		if !strings.Contains(deckHTML2, marker) {
+			t.Errorf("template deck HTML missing marker %q", marker)
 		}
 	}
 }
@@ -156,7 +168,7 @@ func snippet(s string, n int) string {
 
 // TestE2E_UIExtensionAdvertised verifies that the server advertises the
 // io.modelcontextprotocol/ui extension and that preview tools include
-// _meta.ui with template resourceUri and supportedDisplayModes.
+// _meta.ui with concrete resourceUri and supportedDisplayModes.
 func TestE2E_UIExtensionAdvertised(t *testing.T) {
 	root := t.TempDir()
 	core.CreateInDir("UI Test", 3, "default", filepath.Join(root, "deck"), true)
@@ -169,8 +181,8 @@ func TestE2E_UIExtensionAdvertised(t *testing.T) {
 			if tool.Meta == nil || tool.Meta.UI == nil {
 				t.Fatal("preview_deck missing _meta.ui")
 			}
-			if tool.Meta.UI.ResourceUri != "ui://slyds/decks/{deck}/preview" {
-				t.Errorf("preview_deck resourceUri = %q, want ui://slyds/decks/{deck}/preview", tool.Meta.UI.ResourceUri)
+			if tool.Meta.UI.ResourceUri != "ui://slyds/preview-deck" {
+				t.Errorf("preview_deck resourceUri = %q, want ui://slyds/preview-deck", tool.Meta.UI.ResourceUri)
 			}
 			if len(tool.Meta.UI.SupportedDisplayModes) != 2 {
 				t.Errorf("preview_deck supportedDisplayModes count = %d, want 2", len(tool.Meta.UI.SupportedDisplayModes))
@@ -223,8 +235,8 @@ func TestE2E_DisplayModesAdvertised(t *testing.T) {
 	}
 }
 
-// TestE2E_PreviewDeckResource verifies the full MCP Apps flow: call the
-// preview_deck tool, then read the template resource and verify HTML.
+// TestE2E_PreviewDeckResource verifies the full MCP Apps flow via the
+// concrete resource URI that hosts like VS Code fetch.
 func TestE2E_PreviewDeckResource(t *testing.T) {
 	root := t.TempDir()
 	core.CreateInDir("E2E Deck", 3, "default", filepath.Join(root, "deck"), true)
@@ -236,7 +248,7 @@ func TestE2E_PreviewDeckResource(t *testing.T) {
 		t.Fatalf("preview_deck result missing title: %s", result)
 	}
 
-	html := c.ReadResource("ui://slyds/decks/deck/preview")
+	html := c.ReadResource("ui://slyds/preview-deck")
 	if !strings.Contains(html, "<html") {
 		t.Error("preview-deck resource missing <html")
 	}
@@ -246,7 +258,7 @@ func TestE2E_PreviewDeckResource(t *testing.T) {
 }
 
 // TestE2E_PreviewSlideResource verifies the full MCP Apps flow for single
-// slide preview: call preview_slide, then read the template resource.
+// slide preview via the concrete resource URI.
 func TestE2E_PreviewSlideResource(t *testing.T) {
 	root := t.TempDir()
 	core.CreateInDir("Slide E2E", 3, "dark", filepath.Join(root, "deck"), true)
@@ -258,7 +270,7 @@ func TestE2E_PreviewSlideResource(t *testing.T) {
 		t.Fatalf("preview_slide result missing position: %s", result)
 	}
 
-	html := c.ReadResource("ui://slyds/decks/deck/slides/1/preview")
+	html := c.ReadResource("ui://slyds/preview-slide")
 	if !strings.Contains(html, `data-theme="dark"`) {
 		t.Error("preview-slide resource missing dark theme")
 	}
@@ -269,7 +281,7 @@ func TestE2E_PreviewSlideResource(t *testing.T) {
 
 // TestE2E_TemplateResourceDirectRead verifies that template resources can
 // be read without a prior tool call. The TemplateHandler resolves the deck
-// from URI params — no previewRef state needed.
+// from URI params — no previewRef needed.
 func TestE2E_TemplateResourceDirectRead(t *testing.T) {
 	root := t.TempDir()
 	core.CreateInDir("Direct Read", 2, "default", filepath.Join(root, "mydeck"), true)
@@ -300,38 +312,56 @@ func TestE2E_TemplateResourceNonexistentDeck(t *testing.T) {
 	}
 }
 
+// TestE2E_PreviewResourceBeforeToolCall verifies that reading the concrete
+// preview resource before any tool call returns a clear error.
+func TestE2E_PreviewResourceBeforeToolCall(t *testing.T) {
+	root := t.TempDir()
+	core.CreateInDir("Cold Start", 2, "default", filepath.Join(root, "deck"), true)
+
+	c := newSlydsMCPClientWithUI(t, root)
+
+	// Reset the preview refs to simulate a fresh server.
+	previewDeckRef = previewRef{}
+
+	_, err := c.Client.ReadResource("ui://slyds/preview-deck")
+	if err == nil {
+		t.Error("expected error reading concrete preview resource before tool call")
+	}
+}
+
 // TestE2E_PreviewReflectsEdits verifies the freshness guarantee: after
-// editing a slide, the preview resource reflects the edit immediately on
-// the next read. Template resources build from the current disk state.
+// editing a slide, the preview reflects the edit on the next read.
 func TestE2E_PreviewReflectsEdits(t *testing.T) {
 	root := t.TempDir()
 	core.CreateInDir("Fresh Test", 3, "default", filepath.Join(root, "deck"), true)
 
 	c := newSlydsMCPClientWithUI(t, root)
 
-	// 1. Read the resource — should contain the original title.
-	html := c.ReadResource("ui://slyds/decks/deck/preview")
+	// 1. Call preview_deck to set the ref.
+	c.ToolCall("preview_deck", map[string]any{"deck": "deck"})
+
+	// 2. Read — should contain original title.
+	html := c.ReadResource("ui://slyds/preview-deck")
 	if !strings.Contains(html, "Fresh Test") {
 		t.Fatal("preview missing original title")
 	}
 
-	// 2. Edit slide 1 to change the content.
+	// 3. Edit slide 1.
 	c.ToolCall("edit_slide", map[string]any{
 		"deck":     "deck",
 		"position": 1,
 		"content":  `<div class="slide"><h1>EDITED CONTENT</h1></div>`,
 	})
 
-	// 3. Re-read the preview — edit should be reflected immediately.
-	html = c.ReadResource("ui://slyds/decks/deck/preview")
+	// 4. Re-read — edit should be reflected (builds fresh, no cache).
+	html = c.ReadResource("ui://slyds/preview-deck")
 	if !strings.Contains(html, "EDITED CONTENT") {
 		t.Error("preview did not reflect the edit — still showing stale content")
 	}
 }
 
-// TestE2E_PreviewSwitchesDecks verifies that template resources for
-// different decks return independent HTML. With template URIs, each deck
-// has its own URI — no shared mutable state to corrupt.
+// TestE2E_PreviewSwitchesDecks verifies that calling preview_deck for
+// deck A, then B, updates the concrete resource to show B.
 func TestE2E_PreviewSwitchesDecks(t *testing.T) {
 	root := t.TempDir()
 	core.CreateInDir("Deck Alpha", 2, "default", filepath.Join(root, "alpha"), true)
@@ -339,30 +369,39 @@ func TestE2E_PreviewSwitchesDecks(t *testing.T) {
 
 	c := newSlydsMCPClientWithUI(t, root)
 
+	c.ToolCall("preview_deck", map[string]any{"deck": "alpha"})
+	html := c.ReadResource("ui://slyds/preview-deck")
+	if !strings.Contains(html, "Deck Alpha") {
+		t.Fatal("preview should show Deck Alpha")
+	}
+
+	c.ToolCall("preview_deck", map[string]any{"deck": "beta"})
+	html = c.ReadResource("ui://slyds/preview-deck")
+	if !strings.Contains(html, "Deck Beta") {
+		t.Error("preview should show Deck Beta after switching")
+	}
+
+	// Template resources are independent — both decks accessible simultaneously.
 	alphaHTML := c.ReadResource("ui://slyds/decks/alpha/preview")
 	betaHTML := c.ReadResource("ui://slyds/decks/beta/preview")
-
 	if !strings.Contains(alphaHTML, "Deck Alpha") {
-		t.Error("alpha resource should show Deck Alpha")
+		t.Error("template alpha resource missing title")
 	}
 	if !strings.Contains(betaHTML, "Deck Beta") {
-		t.Error("beta resource should show Deck Beta")
-	}
-	if strings.Contains(betaHTML, "Deck Alpha") {
-		t.Error("beta resource should not contain alpha content")
+		t.Error("template beta resource missing title")
 	}
 }
 
 // TestE2E_PreviewDeckResource_HTMLStructure verifies the full HTML
-// structure returned by the preview resource: inlined CSS, navigation
-// buttons, and MCP Apps embed hints.
+// structure returned by the preview resource.
 func TestE2E_PreviewDeckResource_HTMLStructure(t *testing.T) {
 	root := t.TempDir()
 	core.CreateInDir("Structure Test", 3, "default", filepath.Join(root, "deck"), true)
 
 	c := newSlydsMCPClientWithUI(t, root)
+	c.ToolCall("preview_deck", map[string]any{"deck": "deck"})
 
-	html := c.ReadResource("ui://slyds/decks/deck/preview")
+	html := c.ReadResource("ui://slyds/preview-deck")
 
 	checks := map[string]string{
 		"<style>":                     "inlined CSS",
@@ -381,8 +420,7 @@ func TestE2E_PreviewDeckResource_HTMLStructure(t *testing.T) {
 }
 
 // TestE2E_FullscreenDisplayMode verifies that preview_deck accepts a
-// display_mode parameter without error. The actual fullscreen notification
-// is fire-and-forget so we just verify the tool succeeds.
+// display_mode parameter without error.
 func TestE2E_FullscreenDisplayMode(t *testing.T) {
 	root := t.TempDir()
 	core.CreateInDir("FS Test", 2, "default", filepath.Join(root, "deck"), true)
@@ -400,13 +438,10 @@ func TestE2E_FullscreenDisplayMode(t *testing.T) {
 
 // --- Helpers to extract tool defs for unit testing ---
 
-// previewDeckToolDef returns the server.Tool for preview_deck by
-// registering app tools on a temporary server.
 func previewDeckToolDef(root string) server.Tool {
 	return extractRegisteredTool(root, "preview_deck")
 }
 
-// previewSlideToolDef returns the server.Tool for preview_slide.
 func previewSlideToolDef(root string) server.Tool {
 	return extractRegisteredTool(root, "preview_slide")
 }
@@ -423,7 +458,6 @@ func extractRegisteredTool(root, name string) server.Tool {
 	)
 	registerAppTools(srv)
 
-	// Use tools/list through dispatch to get the tool definitions
 	ctx := context.Background()
 	initReq := &mcpcore.Request{
 		JSONRPC: "2.0",
