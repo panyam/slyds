@@ -69,7 +69,7 @@ func validateDeckName(name string) error {
 		return nil
 	}
 	if strings.ContainsRune(name, '/') || strings.ContainsRune(name, '\\') {
-		return fmt.Errorf("%w: %q contains a path separator", ErrInvalidDeckName, name)
+		return fmt.Errorf("%w: %q contains a path separator — deck names are simple identifiers, not file paths. Call list_decks to discover available decks", ErrInvalidDeckName, name)
 	}
 	if strings.HasPrefix(name, "..") || strings.HasPrefix(name, ".") {
 		return fmt.Errorf("%w: %q begins with a dot", ErrInvalidDeckName, name)
@@ -116,7 +116,7 @@ func (w *LocalWorkspace) OpenDeck(name string) (*core.Deck, error) {
 	}
 	d, err := core.OpenDeckDir(dir)
 	if err != nil {
-		return nil, fmt.Errorf("%w: %s", ErrDeckNotFound, name)
+		return nil, fmt.Errorf("%w: %q — call list_decks to discover available decks", ErrDeckNotFound, name)
 	}
 	return d, nil
 }
