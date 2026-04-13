@@ -69,9 +69,9 @@
 				
 				<option value="file6">github.com/panyam/slyds/cmd/introspect.go (64.7%)</option>
 				
-				<option value="file7">github.com/panyam/slyds/cmd/mcp.go (19.8%)</option>
+				<option value="file7">github.com/panyam/slyds/cmd/mcp.go (20.2%)</option>
 				
-				<option value="file8">github.com/panyam/slyds/cmd/mcp_apps.go (81.0%)</option>
+				<option value="file8">github.com/panyam/slyds/cmd/mcp_apps.go (82.7%)</option>
 				
 				<option value="file9">github.com/panyam/slyds/cmd/mcp_resources.go (56.3%)</option>
 				
@@ -784,12 +784,13 @@ and deck content as browsable resources.
 }
 
 var (
-        mcpListen    string
-        mcpToken     string
-        mcpPublicURL string
-        mcpUseSSE    bool
-        mcpUseStdio  bool
-        mcpDeckRoot  string
+        mcpListen       string
+        mcpToken        string
+        mcpPublicURL    string
+        mcpUseSSE       bool
+        mcpUseStdio     bool
+        mcpDeckRoot     string
+        mcpAllowOrigins []string
 )
 
 func init() <span class="cov8" title="1">{
@@ -799,6 +800,7 @@ func init() <span class="cov8" title="1">{
         mcpCmd.Flags().BoolVar(&amp;mcpUseSSE, "sse", false, "Use legacy HTTP+SSE transport")
         mcpCmd.Flags().BoolVar(&amp;mcpUseStdio, "stdio", false, "Use stdio transport (Content-Length framed JSON-RPC on stdin/stdout)")
         mcpCmd.Flags().StringVar(&amp;mcpDeckRoot, "deck-root", "", "Root directory for deck discovery (default: $SLYDS_DECK_ROOT, or current directory)")
+        mcpCmd.Flags().StringSliceVar(&amp;mcpAllowOrigins, "allow-origin", nil, "Allowed Origin headers (default: localhost only). Use '*' to allow all origins (e.g. behind a tunnel)")
         rootCmd.AddCommand(mcpCmd)
 }</span>
 
@@ -855,6 +857,9 @@ func runMCPServer() error <span class="cov0" title="0">{
         <span class="cov0" title="0">var transportOpts []server.TransportOption
         if mcpPublicURL != "" </span><span class="cov0" title="0">{
                 transportOpts = append(transportOpts, server.WithPublicURL(mcpPublicURL))
+        }</span>
+        <span class="cov0" title="0">if len(mcpAllowOrigins) &gt; 0 </span><span class="cov0" title="0">{
+                transportOpts = append(transportOpts, server.WithAllowedOrigins(mcpAllowOrigins...))
         }</span>
 
         <span class="cov0" title="0">var transport string
@@ -1078,6 +1083,20 @@ import (
         "github.com/panyam/slyds/core"
 )
 
+// previewRef stores which deck (and optional slide position) a preview
+// resource should render. Written by tool handlers, read by the concrete
+// resource handlers that hosts like VS Code fetch from _meta.ui.resourceUri.
+//
+// Template resource handlers (ui://slyds/decks/{deck}/preview) extract the
+// deck name from URI params and don't use these refs at all.
+type previewRef struct {
+        Deck     string
+        Position int // 0 = full deck, &gt;0 = open on this slide
+}
+
+var previewDeckRef previewRef
+var previewSlideRef previewRef
+
 // mcpAppsEmbedStyleTag wraps the embedded MCP Apps embed CSS (loaded from
 // assets/mcp-embed.css) in a &lt;style&gt; element that applyMCPAppEmbedHints
 // injects into preview HTML. Computed once at init to avoid repeating the
@@ -1130,7 +1149,8 @@ func injectInitialSlide(html string, position int) (string, error) <span class="
 }
 
 // buildPreviewHTML builds a preview HTML for the given deck, optionally
-// opening on a specific slide. Used by both template resource handlers.
+// opening on a specific slide. Used by both concrete and template resource
+// handlers.
 func buildPreviewHTML(ctx context.Context, deckName string, position int) (string, error) <span class="cov8" title="1">{
         d, err := openDeckForResource(ctx, deckName)
         if err != nil </span><span class="cov8" title="1">{
@@ -1150,6 +1170,16 @@ func buildPreviewHTML(ctx context.Context, deckName string, position int) (strin
         <span class="cov8" title="1">return applyMCPAppEmbedHints(html), nil</span>
 }
 
+// buildPreviewForRef builds preview HTML from a previewRef. Used by the
+// concrete resource handlers that current hosts (VS Code, Claude Desktop)
+// fetch via the literal _meta.ui.resourceUri.
+func buildPreviewForRef(ctx context.Context, ref previewRef) (string, error) <span class="cov8" title="1">{
+        if ref.Deck == "" </span><span class="cov8" title="1">{
+                return "", fmt.Errorf("no preview available — call preview_deck or preview_slide first")
+        }</span>
+        <span class="cov8" title="1">return buildPreviewHTML(ctx, ref.Deck, ref.Position)</span>
+}
+
 // previewDisplayModes is the set of display modes supported by slyds preview
 // tools. Declared as inline/fullscreen so hosts can offer mode switching.
 var previewDisplayModes = []mcpcore.DisplayMode{
@@ -1162,10 +1192,17 @@ var previewDisplayModes = []mcpcore.DisplayMode{
 // active Workspace from request context so the same registration works
 // for localhost and future hosted deployments.
 //
-// Resource URIs use templates — the deck name (and slide position) are
-// extracted from the URI params, so no mutable package-level state is needed.
-// Each resource read builds fresh through the workspace, ensuring authz is
-// always checked and previews are never stale.
+// Each tool is registered with a concrete resourceUri (e.g. ui://slyds/preview-deck)
+// because current hosts (VS Code, Claude Desktop) fetch _meta.ui.resourceUri
+// literally — they don't substitute template variables. The concrete resource
+// handler reads from previewRef (set by the tool handler).
+//
+// Template resources (ui://slyds/decks/{deck}/preview) are registered
+// separately for advanced clients that construct URIs from tool arguments.
+// These extract the deck name from URI params and don't use previewRef.
+//
+// TODO(mcpkit#213): once RegisterAppTool auto-generates a concrete fallback
+// for template URIs, remove previewRef and switch to template-only registration.
 func registerAppTools(srv *server.Server) <span class="cov8" title="1">{
         // preview_deck — full navigable presentation
         ui.RegisterAppTool(srv, ui.AppToolConfig{
@@ -1179,9 +1216,9 @@ func registerAppTools(srv *server.Server) <span class="cov8" title="1">{
                         },
                         "required": []string{"deck"},
                 },
-                ResourceURI:           "ui://slyds/decks/{deck}/preview",
+                ResourceURI:           "ui://slyds/preview-deck",
                 SupportedDisplayModes: previewDisplayModes,
-                ToolHandler: func(ctx context.Context, req mcpcore.ToolRequest) (mcpcore.ToolResult, error) </span><span class="cov8" title="1">{
+                ToolHandler: func(ctx mcpcore.ToolContext, req mcpcore.ToolRequest) (mcpcore.ToolResult, error) </span><span class="cov8" title="1">{
                         var p struct {
                                 Deck        string `json:"deck"`
                                 DisplayMode string `json:"display_mode"`
@@ -1193,7 +1230,12 @@ func registerAppTools(srv *server.Server) <span class="cov8" title="1">{
                         if errResult != nil </span><span class="cov0" title="0">{
                                 return *errResult, nil
                         }</span>
-                        <span class="cov8" title="1">mcpcore.EmitContent(ctx, req.RequestID, mcpcore.Content{
+
+                        // Store the deck reference early — hosts may fetch the resource
+                        // URI in parallel with the tool call, before the handler returns.
+                        <span class="cov8" title="1">previewDeckRef = previewRef{Deck: p.Deck}
+
+                        mcpcore.EmitContent(ctx, req.RequestID, mcpcore.Content{
                                 Type: "text", Text: fmt.Sprintf("Building preview for %q...", p.Deck),
                         })
                         result, err := buildDeckForPreview(d)
@@ -1207,21 +1249,21 @@ func registerAppTools(srv *server.Server) <span class="cov8" title="1">{
                         }</span>
 
                         <span class="cov8" title="1">desc, _ := d.Describe()
-                        summary := fmt.Sprintf("Built deck %q (%d slides, theme: %s). Preview available at ui://slyds/decks/%s/preview",
-                                d.Title(), desc.SlideCount, d.Theme(), p.Deck)
+                        summary := fmt.Sprintf("Built deck %q (%d slides, theme: %s). Preview available.",
+                                d.Title(), desc.SlideCount, d.Theme())
                         if len(result.Warnings) &gt; 0 </span><span class="cov0" title="0">{
                                 summary += fmt.Sprintf(" Warnings: %s", strings.Join(result.Warnings, "; "))
                         }</span>
                         <span class="cov8" title="1">return mcpcore.TextResult(summary), nil</span>
                 },
-                TemplateHandler: func(ctx context.Context, uri string, params map[string]string) (mcpcore.ResourceResult, error) <span class="cov8" title="1">{
-                        html, err := buildPreviewHTML(ctx, params["deck"], 0)
+                ResourceHandler: func(ctx mcpcore.ResourceContext, req mcpcore.ResourceRequest) (mcpcore.ResourceResult, error) <span class="cov8" title="1">{
+                        html, err := buildPreviewForRef(ctx, previewDeckRef)
                         if err != nil </span><span class="cov8" title="1">{
                                 return mcpcore.ResourceResult{}, err
                         }</span>
                         <span class="cov8" title="1">return mcpcore.ResourceResult{
                                 Contents: []mcpcore.ResourceReadContent{{
-                                        URI:      uri,
+                                        URI:      req.URI,
                                         MimeType: mcpcore.AppMIMEType,
                                         Text:     html,
                                 }},
@@ -1245,9 +1287,9 @@ func registerAppTools(srv *server.Server) <span class="cov8" title="1">{
                         },
                         "required": []string{"deck", "position"},
                 },
-                ResourceURI:           "ui://slyds/decks/{deck}/slides/{position}/preview",
+                ResourceURI:           "ui://slyds/preview-slide",
                 SupportedDisplayModes: previewDisplayModes,
-                ToolHandler: func(ctx context.Context, req mcpcore.ToolRequest) (mcpcore.ToolResult, error) </span><span class="cov8" title="1">{
+                ToolHandler: func(ctx mcpcore.ToolContext, req mcpcore.ToolRequest) (mcpcore.ToolResult, error) </span><span class="cov8" title="1">{
                         var p struct {
                                 Deck     string `json:"deck"`
                                 Position int    `json:"position"`
@@ -1269,7 +1311,10 @@ func registerAppTools(srv *server.Server) <span class="cov8" title="1">{
                                 )), nil
                         }</span>
 
-                        <span class="cov8" title="1">mcpcore.EmitContent(ctx, req.RequestID, mcpcore.Content{
+                        // Store the ref early — hosts may fetch the resource in parallel.
+                        <span class="cov8" title="1">previewSlideRef = previewRef{Deck: p.Deck, Position: p.Position}
+
+                        mcpcore.EmitContent(ctx, req.RequestID, mcpcore.Content{
                                 Type: "text", Text: fmt.Sprintf("Building preview for %q (slide %d)...", p.Deck, p.Position),
                         })
                         result, err := buildDeckForPreview(d)
@@ -1280,36 +1325,27 @@ func registerAppTools(srv *server.Server) <span class="cov8" title="1">{
                         if err != nil </span><span class="cov0" title="0">{
                                 return mcpcore.ErrorResult(err.Error()), nil
                         }</span>
-                        // Verify the build succeeded (we don't store the HTML).
                         <span class="cov8" title="1">_ = html
 
                         heading := ""
                         if content, err := d.GetSlideContent(p.Position); err == nil </span><span class="cov8" title="1">{
                                 heading = core.ExtractFirstHeading(content)
                         }</span>
-                        <span class="cov8" title="1">summary := fmt.Sprintf("Preview of %q opened at slide %d/%d (%s). Preview available at ui://slyds/decks/%s/slides/%d/preview",
-                                d.Title(), p.Position, desc.SlideCount, heading, p.Deck, p.Position)
+                        <span class="cov8" title="1">summary := fmt.Sprintf("Preview of %q opened at slide %d/%d (%s). Preview available.",
+                                d.Title(), p.Position, desc.SlideCount, heading)
                         if len(result.Warnings) &gt; 0 </span><span class="cov0" title="0">{
                                 summary += fmt.Sprintf(" Warnings: %s", strings.Join(result.Warnings, "; "))
                         }</span>
                         <span class="cov8" title="1">return mcpcore.TextResult(summary), nil</span>
                 },
-                TemplateHandler: func(ctx context.Context, uri string, params map[string]string) (mcpcore.ResourceResult, error) <span class="cov8" title="1">{
-                        position := 0
-                        if posStr, ok := params["position"]; ok </span><span class="cov8" title="1">{
-                                n, err := strconv.Atoi(posStr)
-                                if err != nil </span><span class="cov0" title="0">{
-                                        return mcpcore.ResourceResult{}, fmt.Errorf("invalid slide position %q", posStr)
-                                }</span>
-                                <span class="cov8" title="1">position = n</span>
-                        }
-                        <span class="cov8" title="1">html, err := buildPreviewHTML(ctx, params["deck"], position)
+                ResourceHandler: func(ctx mcpcore.ResourceContext, req mcpcore.ResourceRequest) (mcpcore.ResourceResult, error) <span class="cov8" title="1">{
+                        html, err := buildPreviewForRef(ctx, previewSlideRef)
                         if err != nil </span><span class="cov0" title="0">{
                                 return mcpcore.ResourceResult{}, err
                         }</span>
                         <span class="cov8" title="1">return mcpcore.ResourceResult{
                                 Contents: []mcpcore.ResourceReadContent{{
-                                        URI:      uri,
+                                        URI:      req.URI,
                                         MimeType: mcpcore.AppMIMEType,
                                         Text:     html,
                                 }},
@@ -1318,6 +1354,62 @@ func registerAppTools(srv *server.Server) <span class="cov8" title="1">{
                 Visibility: []mcpcore.UIVisibility{mcpcore.UIVisibilityModel, mcpcore.UIVisibilityApp},
                 Domain:     "slyds",
         })
+
+        // Template resources — registered separately for clients that can
+        // construct concrete URIs from tool arguments. These don't require
+        // a prior tool call; the deck name (and position) come from the URI.
+        <span class="cov8" title="1">srv.Register(
+                server.ResourceTemplate{
+                        ResourceTemplate: mcpcore.ResourceTemplate{
+                                URITemplate: "ui://slyds/decks/{deck}/preview",
+                                Name:        "Deck Preview",
+                                Description: "Full navigable deck preview by name (MCP Apps)",
+                                MimeType:    mcpcore.AppMIMEType,
+                        },
+                        Handler: func(ctx mcpcore.ResourceContext, uri string, params map[string]string) (mcpcore.ResourceResult, error) </span><span class="cov8" title="1">{
+                                html, err := buildPreviewHTML(ctx, params["deck"], 0)
+                                if err != nil </span><span class="cov8" title="1">{
+                                        return mcpcore.ResourceResult{}, err
+                                }</span>
+                                <span class="cov8" title="1">return mcpcore.ResourceResult{
+                                        Contents: []mcpcore.ResourceReadContent{{
+                                                URI:      uri,
+                                                MimeType: mcpcore.AppMIMEType,
+                                                Text:     html,
+                                        }},
+                                }, nil</span>
+                        },
+                },
+                server.ResourceTemplate{
+                        ResourceTemplate: mcpcore.ResourceTemplate{
+                                URITemplate: "ui://slyds/decks/{deck}/slides/{position}/preview",
+                                Name:        "Slide Preview",
+                                Description: "Deck preview opened on a specific slide (MCP Apps)",
+                                MimeType:    mcpcore.AppMIMEType,
+                        },
+                        Handler: func(ctx mcpcore.ResourceContext, uri string, params map[string]string) (mcpcore.ResourceResult, error) <span class="cov8" title="1">{
+                                position := 0
+                                if posStr, ok := params["position"]; ok </span><span class="cov8" title="1">{
+                                        n, err := strconv.Atoi(posStr)
+                                        if err != nil </span><span class="cov0" title="0">{
+                                                return mcpcore.ResourceResult{}, fmt.Errorf("invalid slide position %q", posStr)
+                                        }</span>
+                                        <span class="cov8" title="1">position = n</span>
+                                }
+                                <span class="cov8" title="1">html, err := buildPreviewHTML(ctx, params["deck"], position)
+                                if err != nil </span><span class="cov0" title="0">{
+                                        return mcpcore.ResourceResult{}, err
+                                }</span>
+                                <span class="cov8" title="1">return mcpcore.ResourceResult{
+                                        Contents: []mcpcore.ResourceReadContent{{
+                                                URI:      uri,
+                                                MimeType: mcpcore.AppMIMEType,
+                                                Text:     html,
+                                        }},
+                                }, nil</span>
+                        },
+                },
+        )
 }
 </pre>
 		
@@ -1348,7 +1440,7 @@ func registerResources(srv *server.Server) <span class="cov8" title="1">{
                                 Description: "slyds MCP server version, capabilities, and workspace root",
                                 MimeType:    "application/json",
                         },
-                        Handler: func(ctx context.Context, req mcpcore.ResourceRequest) (mcpcore.ResourceResult, error) </span><span class="cov8" title="1">{
+                        Handler: func(ctx mcpcore.ResourceContext, req mcpcore.ResourceRequest) (mcpcore.ResourceResult, error) </span><span class="cov8" title="1">{
                                 ws := workspaceFromContext(ctx)
                                 info := map[string]any{
                                         "name":    "slyds",
@@ -1379,7 +1471,7 @@ func registerResources(srv *server.Server) <span class="cov8" title="1">{
                                 Description: "List all presentation decks visible to the current workspace",
                                 MimeType:    "application/json",
                         },
-                        Handler: func(ctx context.Context, uri string, params map[string]string) (mcpcore.ResourceResult, error) <span class="cov8" title="1">{
+                        Handler: func(ctx mcpcore.ResourceContext, uri string, params map[string]string) (mcpcore.ResourceResult, error) <span class="cov8" title="1">{
                                 ws := workspaceFromContext(ctx)
                                 if ws == nil </span><span class="cov0" title="0">{
                                         return mcpcore.ResourceResult{}, fmt.Errorf("internal: no workspace on context")
@@ -1421,7 +1513,7 @@ func registerResources(srv *server.Server) <span class="cov8" title="1">{
                                 Description: "Structured description of a deck: title, theme, slides with metadata",
                                 MimeType:    "application/json",
                         },
-                        Handler: func(ctx context.Context, uri string, params map[string]string) (mcpcore.ResourceResult, error) <span class="cov8" title="1">{
+                        Handler: func(ctx mcpcore.ResourceContext, uri string, params map[string]string) (mcpcore.ResourceResult, error) <span class="cov8" title="1">{
                                 d, err := openDeckForResource(ctx, params["name"])
                                 if err != nil </span><span class="cov0" title="0">{
                                         return mcpcore.ResourceResult{}, err
@@ -1449,7 +1541,7 @@ func registerResources(srv *server.Server) <span class="cov8" title="1">{
                                 Description: "List all slides in a deck with position, filename, layout, title, and word count",
                                 MimeType:    "application/json",
                         },
-                        Handler: func(ctx context.Context, uri string, params map[string]string) (mcpcore.ResourceResult, error) <span class="cov0" title="0">{
+                        Handler: func(ctx mcpcore.ResourceContext, uri string, params map[string]string) (mcpcore.ResourceResult, error) <span class="cov0" title="0">{
                                 d, err := openDeckForResource(ctx, params["name"])
                                 if err != nil </span><span class="cov0" title="0">{
                                         return mcpcore.ResourceResult{}, err
@@ -1477,7 +1569,7 @@ func registerResources(srv *server.Server) <span class="cov8" title="1">{
                                 Description: "Raw HTML content of a specific slide by position (1-based)",
                                 MimeType:    "text/html",
                         },
-                        Handler: func(ctx context.Context, uri string, params map[string]string) (mcpcore.ResourceResult, error) <span class="cov8" title="1">{
+                        Handler: func(ctx mcpcore.ResourceContext, uri string, params map[string]string) (mcpcore.ResourceResult, error) <span class="cov8" title="1">{
                                 d, err := openDeckForResource(ctx, params["name"])
                                 if err != nil </span><span class="cov0" title="0">{
                                         return mcpcore.ResourceResult{}, err
@@ -1508,7 +1600,7 @@ func registerResources(srv *server.Server) <span class="cov8" title="1">{
                                 Description: "Raw .slyds.yaml manifest content",
                                 MimeType:    "text/yaml",
                         },
-                        Handler: func(ctx context.Context, uri string, params map[string]string) (mcpcore.ResourceResult, error) <span class="cov0" title="0">{
+                        Handler: func(ctx mcpcore.ResourceContext, uri string, params map[string]string) (mcpcore.ResourceResult, error) <span class="cov0" title="0">{
                                 d, err := openDeckForResource(ctx, params["name"])
                                 if err != nil </span><span class="cov0" title="0">{
                                         return mcpcore.ResourceResult{}, err
@@ -1535,7 +1627,7 @@ func registerResources(srv *server.Server) <span class="cov8" title="1">{
                                 Description: "AGENT.md content for the deck — commands, layouts, hooks, and conventions",
                                 MimeType:    "text/markdown",
                         },
-                        Handler: func(ctx context.Context, uri string, params map[string]string) (mcpcore.ResourceResult, error) <span class="cov0" title="0">{
+                        Handler: func(ctx mcpcore.ResourceContext, uri string, params map[string]string) (mcpcore.ResourceResult, error) <span class="cov0" title="0">{
                                 d, err := openDeckForResource(ctx, params["name"])
                                 if err != nil </span><span class="cov0" title="0">{
                                         return mcpcore.ResourceResult{}, err
@@ -1575,7 +1667,6 @@ func openDeckForResource(ctx context.Context, name string) (*core.Deck, error) <
 		<pre class="file" id="file10" style="display: none">package cmd
 
 import (
-        "context"
         "encoding/json"
         "fmt"
         "time"
@@ -1635,7 +1726,7 @@ func listDecksTool() server.Tool <span class="cov8" title="1">{
                                 "properties": map[string]any{},
                         },
                 },
-                Handler: func(ctx context.Context, req mcpcore.ToolRequest) (mcpcore.ToolResult, error) </span><span class="cov8" title="1">{
+                Handler: func(ctx mcpcore.ToolContext, req mcpcore.ToolRequest) (mcpcore.ToolResult, error) </span><span class="cov8" title="1">{
                         ws, errResult := requireWorkspace(ctx)
                         if errResult != nil </span><span class="cov8" title="1">{
                                 return *errResult, nil
@@ -1679,7 +1770,7 @@ func createDeckTool() server.Tool <span class="cov8" title="1">{
                                 "required": []string{"name", "title"},
                         },
                 },
-                Handler: func(ctx context.Context, req mcpcore.ToolRequest) (mcpcore.ToolResult, error) </span><span class="cov8" title="1">{
+                Handler: func(ctx mcpcore.ToolContext, req mcpcore.ToolRequest) (mcpcore.ToolResult, error) </span><span class="cov8" title="1">{
                         ws, errResult := requireWorkspace(ctx)
                         if errResult != nil </span><span class="cov8" title="1">{
                                 return *errResult, nil
@@ -1721,7 +1812,7 @@ func describeDeckTool() server.Tool <span class="cov8" title="1">{
                         Description: "Get structured metadata for a deck: title, theme, slide list with layouts, word counts, and notes status.",
                         InputSchema: deckOnlySchema(),
                 },
-                Handler: func(ctx context.Context, req mcpcore.ToolRequest) (mcpcore.ToolResult, error) </span><span class="cov8" title="1">{
+                Handler: func(ctx mcpcore.ToolContext, req mcpcore.ToolRequest) (mcpcore.ToolResult, error) </span><span class="cov8" title="1">{
                         p, err := bindDeckParam(req)
                         if err != nil </span><span class="cov0" title="0">{
                                 return mcpcore.ErrorResult(err.Error()), nil
@@ -1746,7 +1837,7 @@ func listSlidesTool() server.Tool <span class="cov8" title="1">{
                         Description: "List all slides in a deck with filenames, layouts, titles, and word counts.",
                         InputSchema: deckOnlySchema(),
                 },
-                Handler: func(ctx context.Context, req mcpcore.ToolRequest) (mcpcore.ToolResult, error) </span><span class="cov8" title="1">{
+                Handler: func(ctx mcpcore.ToolContext, req mcpcore.ToolRequest) (mcpcore.ToolResult, error) </span><span class="cov8" title="1">{
                         p, err := bindDeckParam(req)
                         if err != nil </span><span class="cov0" title="0">{
                                 return mcpcore.ErrorResult(err.Error()), nil
@@ -1779,7 +1870,7 @@ func readSlideTool() server.Tool <span class="cov8" title="1">{
                                 "required": []string{"deck"},
                         },
                 },
-                Handler: func(ctx context.Context, req mcpcore.ToolRequest) (mcpcore.ToolResult, error) </span><span class="cov8" title="1">{
+                Handler: func(ctx mcpcore.ToolContext, req mcpcore.ToolRequest) (mcpcore.ToolResult, error) </span><span class="cov8" title="1">{
                         var p struct {
                                 Deck     string `json:"deck"`
                                 Slide    string `json:"slide"`
@@ -1821,7 +1912,7 @@ func editSlideTool() server.Tool <span class="cov8" title="1">{
                                 "required": []string{"deck", "content"},
                         },
                 },
-                Handler: func(ctx context.Context, req mcpcore.ToolRequest) (mcpcore.ToolResult, error) </span><span class="cov8" title="1">{
+                Handler: func(ctx mcpcore.ToolContext, req mcpcore.ToolRequest) (mcpcore.ToolResult, error) </span><span class="cov8" title="1">{
                         var p struct {
                                 Deck     string `json:"deck"`
                                 Slide    string `json:"slide"`
@@ -1902,7 +1993,7 @@ func querySlideTool() server.Tool <span class="cov8" title="1">{
                                 "required": []string{"deck", "slide", "selector"},
                         },
                 },
-                Handler: func(ctx context.Context, req mcpcore.ToolRequest) (mcpcore.ToolResult, error) </span><span class="cov8" title="1">{
+                Handler: func(ctx mcpcore.ToolContext, req mcpcore.ToolRequest) (mcpcore.ToolResult, error) </span><span class="cov8" title="1">{
                         var p struct {
                                 Deck     string  `json:"deck"`
                                 Slide    string  `json:"slide"`
@@ -1961,7 +2052,7 @@ func addSlideTool() server.Tool <span class="cov8" title="1">{
                                 "required": []string{"deck", "position", "name"},
                         },
                 },
-                Handler: func(ctx context.Context, req mcpcore.ToolRequest) (mcpcore.ToolResult, error) </span><span class="cov8" title="1">{
+                Handler: func(ctx mcpcore.ToolContext, req mcpcore.ToolRequest) (mcpcore.ToolResult, error) </span><span class="cov8" title="1">{
                         var p struct {
                                 Deck     string `json:"deck"`
                                 Position int    `json:"position"`
@@ -2013,7 +2104,7 @@ func removeSlideTool() server.Tool <span class="cov8" title="1">{
                                 "required": []string{"deck", "slide"},
                         },
                 },
-                Handler: func(ctx context.Context, req mcpcore.ToolRequest) (mcpcore.ToolResult, error) </span><span class="cov8" title="1">{
+                Handler: func(ctx mcpcore.ToolContext, req mcpcore.ToolRequest) (mcpcore.ToolResult, error) </span><span class="cov8" title="1">{
                         var p struct {
                                 Deck  string `json:"deck"`
                                 Slide string `json:"slide"`
@@ -2048,7 +2139,7 @@ func checkDeckTool() server.Tool <span class="cov8" title="1">{
                         InputSchema: deckOnlySchema(),
                         Timeout:     10 * time.Second,
                 },
-                Handler: func(ctx context.Context, req mcpcore.ToolRequest) (mcpcore.ToolResult, error) </span><span class="cov8" title="1">{
+                Handler: func(ctx mcpcore.ToolContext, req mcpcore.ToolRequest) (mcpcore.ToolResult, error) </span><span class="cov8" title="1">{
                         p, err := bindDeckParam(req)
                         if err != nil </span><span class="cov0" title="0">{
                                 return mcpcore.ErrorResult(err.Error()), nil
@@ -2077,7 +2168,7 @@ func buildDeckTool() server.Tool <span class="cov8" title="1">{
                         InputSchema: deckOnlySchema(),
                         Timeout:     30 * time.Second,
                 },
-                Handler: func(ctx context.Context, req mcpcore.ToolRequest) (mcpcore.ToolResult, error) </span><span class="cov8" title="1">{
+                Handler: func(ctx mcpcore.ToolContext, req mcpcore.ToolRequest) (mcpcore.ToolResult, error) </span><span class="cov8" title="1">{
                         p, err := bindDeckParam(req)
                         if err != nil </span><span class="cov0" title="0">{
                                 return mcpcore.ErrorResult(err.Error()), nil
@@ -3128,7 +3219,7 @@ func validateDeckName(name string) error <span class="cov8" title="1">{
                 return nil
         }</span>
         <span class="cov8" title="1">if strings.ContainsRune(name, '/') || strings.ContainsRune(name, '\\') </span><span class="cov8" title="1">{
-                return fmt.Errorf("%w: %q contains a path separator", ErrInvalidDeckName, name)
+                return fmt.Errorf("%w: %q contains a path separator — deck names are simple identifiers, not file paths. Call list_decks to discover available decks", ErrInvalidDeckName, name)
         }</span>
         <span class="cov8" title="1">if strings.HasPrefix(name, "..") || strings.HasPrefix(name, ".") </span><span class="cov8" title="1">{
                 return fmt.Errorf("%w: %q begins with a dot", ErrInvalidDeckName, name)
@@ -3175,7 +3266,7 @@ func (w *LocalWorkspace) OpenDeck(name string) (*core.Deck, error) <span class="
         }</span>
         <span class="cov8" title="1">d, err := core.OpenDeckDir(dir)
         if err != nil </span><span class="cov8" title="1">{
-                return nil, fmt.Errorf("%w: %s", ErrDeckNotFound, name)
+                return nil, fmt.Errorf("%w: %q — call list_decks to discover available decks", ErrDeckNotFound, name)
         }</span>
         <span class="cov8" title="1">return d, nil</span>
 }

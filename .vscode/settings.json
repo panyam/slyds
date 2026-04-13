@@ -1,0 +1,9 @@
+{
+  // MCP Apps — interactive UIs from MCP servers in Copilot chat (tool + ui:// resources).
+  // https://code.visualstudio.com/blogs/2026/01/26/mcp-apps-support
+  // Use VS Code Insiders or a Stable build that includes MCP Apps; turn this on explicitly
+  // (see https://github.com/microsoft/vscode/issues/260218#issuecomment-2580698826).
+  "chat.mcp.apps.enabled": true,
+
+  "makefile.configureOnOpen": false
+}
