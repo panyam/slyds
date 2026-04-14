@@ -1,7 +1,7 @@
 dist/
 .DS_Store
 *.log
-slyds
+/slyds
 locallinks/
 examples/*/dist/
 examples/dist/
