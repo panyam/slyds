@@ -90,11 +90,7 @@ func runMCPProtoServer() error {
 		transportOpts = append(transportOpts, server.WithPublicURL(mcpPublicURL))
 	}
 	if len(mcpAllowOrigins) > 0 {
-		if len(mcpAllowOrigins) == 1 && mcpAllowOrigins[0] == "*" {
-			transportOpts = append(transportOpts, server.WithAllowedOrigins())
-		} else {
-			transportOpts = append(transportOpts, server.WithAllowedOrigins(mcpAllowOrigins...))
-		}
+		transportOpts = append(transportOpts, server.WithAllowedOrigins(mcpAllowOrigins...))
 	}
 
 	var transport string
