@@ -15,7 +15,6 @@ import "slyds/v1/models.proto";
 // SlydsService exposes deck operations as MCP tools and resources.
 // The service implementation wraps a Workspace and delegates to core.Deck methods.
 service SlydsService {
-  option (mcp.v1.mcp_service) = { namespace: "slyds" };
 
   // ── Tools ──
 

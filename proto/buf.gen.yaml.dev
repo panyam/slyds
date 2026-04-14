@@ -18,4 +18,5 @@ plugins:
     out: ../gen/go
     opt:
       - paths=source_relative
-      - package_suffix=mcp
+      - package_suffix=
+      - variants=inprocess
