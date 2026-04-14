@@ -67,7 +67,7 @@ service SlydsService {
   rpc EditSlide(EditSlideRequest) returns (SlideEditResult) {
     option (mcp.v1.mcp_tool) = {
       name: "edit_slide"
-      description: "Replace the HTML content of a slide. Pass expected_version (from read_slide) for optimistic concurrency; omit or pass 'latest' for last-write-wins."
+      description: "Replace the HTML content of a slide. Content MUST be a raw HTML fragment (not JSON-escaped) whose root element is <div class='slide' data-layout='...'> — do NOT use class='slide-content' or other variants. Do NOT escape quotes with backslashes. Do NOT include <style> blocks — they pollute global CSS and break navigation; use inline style= attributes instead. Pass expected_version (from read_slide) for optimistic concurrency; omit or pass 'latest' for last-write-wins."
       structured_output: true
     };
   }

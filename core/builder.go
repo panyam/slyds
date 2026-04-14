@@ -14,32 +14,46 @@ type Result struct {
 	Warnings []string `json:"warnings"`
 }
 
+// RenderHTML resolves all templar includes in the named template and returns
+// the resulting HTML. Tries html/template first (full templar feature set);
+// if Go's contextual escaper rejects the content (complex inline styles,
+// SVG, agent-generated patterns), falls back to raw string-based include
+// resolution via FlattenIncludes.
+//
+// Both Build() and slyds serve use this as the single render path.
+func (d *Deck) RenderHTML(templateName string) (string, error) {
+	group := templar.NewTemplateGroup()
+	group.Loader = NewLoaderForDeck(d.FS)
+
+	templates, err := group.Loader.Load(templateName, "")
+	if err != nil {
+		return "", fmt.Errorf("failed to load %s: %w", templateName, err)
+	}
+	if len(templates) == 0 {
+		return "", fmt.Errorf("no templates loaded from %s", templateName)
+	}
+
+	var buf bytes.Buffer
+	err = group.RenderHtmlTemplate(&buf, templates[0], "", map[string]any{}, nil)
+	if err != nil {
+		// html/template rejected the content; fall back to raw inclusion.
+		raw, readErr := d.FS.ReadFile(templateName)
+		if readErr != nil {
+			return "", fmt.Errorf("template rendering failed: %w (fallback read: %v)", err, readErr)
+		}
+		return d.FlattenIncludes(string(raw))
+	}
+	return buf.String(), nil
+}
+
 // Build reads index.html from the deck's FS, resolves all templar includes,
 // inlines CSS/JS/images, and returns a self-contained HTML string.
 // All I/O goes through the deck's WritableFS.
 func (d *Deck) Build() (*Result, error) {
-	// Same template resolution as `slyds serve` (NewLoaderForDeck): deck FS plus
-	// optional .slyds.yaml module sources. Keeps preview_deck / build output aligned
-	// with the dev server.
-	group := templar.NewTemplateGroup()
-	group.Loader = NewLoaderForDeck(d.FS)
-
-	templates, err := group.Loader.Load("index.html", "")
+	html, err := d.RenderHTML("index.html")
 	if err != nil {
-		return nil, fmt.Errorf("failed to load index.html: %w", err)
+		return nil, err
 	}
-	if len(templates) == 0 {
-		return nil, fmt.Errorf("no templates loaded from index.html")
-	}
-
-	// Render the template (resolves all includes)
-	var buf bytes.Buffer
-	err = group.RenderHtmlTemplate(&buf, templates[0], "", map[string]any{}, nil)
-	if err != nil {
-		return nil, fmt.Errorf("template rendering failed: %w", err)
-	}
-
-	html := buf.String()
 
 	// Inline assets via FS
 	result, err := d.inlineAssets(html)

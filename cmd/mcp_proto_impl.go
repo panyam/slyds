@@ -165,7 +165,11 @@ func (s *SlydsServiceImpl) EditSlide(ctx context.Context, req *pb.EditSlideReque
 			return nil, st.Err()
 		}
 	}
-	if err := d.EditSlideContent(pos, req.Content); err != nil {
+	if issues := core.LintSlideContent(req.Content); issues.HasErrors() {
+		return nil, status.Errorf(codes.InvalidArgument, "rejected: %s", issues[0].Detail)
+	}
+	content, _ := core.SanitizeSlideContent(req.Content)
+	if err := d.EditSlideContent(pos, content); err != nil {
 		return nil, status.Errorf(codes.Internal, "edit slide: %v", err)
 	}
 	newVer, _ := d.SlideVersion(pos)

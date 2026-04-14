@@ -29,11 +29,7 @@ var serveCmd = &cobra.Command{
 			return err
 		}
 
-		// Set up templar for on-the-fly include resolution.
-		// Uses SourceLoader if .slyds.yaml declares sources, otherwise FileSystemLoader.
-		group := templar.NewTemplateGroup()
-		group.Loader = core.NewLoaderForDeck(templar.NewLocalFS(root))
-
+		fs := templar.NewLocalFS(root)
 		mux := http.NewServeMux()
 
 		// Serve static files (CSS, JS, images, slide assets)
@@ -45,20 +41,24 @@ var serveCmd = &cobra.Command{
 				path = "/index.html"
 			}
 
-			// Only render .html files through templar (to resolve includes)
+			// Only render .html files through the deck's RenderHTML
+			// (same path as Build / MCP preview).
 			if filepath.Ext(path) == ".html" {
 				templateName := path[1:] // strip leading /
-				templates, err := group.Loader.Load(templateName, "")
+				d, err := core.OpenDeck(fs)
 				if err != nil {
-					log.Printf("Template load error: %s: %v", templateName, err)
-					http.NotFound(w, r)
+					log.Printf("Deck open error: %v", err)
+					http.Error(w, "Render error", http.StatusInternalServerError)
+					return
+				}
+				html, err := d.RenderHTML(templateName)
+				if err != nil {
+					log.Printf("Render error: %s: %v", templateName, err)
+					http.Error(w, "Render error", http.StatusInternalServerError)
 					return
 				}
 				w.Header().Set("Content-Type", "text/html; charset=utf-8")
-				if err := group.RenderHtmlTemplate(w, templates[0], "", map[string]any{}, nil); err != nil {
-					log.Printf("Template render error: %s: %v", templateName, err)
-					http.Error(w, "Render error", http.StatusInternalServerError)
-				}
+				fmt.Fprint(w, html)
 				return
 			}
 

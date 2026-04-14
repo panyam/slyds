@@ -5,6 +5,8 @@ import (
 	"fmt"
 	"regexp"
 	"strings"
+
+	"github.com/PuerkitoBio/goquery"
 )
 
 // IssueType categorizes a check finding.
@@ -84,6 +86,7 @@ var assetRefRe = regexp.MustCompile(`(?:src|href)="([^"]+)"`)
 var speakerNotesRe = regexp.MustCompile(`class="speaker-notes"`)
 var tagStripRe = regexp.MustCompile(`<[^>]+>`)
 
+
 // Check validates the deck for common issues: missing/orphan slides,
 // broken asset references, missing speaker notes, unknown layouts,
 // and estimated talk time. All checks go through DeckFS.
@@ -158,6 +161,15 @@ func (d *Deck) Check() (*CheckResult, error) {
 			totalWords += len(strings.Fields(text))
 		}
 
+		// Root element class
+		if !hasSlideClass(html) {
+			result.Issues = append(result.Issues, Issue{
+				Type:   IssueError,
+				Slide:  s,
+				Detail: fmt.Sprintf("%s: root element missing class=\"slide\" — presentation engine requires .slide for pagination", s),
+			})
+		}
+
 		// Layout attribute
 		detectedLayout := DetectLayout(html)
 		if !strings.Contains(html, "data-layout=") {
@@ -211,6 +223,69 @@ func (d *Deck) assetExists(ref, slideFile string) bool {
 		return true
 	}
 	return false
+}
+
+// hasSlideClass uses goquery to check whether the root element of a slide
+// fragment has the "slide" CSS class (e.g. class="slide", class="slide title-slide").
+// Returns false for non-standard classes like "slide-content".
+func hasSlideClass(html string) bool {
+	doc, err := goquery.NewDocumentFromReader(strings.NewReader(html))
+	if err != nil {
+		return false
+	}
+	return doc.Find("div.slide").Length() > 0
+}
+
+// LintSlideContent checks raw HTML for common agent authoring mistakes
+// before it is written to disk. Returns issues that should block the write.
+func LintSlideContent(html string) Issues {
+	var issues Issues
+	if strings.Contains(html, `=\"`) {
+		issues = append(issues, Issue{
+			Type:   IssueError,
+			Detail: `content contains escaped quotes (\"); this usually means the HTML was double-JSON-escaped — send raw HTML with normal quotes`,
+		})
+	}
+	if strings.Contains(html, `\n`) && !strings.Contains(html, "\n") {
+		issues = append(issues, Issue{
+			Type:   IssueError,
+			Detail: `content contains literal \n instead of newlines — send raw HTML, not a JSON-escaped string`,
+		})
+	}
+	if !hasSlideClass(html) {
+		issues = append(issues, Issue{
+			Type:   IssueError,
+			Detail: `root element must have class="slide" (not "slide-content" or other variants) — the presentation engine uses .slide for pagination and navigation`,
+		})
+	}
+	return issues
+}
+
+// SanitizeSlideContent uses goquery to clean agent-generated HTML before
+// writing. Currently strips <style> blocks that would pollute global CSS
+// and break navigation. Returns the cleaned HTML and any warnings.
+func SanitizeSlideContent(html string) (string, Issues) {
+	doc, err := goquery.NewDocumentFromReader(strings.NewReader(html))
+	if err != nil {
+		return html, nil
+	}
+
+	var warnings Issues
+	styleNodes := doc.Find("style")
+	if styleNodes.Length() > 0 {
+		warnings = append(warnings, Issue{
+			Type:   IssueWarning,
+			Detail: fmt.Sprintf("removed %d <style> block(s) — they pollute global CSS and break navigation. Use inline style= attributes on individual elements instead, or put shared styles in theme.css", styleNodes.Length()),
+		})
+		styleNodes.Remove()
+	}
+
+	// goquery wraps fragments in <html><body>; extract just the body content.
+	out, err := doc.Find("body").Html()
+	if err != nil {
+		return html, warnings
+	}
+	return strings.TrimSpace(out), warnings
 }
 
 func isRemoteOrSpecialRef(ref string) bool {

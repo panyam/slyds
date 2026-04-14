@@ -266,7 +266,7 @@ func editSlideTool() server.Tool {
 	return server.Tool{
 		ToolDef: mcpcore.ToolDef{
 			Name:        "edit_slide",
-			Description: "Replace the HTML content of a slide. Supply either 'slide' (preferred: slug, filename, or position as string) or 'position' (legacy: 1-based integer). Pass expected_version (from read_slide or describe_deck) for optimistic concurrency; omit or pass 'latest' for last-write-wins.",
+			Description: "Replace the HTML content of a slide. Content MUST be a raw HTML fragment (not JSON-escaped) whose root element is <div class=\"slide\" data-layout=\"...\">. Do NOT use class=\"slide-content\" or other variants — the engine requires exactly class=\"slide\" for pagination. Do NOT escape quotes with backslashes. Do NOT include <style> blocks — they pollute global CSS and break navigation; use inline style= attributes instead. Supply either 'slide' (preferred: slug, filename, or position as string) or 'position' (legacy: 1-based integer). Pass expected_version (from read_slide or describe_deck) for optimistic concurrency; omit or pass 'latest' for last-write-wins.",
 			InputSchema: map[string]any{
 				"type": "object",
 				"properties": map[string]any{
@@ -316,15 +316,23 @@ func editSlideTool() server.Tool {
 					return mcpcore.ErrorResult(string(conflict)), nil
 				}
 			}
-			if err := d.EditSlideContent(pos, p.Content); err != nil {
+			if issues := core.LintSlideContent(p.Content); issues.HasErrors() {
+				return mcpcore.ErrorResult("rejected: " + issues[0].Detail), nil
+			}
+			content, sanitizeWarnings := core.SanitizeSlideContent(p.Content)
+			if err := d.EditSlideContent(pos, content); err != nil {
 				return mcpcore.ErrorResult(err.Error()), nil
 			}
 			newVer, _ := d.SlideVersion(pos)
 			deckVer, _ := d.DeckVersion()
 			mcpcore.NotifyResourceUpdated(ctx, fmt.Sprintf("ui://slyds/decks/%s/preview", p.Deck))
 			mcpcore.NotifyResourceUpdated(ctx, fmt.Sprintf("ui://slyds/decks/%s/slides/%d/preview", p.Deck, pos))
+			msg := fmt.Sprintf("Slide %d updated.", pos)
+			for _, w := range sanitizeWarnings {
+				msg += " WARNING: " + w.Detail
+			}
 			return jsonResult(slideEditResult{
-				Message:     fmt.Sprintf("Slide %d updated.", pos),
+				Message:     msg,
 				Version:     newVer,
 				DeckVersion: deckVer,
 			})
