@@ -47,8 +47,11 @@
 - [x] ~~Persistent slide IDs in `.slyds.yaml` — rename-safe `sl_` IDs stored per-slide in manifest, auto-migrated, ResolveSlide priority-0 branch (#83)~~
 - [x] ~~Streaming build progress via EmitContent (#87) + server-side schema validation (#88)~~
 - [x] ~~MCP Apps display modes + template resources — supportedDisplayModes, RequestDisplayMode, template resource URIs, NotifyResourceUpdated (#93)~~
+- [x] ~~Resource template completions for deck names and slide positions (#59)~~
+- [x] ~~Optimistic versioning on MCP mutations — expected_version, expected_deck_version, version_conflict (#79)~~
+- [x] ~~Proto-based MCP server — slyds mcp-proto with proto-generated registrations, parity tests (#97)~~
 - [ ] App-backed elicitation for theme/layout selection (from #93)
-- [ ] Optimistic versioning on MCP mutations (#79, locks on slide_id)
+- [ ] Remove hand-written mcp_tools.go / mcp_resources.go once proto path validated
 - [ ] Multi-root workspace.yaml config (#80)
 - [ ] Slide folders with co-located assets (e.g., `slides/03-architecture/slide.html` + `diagram.png`)
 - [ ] Live reload on file changes during `slyds serve`

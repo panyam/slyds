@@ -20,7 +20,10 @@ make audit       # govulncheck + gosec + gitleaks
 - `examples/` — demo presentations with tests.
 - `docs/` — MCP setup, agent themes, CSS contract, design docs.
 
-Key files: `core/deck.go` (Deck API), `core/osfs.go` (OS boundary), `cmd/workspace.go` (Workspace abstraction), `cmd/mcp.go` (MCP server), `cmd/mcp_tools.go` (11 semantic tools), `cmd/mcp_resources.go` (7 browsable resources), `cmd/mcp_apps.go` (MCP Apps preview tools), `cmd/ws.go` (`slyds ws` debug CLI).
+Key files: `core/deck.go` (Deck API), `core/osfs.go` (OS boundary), `core/version.go` (optimistic versioning), `cmd/workspace.go` (Workspace abstraction), `cmd/mcp.go` (MCP server), `cmd/mcp_tools.go` (hand-written tools), `cmd/mcp_resources.go` (hand-written resources), `cmd/mcp_apps.go` (MCP Apps previews), `cmd/mcp_proto_impl.go` (proto service impl), `cmd/mcp_proto.go` (`mcp-proto` subcommand), `cmd/ws.go` (`slyds ws` debug CLI).
+
+- `proto/` — Proto definitions + buf config. `proto/slyds/v1/service.proto` (tools + resources), `proto/slyds/v1/models.proto` (messages).
+- `gen/` — Generated code from protos. `gen/go/slyds/v1/service.pb.mcp.go` (MCP registrations).
 
 ## FS Abstraction
 
@@ -45,7 +48,8 @@ All Deck I/O goes through `templar.WritableFS` (v0.1.0). No `os.*`/`filepath.*` 
 - **macOS /private symlinks**: temp dirs resolve `/var/...` vs `/private/var/...`. Don't compare paths in tests.
 - **`go:embed` paths relative to Go file** — `assets/embed.go` lives alongside the embedded files; `core/embed.go` re-exports.
 - **Theme render fallback** — `InsertSlide` uses layout system first; falls back to theme templates.
-- **MCP** — 13 tools (11 core + 2 preview) + 9 resources (7 data + 2 preview) + completions via mcpkit v0.2.2. Typed handler contexts (`ToolContext`/`ResourceContext`). Single-struct registration (`srv.Register`). Workspace middleware. Per-tool timeouts. MCP Apps extension with display modes (inline/fullscreen), concrete + template resource URIs, `NotifyResourceUpdated`. Resource template completions for deck names and slide positions. `--allow-origin '*'` for tunnel/remote deployments. See [docs/MCP.md](docs/MCP.md). `--deck-root` sets the local workspace root.
+- **MCP** — Two server paths: `slyds mcp` (hand-written) and `slyds mcp-proto` (proto-generated, experimental). Both register 13 tools + 9 resources + completions via mcpkit v0.2.15+. Typed handler contexts. MCP Apps with display modes + auto-fallback template URIs. Optimistic versioning (`expected_version` / `expected_deck_version`). `--allow-origin '*'` for tunnel/remote. See [docs/MCP.md](docs/MCP.md).
+- **Proto MCP** — `proto/slyds/v1/` defines the API as annotated proto RPCs. `protoc-gen-go-mcp` generates typed registrations. `SlydsServiceImpl` in `cmd/mcp_proto_impl.go` wraps Workspace. Entity-focused responses, gRPC status codes for errors. Parity tests validate both paths produce identical output. Dev setup: `cd proto && make setupdev && make buf`.
 - **CLI-direct agent mode** — `describe --json`, `ls --json`, `check --json`, `build --json`, `ws info --json`, `ws list --json` for agents using shell commands instead of MCP. See [AGENT-SETUP.md](AGENT-SETUP.md).
 - **`SLYDS_MCP_TOKEN`** env var — fallback for `--token` flag in container/CI deployments.
 - **`SLYDS_DECK_ROOT`** env var — fallback for `--deck-root` flag on both `slyds mcp` and `slyds ws`. Precedence: explicit flag > env var > `.` (cwd).
@@ -55,8 +59,9 @@ All Deck I/O goes through `templar.WritableFS` (v0.1.0). No `os.*`/`filepath.*` 
 | Component | Version | Notes |
 |-----------|---------|-------|
 | templar | v0.1.0 | WritableFS, FSFolder, MemFS, module system |
-| mcpkit | v0.2.2 | Typed handler contexts (ToolContext/ResourceContext), split packages, SSE + Streamable HTTP + stdio, per-tool timeout, error handler, StructuredResult, EventStore, schema validation, streaming results, NotifyResourceUpdated |
-| mcpkit/ext/ui | v0.2.2 | MCP Apps extension — display modes, template resources, RequestDisplayMode, ElicitWithApp |
+| mcpkit | v0.2.15 | Typed handler contexts, ToolCallFull, NotifyResourceUpdated, schema validation, streaming, completions |
+| mcpkit/ext/ui | v0.2.15 | MCP Apps — display modes, auto-fallback template URIs, RequestDisplayMode |
+| mcpkit/ext/protogen | v0.2.16 | Proto→MCP codegen, completable_fields, raw content for non-JSON resources |
 
 See [Stackfile.md](Stackfile.md) for full dependency list.
 
