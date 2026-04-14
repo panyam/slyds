@@ -20,13 +20,22 @@ import (
 
 // --- Test-only result structs for ToolCallTyped ---
 
-// testDeckSummary matches the JSON shape returned by list_decks:
-// an array of objects with name, title, theme, and slide count.
+// testDeckSummary matches the JSON shape returned by list_decks.
 type testDeckSummary struct {
 	Name   string `json:"name"`
 	Title  string `json:"title"`
 	Theme  string `json:"theme"`
 	Slides int    `json:"slides"`
+}
+
+// testDeckList is the wrapper object returned by list_decks structuredContent.
+type testDeckList struct {
+	Decks []testDeckSummary `json:"decks"`
+}
+
+// testSlideList is the wrapper object returned by list_slides structuredContent.
+type testSlideList struct {
+	Slides []testSlideDescription `json:"slides"`
 }
 
 // testDeckDescription matches the JSON shape returned by describe_deck,
@@ -169,10 +178,12 @@ func TestE2E_FullAgentWorkflow(t *testing.T) {
 		"deck": "new-deck", "position": 2, "name": "extra", "layout": "content", "title": "Extra",
 	})
 	listResult := c.ToolCall("list_slides", map[string]any{"deck": "new-deck"})
-	var slides []map[string]any
-	json.Unmarshal([]byte(listResult), &slides)
-	if len(slides) != 3 {
-		t.Errorf("after add: expected 3 slides, got %d", len(slides))
+	var slideWrapper struct {
+		Slides []map[string]any `json:"slides"`
+	}
+	json.Unmarshal([]byte(listResult), &slideWrapper)
+	if len(slideWrapper.Slides) != 3 {
+		t.Errorf("after add: expected 3 slides, got %d", len(slideWrapper.Slides))
 	}
 
 	// 10. Check deck via tool
@@ -268,14 +279,14 @@ func TestE2E_ListDecks(t *testing.T) {
 
 	c := newSlydsMCPClient(t, root)
 
-	decks := toolCallTyped[[]testDeckSummary](t, c, "list_decks", map[string]any{})
+	result := toolCallTyped[testDeckList](t, c, "list_decks", map[string]any{})
 
-	if len(decks) != 2 {
-		t.Fatalf("expected 2 decks, got %d", len(decks))
+	if len(result.Decks) != 2 {
+		t.Fatalf("expected 2 decks, got %d", len(result.Decks))
 	}
 
 	names := make(map[string]bool)
-	for _, d := range decks {
+	for _, d := range result.Decks {
 		names[d.Name] = true
 		if d.Title == "" {
 			t.Errorf("deck %s has empty title", d.Name)
@@ -301,16 +312,16 @@ func TestE2E_ToolCallTyped(t *testing.T) {
 
 	c := newSlydsMCPClient(t, root)
 
-	// 1. list_decks → []testDeckSummary
-	decks := toolCallTyped[[]testDeckSummary](t, c, "list_decks", map[string]any{})
-	if len(decks) != 1 {
-		t.Fatalf("list_decks: expected 1 deck, got %d", len(decks))
+	// 1. list_decks → testDeckList
+	deckList := toolCallTyped[testDeckList](t, c, "list_decks", map[string]any{})
+	if len(deckList.Decks) != 1 {
+		t.Fatalf("list_decks: expected 1 deck, got %d", len(deckList.Decks))
 	}
-	if decks[0].Name != "typed" {
-		t.Errorf("list_decks: name = %q, want 'typed'", decks[0].Name)
+	if deckList.Decks[0].Name != "typed" {
+		t.Errorf("list_decks: name = %q, want 'typed'", deckList.Decks[0].Name)
 	}
-	if decks[0].Slides != 3 {
-		t.Errorf("list_decks: slides = %d, want 3", decks[0].Slides)
+	if deckList.Decks[0].Slides != 3 {
+		t.Errorf("list_decks: slides = %d, want 3", deckList.Decks[0].Slides)
 	}
 
 	// 2. describe_deck → testDeckDescription
@@ -328,13 +339,13 @@ func TestE2E_ToolCallTyped(t *testing.T) {
 		t.Errorf("describe_deck: len(slides) = %d, want 3", len(desc.Slides))
 	}
 
-	// 3. list_slides → []testSlideDescription
-	slides := toolCallTyped[[]testSlideDescription](t, c, "list_slides", map[string]any{"deck": "typed"})
-	if len(slides) != 3 {
-		t.Fatalf("list_slides: expected 3 slides, got %d", len(slides))
+	// 3. list_slides → testSlideList
+	slideList := toolCallTyped[testSlideList](t, c, "list_slides", map[string]any{"deck": "typed"})
+	if len(slideList.Slides) != 3 {
+		t.Fatalf("list_slides: expected 3 slides, got %d", len(slideList.Slides))
 	}
-	if slides[0].Position != 1 {
-		t.Errorf("list_slides: first slide position = %d, want 1", slides[0].Position)
+	if slideList.Slides[0].Position != 1 {
+		t.Errorf("list_slides: first slide position = %d, want 1", slideList.Slides[0].Position)
 	}
 
 	// 4. check_deck → testCheckResult
