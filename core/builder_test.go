@@ -66,6 +66,38 @@ func TestBuildIncludesExportJS(t *testing.T) {
 	}
 }
 
+// TestBuild_AllThemes verifies that Build succeeds across all built-in themes
+// and produces output with the correct data-theme attribute.
+func TestBuild_AllThemes(t *testing.T) {
+	for _, theme := range []string{"default", "dark", "minimal", "corporate", "hacker"} {
+		t.Run(theme, func(t *testing.T) {
+			d, _ := scaffoldMem(t, "Theme "+theme, withTheme(theme), withSlides(2))
+			result, err := d.Build()
+			if err != nil {
+				t.Fatalf("Build with theme %s: %v", theme, err)
+			}
+			if !strings.Contains(result.HTML, `data-theme="`+theme+`"`) {
+				t.Errorf("Build output missing data-theme=%q", theme)
+			}
+		})
+	}
+}
+
+// TestBuild_InlinesJS verifies that Build inlines external script references.
+func TestBuild_InlinesJS(t *testing.T) {
+	d, _ := scaffoldMem(t, "JS Inline Test")
+	result, err := d.Build()
+	if err != nil {
+		t.Fatalf("Build: %v", err)
+	}
+	if strings.Contains(result.HTML, `<script src=`) {
+		t.Error("Build output still has external <script src> tags — JS not inlined")
+	}
+	if !strings.Contains(result.HTML, "showSlide") {
+		t.Error("Build output missing inlined slyds.js (showSlide function)")
+	}
+}
+
 func TestFlattenIncludesMissingFile(t *testing.T) {
 	mfs := templar.NewMemFS()
 	d := &Deck{FS: mfs}

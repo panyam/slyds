@@ -1,6 +1,7 @@
 package core
 
 import (
+	"encoding/json"
 	"strings"
 	"testing"
 
@@ -211,5 +212,43 @@ func TestIssuesFilter(t *testing.T) {
 	}
 	if len(issues.Contains("orphan")) != 1 {
 		t.Errorf("Contains(orphan) = %d, want 1", len(issues.Contains("orphan")))
+	}
+}
+
+// TestIssueType_String verifies the human-readable label for each IssueType.
+func TestIssueType_String(t *testing.T) {
+	tests := []struct {
+		t    IssueType
+		want string
+	}{
+		{IssueError, "error"},
+		{IssueWarning, "warning"},
+		{IssueInfo, "info"},
+		{IssueType(99), "unknown(99)"},
+	}
+	for _, tt := range tests {
+		if got := tt.t.String(); got != tt.want {
+			t.Errorf("IssueType(%d).String() = %q, want %q", tt.t, got, tt.want)
+		}
+	}
+}
+
+// TestIssueType_MarshalJSON verifies JSON encoding of IssueType values.
+func TestIssueType_MarshalJSON(t *testing.T) {
+	for _, tt := range []struct {
+		t    IssueType
+		want string
+	}{
+		{IssueError, `"error"`},
+		{IssueWarning, `"warning"`},
+		{IssueInfo, `"info"`},
+	} {
+		data, err := json.Marshal(tt.t)
+		if err != nil {
+			t.Fatalf("MarshalJSON(%d): %v", tt.t, err)
+		}
+		if string(data) != tt.want {
+			t.Errorf("MarshalJSON(%d) = %s, want %s", tt.t, data, tt.want)
+		}
 	}
 }
