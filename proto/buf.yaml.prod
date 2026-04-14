@@ -1,0 +1,15 @@
+version: v2
+deps:
+  - buf.build/protocolbuffers/wellknowntypes
+  - buf.build/googleapis/googleapis
+  # TODO: uncomment once mcpkit annotations are published to buf.build
+  # - buf.build/panyam/mcpkit
+lint:
+  use:
+    - STANDARD
+  except:
+    - FIELD_NOT_REQUIRED
+  disallow_comment_ignores: true
+breaking:
+  use:
+    - FILE
