@@ -74,9 +74,11 @@ func runMCPProtoServer() error {
 	slydsv1.RegisterSlydsServiceMCP(srv, impl)
 	slydsv1.RegisterSlydsServiceMCPResources(srv, impl)
 
-	// MCP Apps and completions stay hand-written (outside proto scope)
+	// MCP Apps stays hand-written (outside proto scope).
 	registerAppTools(srv)
-	registerCompletions(srv)
+
+	// Completions: proto-generated from completable_fields annotations.
+	slydsv1.RegisterSlydsServiceMCPCompletions(srv, impl)
 
 	if mcpUseStdio {
 		fmt.Fprintf(os.Stderr, "MCP proto server (stdio) — deck root: %s\n", root)

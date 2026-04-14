@@ -385,3 +385,56 @@ func RegisterSlydsServiceMCPResources(srv *server.Server, impl SlydsServiceMCPRe
 		},
 	)
 }
+
+// SlydsServiceMCPCompleter provides auto-completion for resource template params
+// and prompt arguments. Each method handles one completable field.
+type SlydsServiceMCPCompleter interface {
+	CompleteName(ctx mcpcore.PromptContext, ref mcpcore.CompletionRef, arg mcpcore.CompletionArgument) (mcpcore.CompletionResult, error)
+	CompleteN(ctx mcpcore.PromptContext, ref mcpcore.CompletionRef, arg mcpcore.CompletionArgument) (mcpcore.CompletionResult, error)
+}
+
+// RegisterSlydsServiceMCPCompletions registers auto-completion handlers from SlydsService.
+func RegisterSlydsServiceMCPCompletions(srv *server.Server, completer SlydsServiceMCPCompleter) {
+	srv.RegisterCompletion("ref/resource", "slyds://decks/{name}", func(ctx mcpcore.PromptContext, ref mcpcore.CompletionRef, arg mcpcore.CompletionArgument) (mcpcore.CompletionResult, error) {
+		switch arg.Name {
+		case "name":
+			return completer.CompleteName(ctx, ref, arg)
+		default:
+			return mcpcore.CompletionResult{}, nil
+		}
+	})
+	srv.RegisterCompletion("ref/resource", "slyds://decks/{name}/slides", func(ctx mcpcore.PromptContext, ref mcpcore.CompletionRef, arg mcpcore.CompletionArgument) (mcpcore.CompletionResult, error) {
+		switch arg.Name {
+		case "name":
+			return completer.CompleteName(ctx, ref, arg)
+		default:
+			return mcpcore.CompletionResult{}, nil
+		}
+	})
+	srv.RegisterCompletion("ref/resource", "slyds://decks/{name}/slides/{n}", func(ctx mcpcore.PromptContext, ref mcpcore.CompletionRef, arg mcpcore.CompletionArgument) (mcpcore.CompletionResult, error) {
+		switch arg.Name {
+		case "name":
+			return completer.CompleteName(ctx, ref, arg)
+		case "n":
+			return completer.CompleteN(ctx, ref, arg)
+		default:
+			return mcpcore.CompletionResult{}, nil
+		}
+	})
+	srv.RegisterCompletion("ref/resource", "slyds://decks/{name}/config", func(ctx mcpcore.PromptContext, ref mcpcore.CompletionRef, arg mcpcore.CompletionArgument) (mcpcore.CompletionResult, error) {
+		switch arg.Name {
+		case "name":
+			return completer.CompleteName(ctx, ref, arg)
+		default:
+			return mcpcore.CompletionResult{}, nil
+		}
+	})
+	srv.RegisterCompletion("ref/resource", "slyds://decks/{name}/agent", func(ctx mcpcore.PromptContext, ref mcpcore.CompletionRef, arg mcpcore.CompletionArgument) (mcpcore.CompletionResult, error) {
+		switch arg.Name {
+		case "name":
+			return completer.CompleteName(ctx, ref, arg)
+		default:
+			return mcpcore.CompletionResult{}, nil
+		}
+	})
+}

@@ -145,6 +145,7 @@ service SlydsService {
       name: "Deck Metadata"
       description: "Structured description of a deck: title, theme, slides with metadata"
       mime_type: "application/json"
+      completable_fields: ["name"]
     };
   }
 
@@ -155,6 +156,7 @@ service SlydsService {
       name: "Slide List"
       description: "List all slides in a deck with position, filename, layout, title, and word count"
       mime_type: "application/json"
+      completable_fields: ["name"]
     };
   }
 
@@ -165,6 +167,7 @@ service SlydsService {
       name: "Slide Content"
       description: "Raw HTML content of a specific slide by position (1-based)"
       mime_type: "text/html"
+      completable_fields: ["name", "n"]
     };
   }
 
@@ -175,6 +178,7 @@ service SlydsService {
       name: "Deck Configuration"
       description: "Raw .slyds.yaml manifest content"
       mime_type: "text/yaml"
+      completable_fields: ["name"]
     };
   }
 
@@ -185,6 +189,7 @@ service SlydsService {
       name: "Agent Guide"
       description: "AGENT.md content for the deck"
       mime_type: "text/markdown"
+      completable_fields: ["name"]
     };
   }
 }

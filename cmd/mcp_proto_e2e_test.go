@@ -29,6 +29,7 @@ func newProtoMCPClient(t *testing.T, root string) *testutil.TestClient {
 	impl := &SlydsServiceImpl{}
 	slydsv1.RegisterSlydsServiceMCP(srv, impl)
 	slydsv1.RegisterSlydsServiceMCPResources(srv, impl)
+	slydsv1.RegisterSlydsServiceMCPCompletions(srv, impl)
 	return testutil.NewTestClient(t, srv)
 }
 
@@ -379,5 +380,84 @@ func TestProtoE2E_FullWorkflow(t *testing.T) {
 	buildResult := pc.ToolCall("build_deck", map[string]any{"deck": "workflow"})
 	if !strings.Contains(buildResult, "Proto Workflow") {
 		t.Error("build output missing edited content")
+	}
+}
+
+// --- Proto completion tests ---
+
+// TestProtoE2E_CompleteDeckName verifies that proto-generated completions
+// return deck names matching the prefix.
+func TestProtoE2E_CompleteDeckName(t *testing.T) {
+	root := t.TempDir()
+	core.CreateInDir("Alpha", 2, "default", filepath.Join(root, "alpha"), true)
+	core.CreateInDir("Beta", 2, "dark", filepath.Join(root, "beta"), true)
+
+	pc := newProtoMCPClient(t, root)
+
+	values := completeResource(t, pc, "slyds://decks/{name}", "name", "")
+	if len(values) < 2 {
+		t.Fatalf("expected at least 2 completions, got %d: %v", len(values), values)
+	}
+	has := func(name string) bool {
+		for _, v := range values {
+			if v == name {
+				return true
+			}
+		}
+		return false
+	}
+	if !has("alpha") {
+		t.Error("completion missing 'alpha'")
+	}
+	if !has("beta") {
+		t.Error("completion missing 'beta'")
+	}
+}
+
+// TestProtoE2E_CompleteDeckNamePrefix verifies prefix filtering.
+func TestProtoE2E_CompleteDeckNamePrefix(t *testing.T) {
+	root := t.TempDir()
+	core.CreateInDir("Alpha", 2, "default", filepath.Join(root, "alpha"), true)
+	core.CreateInDir("Beta", 2, "dark", filepath.Join(root, "beta"), true)
+
+	pc := newProtoMCPClient(t, root)
+
+	values := completeResource(t, pc, "slyds://decks/{name}", "name", "al")
+	if len(values) != 1 || values[0] != "alpha" {
+		t.Errorf("expected [alpha], got %v", values)
+	}
+}
+
+// TestProtoE2E_CompleteSlidePosition verifies slide position completions.
+func TestProtoE2E_CompleteSlidePosition(t *testing.T) {
+	root := t.TempDir()
+	core.CreateInDir("Slides", 5, "default", filepath.Join(root, "deck"), true)
+
+	pc := newProtoMCPClient(t, root)
+
+	values := completeResource(t, pc, "slyds://decks/{name}/slides/{n}", "n", "")
+	if len(values) != 5 {
+		t.Fatalf("expected 5 positions, got %d: %v", len(values), values)
+	}
+}
+
+// TestProtoE2E_CompletionParity verifies proto completions match hand-written.
+func TestProtoE2E_CompletionParity(t *testing.T) {
+	root := t.TempDir()
+	core.CreateInDir("Parity", 3, "default", filepath.Join(root, "deck"), true)
+
+	pc := newProtoMCPClient(t, root)
+	hc := newSlydsMCPClientForCompletions(t, root)
+
+	protoValues := completeResource(t, pc, "slyds://decks/{name}", "name", "")
+	handValues := completeResource(t, hc, "slyds://decks/{name}", "name", "")
+
+	if len(protoValues) != len(handValues) {
+		t.Errorf("completion count mismatch: proto=%d hand=%d", len(protoValues), len(handValues))
+	}
+	for i := range protoValues {
+		if i < len(handValues) && protoValues[i] != handValues[i] {
+			t.Errorf("completion[%d] mismatch: proto=%q hand=%q", i, protoValues[i], handValues[i])
+		}
 	}
 }

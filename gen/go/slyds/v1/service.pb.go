@@ -32,7 +32,7 @@ var File_slyds_v1_service_proto protoreflect.FileDescriptor
 
 const file_slyds_v1_service_proto_rawDesc = "" +
 	"\n" +
-	"\x16slyds/v1/service.proto\x12\bslyds.v1\x1a\x18mcp/v1/annotations.proto\x1a\x15slyds/v1/models.proto2\xf8\x1c\n" +
+	"\x16slyds/v1/service.proto\x12\bslyds.v1\x1a\x18mcp/v1/annotations.proto\x1a\x15slyds/v1/models.proto2\x9c\x1d\n" +
 	"\fSlydsService\x12\xbe\x01\n" +
 	"\tListDecks\x12\x1a.slyds.v1.ListDecksRequest\x1a\x1b.slyds.v1.ListDecksResponse\"x\xca\xf3\x18t\n" +
 	"\n" +
@@ -67,18 +67,18 @@ const file_slyds_v1_service_proto_rawDesc = "" +
 	"\rGetServerInfo\x12\x1b.slyds.v1.ServerInfoRequest\x1a\x14.slyds.v1.ServerInfo\"t\xd2\xf3\x18p\n" +
 	"\x13slyds://server/info\x12\vServer Info\x1a\x10application/json\":slyds MCP server version, capabilities, and workspace root\x12\xb5\x01\n" +
 	"\vGetDeckList\x12\x19.slyds.v1.DeckListRequest\x1a\x1b.slyds.v1.ListDecksResponse\"n\xd2\xf3\x18j\n" +
-	"\rslyds://decks\x12\tDeck List\x1a\x10application/json\"<List all presentation decks visible to the current workspace\x12\xca\x01\n" +
-	"\aGetDeck\x12 .slyds.v1.GetDeckResourceRequest\x1a\x19.slyds.v1.DeckDescription\"\x81\x01\xd2\xf3\x18}\n" +
-	"\x14slyds://decks/{name}\x12\rDeck Metadata\x1a\x10application/json\"DStructured description of a deck: title, theme, slides with metadata\x12\xe8\x01\n" +
-	"\fGetSlideList\x12%.slyds.v1.GetSlideListResourceRequest\x1a\x1c.slyds.v1.ListSlidesResponse\"\x92\x01\xd2\xf3\x18\x8d\x01\n" +
+	"\rslyds://decks\x12\tDeck List\x1a\x10application/json\"<List all presentation decks visible to the current workspace\x12\xd1\x01\n" +
+	"\aGetDeck\x12 .slyds.v1.GetDeckResourceRequest\x1a\x19.slyds.v1.DeckDescription\"\x88\x01\xd2\xf3\x18\x83\x01\n" +
+	"\x14slyds://decks/{name}\x12\rDeck Metadata\x1a\x10application/json\"DStructured description of a deck: title, theme, slides with metadata*\x04name\x12\xee\x01\n" +
+	"\fGetSlideList\x12%.slyds.v1.GetSlideListResourceRequest\x1a\x1c.slyds.v1.ListSlidesResponse\"\x98\x01\xd2\xf3\x18\x93\x01\n" +
 	"\x1bslyds://decks/{name}/slides\x12\n" +
-	"Slide List\x1a\x10application/json\"PList all slides in a deck with position, filename, layout, title, and word count\x12\xd8\x01\n" +
-	"\x0fGetSlideContent\x12(.slyds.v1.GetSlideContentResourceRequest\x1a\x1e.slyds.v1.SlideContentResource\"{\xd2\xf3\x18w\n" +
-	"\x1fslyds://decks/{name}/slides/{n}\x12\rSlide Content\x1a\ttext/html\":Raw HTML content of a specific slide by position (1-based)\x12\xb3\x01\n" +
-	"\rGetDeckConfig\x12 .slyds.v1.GetDeckResourceRequest\x1a\x1c.slyds.v1.DeckConfigResource\"b\xd2\xf3\x18^\n" +
-	"\x1bslyds://decks/{name}/config\x12\x12Deck Configuration\x1a\ttext/yaml\" Raw .slyds.yaml manifest content\x12\xac\x01\n" +
-	"\rGetAgentGuide\x12 .slyds.v1.GetDeckResourceRequest\x1a\x1c.slyds.v1.AgentGuideResource\"[\xd2\xf3\x18W\n" +
-	"\x1aslyds://decks/{name}/agent\x12\vAgent Guide\x1a\rtext/markdown\"\x1dAGENT.md content for the deckB\x8e\x01\n" +
+	"Slide List\x1a\x10application/json\"PList all slides in a deck with position, filename, layout, title, and word count*\x04name\x12\xe3\x01\n" +
+	"\x0fGetSlideContent\x12(.slyds.v1.GetSlideContentResourceRequest\x1a\x1e.slyds.v1.SlideContentResource\"\x85\x01\xd2\xf3\x18\x80\x01\n" +
+	"\x1fslyds://decks/{name}/slides/{n}\x12\rSlide Content\x1a\ttext/html\":Raw HTML content of a specific slide by position (1-based)*\x04name*\x01n\x12\xb9\x01\n" +
+	"\rGetDeckConfig\x12 .slyds.v1.GetDeckResourceRequest\x1a\x1c.slyds.v1.DeckConfigResource\"h\xd2\xf3\x18d\n" +
+	"\x1bslyds://decks/{name}/config\x12\x12Deck Configuration\x1a\ttext/yaml\" Raw .slyds.yaml manifest content*\x04name\x12\xb2\x01\n" +
+	"\rGetAgentGuide\x12 .slyds.v1.GetDeckResourceRequest\x1a\x1c.slyds.v1.AgentGuideResource\"a\xd2\xf3\x18]\n" +
+	"\x1aslyds://decks/{name}/agent\x12\vAgent Guide\x1a\rtext/markdown\"\x1dAGENT.md content for the deck*\x04nameB\x8e\x01\n" +
 	"\fcom.slyds.v1B\fServiceProtoP\x01Z/github.com/panyam/slyds/gen/go/slyds/v1;slydsv1\xa2\x02\x03SXX\xaa\x02\bSlyds.V1\xca\x02\bSlyds\\V1\xe2\x02\x14Slyds\\V1\\GPBMetadata\xea\x02\tSlyds::V1b\x06proto3"
 
 var file_slyds_v1_service_proto_goTypes = []any{

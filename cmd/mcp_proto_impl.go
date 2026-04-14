@@ -3,8 +3,11 @@ package cmd
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"strconv"
+	"strings"
 
+	mcpcore "github.com/panyam/mcpkit/core"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 
@@ -474,4 +477,64 @@ func (s *SlydsServiceImpl) resolvePosition(d *core.Deck, slide *string, position
 		return int(*position), nil
 	}
 	return 0, status.Error(codes.InvalidArgument, "either 'slide' or 'position' is required")
+}
+
+// --- Completer implementations ---
+
+// CompleteName returns deck names matching the partial input.
+func (s *SlydsServiceImpl) CompleteName(ctx mcpcore.PromptContext, _ mcpcore.CompletionRef, arg mcpcore.CompletionArgument) (mcpcore.CompletionResult, error) {
+	ws := workspaceFromContext(ctx)
+	if ws == nil {
+		return mcpcore.CompletionResult{}, nil
+	}
+	refs, err := ws.ListDecks()
+	if err != nil {
+		return mcpcore.CompletionResult{}, nil
+	}
+	prefix := strings.ToLower(arg.Value)
+	var matches []string
+	for _, ref := range refs {
+		if prefix == "" || strings.HasPrefix(strings.ToLower(ref.Name), prefix) {
+			matches = append(matches, ref.Name)
+		}
+	}
+	return mcpcore.CompletionResult{
+		Values:  matches,
+		Total:   len(matches),
+		HasMore: false,
+	}, nil
+}
+
+// CompleteN returns slide position numbers matching the partial input.
+func (s *SlydsServiceImpl) CompleteN(ctx mcpcore.PromptContext, _ mcpcore.CompletionRef, arg mcpcore.CompletionArgument) (mcpcore.CompletionResult, error) {
+	ws := workspaceFromContext(ctx)
+	if ws == nil {
+		return mcpcore.CompletionResult{}, nil
+	}
+	// Use the first deck as default — same heuristic as hand-written completions.
+	refs, err := ws.ListDecks()
+	if err != nil || len(refs) == 0 {
+		return mcpcore.CompletionResult{}, nil
+	}
+	d, err := ws.OpenDeck(refs[0].Name)
+	if err != nil {
+		return mcpcore.CompletionResult{}, nil
+	}
+	count, err := d.SlideCount()
+	if err != nil || count == 0 {
+		return mcpcore.CompletionResult{}, nil
+	}
+	prefix := arg.Value
+	var matches []string
+	for i := 1; i <= count; i++ {
+		s := fmt.Sprintf("%d", i)
+		if prefix == "" || strings.HasPrefix(s, prefix) {
+			matches = append(matches, s)
+		}
+	}
+	return mcpcore.CompletionResult{
+		Values:  matches,
+		Total:   len(matches),
+		HasMore: false,
+	}, nil
 }
