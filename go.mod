@@ -4,12 +4,13 @@ go 1.26.1
 
 require (
 	github.com/PuerkitoBio/goquery v1.12.0
-	github.com/panyam/mcpkit v0.2.12
-	github.com/panyam/mcpkit/ext/protogen v0.2.12
-	github.com/panyam/mcpkit/ext/ui v0.2.12
+	github.com/panyam/mcpkit v0.2.14
+	github.com/panyam/mcpkit/ext/protogen v0.2.14
+	github.com/panyam/mcpkit/ext/ui v0.2.14
 	github.com/panyam/servicekit v0.0.25
 	github.com/panyam/templar v0.1.0
 	github.com/spf13/cobra v1.10.2
+	google.golang.org/grpc v1.80.0
 	google.golang.org/protobuf v1.36.11
 	gopkg.in/yaml.v3 v3.0.1
 )
@@ -29,7 +30,6 @@ require (
 	golang.org/x/text v0.35.0 // indirect
 	golang.org/x/time v0.15.0 // indirect
 	google.golang.org/genproto/googleapis/rpc v0.0.0-20260120221211-b8f7ae30c516 // indirect
-	google.golang.org/grpc v1.80.0 // indirect
 )
 
 // replace github.com/panyam/templar => ./locallinks/newstack/templar/main
