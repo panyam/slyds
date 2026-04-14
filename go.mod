@@ -4,11 +4,14 @@ go 1.26.1
 
 require (
 	github.com/PuerkitoBio/goquery v1.12.0
-	github.com/panyam/mcpkit v0.2.6
-	github.com/panyam/mcpkit/ext/ui v0.2.6
+	github.com/panyam/mcpkit v0.2.14
+	github.com/panyam/mcpkit/ext/protogen v0.2.14
+	github.com/panyam/mcpkit/ext/ui v0.2.14
 	github.com/panyam/servicekit v0.0.25
 	github.com/panyam/templar v0.1.0
 	github.com/spf13/cobra v1.10.2
+	google.golang.org/grpc v1.80.0
+	google.golang.org/protobuf v1.36.11
 	gopkg.in/yaml.v3 v3.0.1
 )
 
@@ -18,6 +21,7 @@ require (
 	github.com/inconshreveable/mousetrap v1.1.0 // indirect
 	github.com/panyam/gocurrent v0.1.0 // indirect
 	github.com/panyam/goutils v0.1.13 // indirect
+	github.com/panyam/protokit v0.0.4 // indirect
 	github.com/santhosh-tekuri/jsonschema/v6 v6.0.2 // indirect
 	github.com/spf13/pflag v1.0.10 // indirect
 	github.com/yosida95/uritemplate/v3 v3.0.2 // indirect
@@ -25,9 +29,7 @@ require (
 	golang.org/x/sys v0.42.0 // indirect
 	golang.org/x/text v0.35.0 // indirect
 	golang.org/x/time v0.15.0 // indirect
-	google.golang.org/genproto/googleapis/rpc v0.0.0-20251029180050-ab9386a59fda // indirect
-	google.golang.org/grpc v1.78.0 // indirect
-	google.golang.org/protobuf v1.36.10 // indirect
+	google.golang.org/genproto/googleapis/rpc v0.0.0-20260120221211-b8f7ae30c516 // indirect
 )
 
 // replace github.com/panyam/templar => ./locallinks/newstack/templar/main

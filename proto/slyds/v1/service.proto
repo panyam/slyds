@@ -1,0 +1,190 @@
+// slyds MCP service definition.
+//
+// Defines the full slyds API as annotated proto RPCs. protoc-gen-go-mcp
+// generates typed MCP tool and resource registrations from these annotations.
+// The generated code replaces the hand-written mcp_tools.go and mcp_resources.go.
+syntax = "proto3";
+
+package slyds.v1;
+
+option go_package = "github.com/panyam/slyds/gen/go/slyds/v1/services";
+
+import "mcp/v1/annotations.proto";
+import "slyds/v1/models.proto";
+
+// SlydsService exposes deck operations as MCP tools and resources.
+// The service implementation wraps a Workspace and delegates to core.Deck methods.
+service SlydsService {
+
+  // ── Tools ──
+
+  // List all presentation decks visible to the current workspace.
+  rpc ListDecks(ListDecksRequest) returns (ListDecksResponse) {
+    option (mcp.v1.mcp_tool) = {
+      name: "list_decks"
+      description: "List all presentation decks visible to the current workspace with name, title, theme, and slide count."
+    };
+  }
+
+  // Create a new presentation deck.
+  rpc CreateDeck(CreateDeckRequest) returns (DeckDescription) {
+    option (mcp.v1.mcp_tool) = {
+      name: "create_deck"
+      description: "Create a new presentation deck with the given name, title, theme, and slide count."
+      structured_output: true
+    };
+  }
+
+  // Get structured metadata for a deck.
+  rpc DescribeDeck(DeckRequest) returns (DeckDescription) {
+    option (mcp.v1.mcp_tool) = {
+      name: "describe_deck"
+      description: "Get structured metadata for a deck: title, theme, slide list with layouts, word counts, and notes status."
+      structured_output: true
+    };
+  }
+
+  // List all slides in a deck.
+  rpc ListSlides(DeckRequest) returns (ListSlidesResponse) {
+    option (mcp.v1.mcp_tool) = {
+      name: "list_slides"
+      description: "List all slides in a deck with filenames, layouts, titles, and word counts."
+      structured_output: true
+    };
+  }
+
+  // Read the HTML content of a slide with version info for optimistic concurrency.
+  rpc ReadSlide(ReadSlideRequest) returns (SlideReadResult) {
+    option (mcp.v1.mcp_tool) = {
+      name: "read_slide"
+      description: "Read the HTML content of a slide. Supply either 'slide' (preferred: slug, filename, or position as string) or 'position' (legacy: 1-based integer). Returns content with version for optimistic concurrency."
+      structured_output: true
+    };
+  }
+
+  // Replace the HTML content of a slide with optimistic version checking.
+  // TODO(protogen): result_summary: "Slide {position} updated (version: {version})"
+  rpc EditSlide(EditSlideRequest) returns (SlideEditResult) {
+    option (mcp.v1.mcp_tool) = {
+      name: "edit_slide"
+      description: "Replace the HTML content of a slide. Pass expected_version (from read_slide) for optimistic concurrency; omit or pass 'latest' for last-write-wins."
+      structured_output: true
+    };
+  }
+
+  // Query or modify slide HTML using CSS selectors.
+  rpc QuerySlide(QuerySlideRequest) returns (QuerySlideResponse) {
+    option (mcp.v1.mcp_tool) = {
+      name: "query_slide"
+      description: "Query or modify slide HTML using CSS selectors (goquery). Read text, attributes, inner HTML, or mutate content."
+      structured_output: true
+    };
+  }
+
+  // Insert a new slide at the given position.
+  rpc AddSlide(AddSlideRequest) returns (AddSlideResponse) {
+    option (mcp.v1.mcp_tool) = {
+      name: "add_slide"
+      description: "Insert a new slide at the given position using a layout template. Pass expected_deck_version for optimistic concurrency."
+    };
+  }
+
+  // Remove a slide by reference.
+  rpc RemoveSlide(RemoveSlideRequest) returns (RemoveSlideResponse) {
+    option (mcp.v1.mcp_tool) = {
+      name: "remove_slide"
+      description: "Remove a slide by filename or position number. Remaining slides are renumbered. Pass expected_deck_version for optimistic concurrency."
+    };
+  }
+
+  // Validate a deck for issues.
+  rpc CheckDeck(DeckRequest) returns (CheckDeckResponse) {
+    option (mcp.v1.mcp_tool) = {
+      name: "check_deck"
+      description: "Validate a deck: check for missing files, broken includes, missing speaker notes, and other issues."
+      timeout: "10s"
+      structured_output: true
+    };
+  }
+
+  // Build a self-contained HTML file from the deck.
+  rpc BuildDeck(DeckRequest) returns (BuildDeckResponse) {
+    option (mcp.v1.mcp_tool) = {
+      name: "build_deck"
+      description: "Build a self-contained HTML file from the deck. Resolves all includes, inlines CSS/JS/images."
+      timeout: "30s"
+    };
+  }
+
+  // ── Resources ──
+
+  // Server info: version, available themes and layouts.
+  rpc GetServerInfo(ServerInfoRequest) returns (ServerInfo) {
+    option (mcp.v1.mcp_resource) = {
+      uri_template: "slyds://server/info"
+      name: "Server Info"
+      description: "slyds MCP server version, capabilities, and workspace root"
+      mime_type: "application/json"
+    };
+  }
+
+  // List all decks (resource form).
+  rpc GetDeckList(DeckListRequest) returns (ListDecksResponse) {
+    option (mcp.v1.mcp_resource) = {
+      uri_template: "slyds://decks"
+      name: "Deck List"
+      description: "List all presentation decks visible to the current workspace"
+      mime_type: "application/json"
+    };
+  }
+
+  // Get deck metadata (resource form).
+  rpc GetDeck(GetDeckResourceRequest) returns (DeckDescription) {
+    option (mcp.v1.mcp_resource) = {
+      uri_template: "slyds://decks/{name}"
+      name: "Deck Metadata"
+      description: "Structured description of a deck: title, theme, slides with metadata"
+      mime_type: "application/json"
+    };
+  }
+
+  // Get slide list for a deck (resource form).
+  rpc GetSlideList(GetSlideListResourceRequest) returns (ListSlidesResponse) {
+    option (mcp.v1.mcp_resource) = {
+      uri_template: "slyds://decks/{name}/slides"
+      name: "Slide List"
+      description: "List all slides in a deck with position, filename, layout, title, and word count"
+      mime_type: "application/json"
+    };
+  }
+
+  // Get raw slide HTML by position (resource form).
+  rpc GetSlideContent(GetSlideContentResourceRequest) returns (SlideContentResource) {
+    option (mcp.v1.mcp_resource) = {
+      uri_template: "slyds://decks/{name}/slides/{n}"
+      name: "Slide Content"
+      description: "Raw HTML content of a specific slide by position (1-based)"
+      mime_type: "text/html"
+    };
+  }
+
+  // Get deck config (.slyds.yaml).
+  rpc GetDeckConfig(GetDeckResourceRequest) returns (DeckConfigResource) {
+    option (mcp.v1.mcp_resource) = {
+      uri_template: "slyds://decks/{name}/config"
+      name: "Deck Configuration"
+      description: "Raw .slyds.yaml manifest content"
+      mime_type: "text/yaml"
+    };
+  }
+
+  // Get AGENT.md for a deck.
+  rpc GetAgentGuide(GetDeckResourceRequest) returns (AgentGuideResource) {
+    option (mcp.v1.mcp_resource) = {
+      uri_template: "slyds://decks/{name}/agent"
+      name: "Agent Guide"
+      description: "AGENT.md content for the deck"
+      mime_type: "text/markdown"
+    };
+  }
+}

@@ -1,0 +1,5 @@
+# Environment-specific (created by make setupdev / setupprod)
+buf.yaml
+buf.gen.yaml
+buf.lock
+mcp

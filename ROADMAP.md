@@ -75,6 +75,9 @@ Introduced a `NamingScheme` interface to decouple slide filename generation from
 ## Phase 9l — MCP Apps display modes + template resources (done)
 Adopted mcpkit v0.1.31 MCP Apps extensions: `supportedDisplayModes` (inline, fullscreen) on preview tools, `RequestDisplayMode` for presentation mode, template resource URIs (`ui://slyds/decks/{deck}/preview`, `ui://slyds/decks/{deck}/slides/{position}/preview`) eliminating mutable preview state, `NotifyResourceUpdated` for targeted resource change notifications. App elicitation deferred to follow-up.
 
+## Phase 9m — Proto-based MCP server (in progress)
+Proto definition (`proto/slyds/v1/`) with all 11 tools and 7 resources as annotated RPCs. `protoc-gen-go-mcp` (mcpkit ext/protogen) generates typed MCP tool and resource registrations. `SlydsServiceImpl` wraps Workspace with typed proto request/response messages and gRPC status codes. `slyds mcp-proto` subcommand runs the proto-generated server alongside the hand-written `slyds mcp`. 16 proto E2E tests with parity checks. Entity-focused response messages (no human-readable `message` fields). Version conflicts use gRPC `ABORTED` with `VersionConflictDetail` in status details.
+
 ## Phase 10 — Slide Folders
 Support `slides/03-name/slide.html` with co-located assets (images, per-slide CSS). Auto-detect folder vs file slides.
 

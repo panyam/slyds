@@ -109,7 +109,7 @@ func listDecksTool() server.Tool {
 					Slides: count,
 				})
 			}
-			return jsonResult(decks)
+			return jsonResult(map[string]any{"decks": decks})
 		},
 	}
 }
@@ -210,7 +210,7 @@ func listSlidesTool() server.Tool {
 			if err != nil {
 				return mcpcore.ErrorResult(err.Error()), nil
 			}
-			return jsonResult(desc.Slides)
+			return jsonResult(map[string]any{"slides": desc.Slides})
 		},
 	}
 }
@@ -422,7 +422,7 @@ func querySlideTool() server.Tool {
 			if err != nil {
 				return mcpcore.ErrorResult(err.Error()), nil
 			}
-			return jsonResult(results)
+			return jsonResult(map[string]any{"results": results})
 		},
 	}
 }

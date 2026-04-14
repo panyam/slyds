@@ -90,10 +90,12 @@ func TestListSlidesTool(t *testing.T) {
 		t.Fatalf("list_slides error: %s", toolText(result))
 	}
 
-	var slides []map[string]any
-	json.Unmarshal([]byte(toolText(result)), &slides)
-	if len(slides) != 4 {
-		t.Errorf("expected 4 slides, got %d", len(slides))
+	var wrapper struct {
+		Slides []map[string]any `json:"slides"`
+	}
+	json.Unmarshal([]byte(toolText(result)), &wrapper)
+	if len(wrapper.Slides) != 4 {
+		t.Errorf("expected 4 slides, got %d", len(wrapper.Slides))
 	}
 }
 
@@ -184,10 +186,12 @@ func TestAddAndRemoveSlideTool(t *testing.T) {
 	}
 
 	result = callTool(t, root, listTool.Handler, map[string]string{"deck": "test-deck"})
-	var slides []map[string]any
-	json.Unmarshal([]byte(toolText(result)), &slides)
-	if len(slides) != 4 {
-		t.Errorf("after add: expected 4 slides, got %d", len(slides))
+	var wrapper struct {
+		Slides []map[string]any `json:"slides"`
+	}
+	json.Unmarshal([]byte(toolText(result)), &wrapper)
+	if len(wrapper.Slides) != 4 {
+		t.Errorf("after add: expected 4 slides, got %d", len(wrapper.Slides))
 	}
 
 	result = callTool(t, root, removeTool.Handler, map[string]any{"deck": "test-deck", "slide": "2"})
@@ -196,9 +200,9 @@ func TestAddAndRemoveSlideTool(t *testing.T) {
 	}
 
 	result = callTool(t, root, listTool.Handler, map[string]string{"deck": "test-deck"})
-	json.Unmarshal([]byte(toolText(result)), &slides)
-	if len(slides) != 3 {
-		t.Errorf("after remove: expected 3 slides, got %d", len(slides))
+	json.Unmarshal([]byte(toolText(result)), &wrapper)
+	if len(wrapper.Slides) != 3 {
+		t.Errorf("after remove: expected 3 slides, got %d", len(wrapper.Slides))
 	}
 }
 

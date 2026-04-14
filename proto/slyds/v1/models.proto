@@ -1,0 +1,264 @@
+// slyds message definitions.
+//
+// These messages match the JSON shapes of the current hand-written MCP
+// handlers exactly, ensuring backward compatibility with existing agents.
+syntax = "proto3";
+
+package slyds.v1;
+
+option go_package = "github.com/panyam/slyds/gen/go/slyds/v1/services";
+
+// ── Common request types ──
+
+// DeckRequest identifies a single deck by name.
+message DeckRequest {
+  // Deck name (workspace-scoped identifier, or '.' for root deck).
+  string deck = 1;
+}
+
+// ── Tool request/response messages ──
+
+message ListDecksRequest {}
+
+message ListDecksResponse {
+  repeated DeckSummary decks = 1;
+}
+
+// DeckSummary is the per-deck entry in list_decks.
+message DeckSummary {
+  string name = 1;
+  string title = 2;
+  string theme = 3;
+  int32 slides = 4;
+}
+
+message CreateDeckRequest {
+  // Deck name (becomes the deck identifier in the workspace).
+  string name = 1;
+  // Presentation title.
+  string title = 2;
+  // Theme: default, dark, minimal, corporate, hacker.
+  optional string theme = 3;
+  // Number of slides to scaffold (default: 3).
+  optional int32 slides = 4;
+}
+
+// DeckDescription is the full metadata for a deck.
+message DeckDescription {
+  string title = 1;
+  string theme = 2;
+  int32 slide_count = 3;
+  string deck_version = 4;
+  repeated string layouts_used = 5;
+  repeated SlideDescription slides = 6;
+  repeated string themes_available = 7;
+  repeated string layouts_available = 8;
+}
+
+// SlideDescription holds metadata for a single slide.
+message SlideDescription {
+  int32 position = 1;
+  string file = 2;
+  string slide_id = 3;
+  string slug = 4;
+  string layout = 5;
+  string title = 6;
+  int32 words = 7;
+  bool has_notes = 8;
+  int32 images = 9;
+  string version = 10;
+}
+
+message ListSlidesResponse {
+  repeated SlideDescription slides = 1;
+}
+
+message ReadSlideRequest {
+  string deck = 1;
+  // Slide reference: slug, filename, or position number as string.
+  optional string slide = 2;
+  // Slide position (1-based). Legacy — prefer 'slide'.
+  optional int32 position = 3;
+}
+
+// SlideReadResult is returned by read_slide with version info.
+message SlideReadResult {
+  string content = 1;
+  string version = 2;
+  string deck_version = 3;
+}
+
+message EditSlideRequest {
+  string deck = 1;
+  // Slide reference: slug, filename, or position number as string.
+  optional string slide = 2;
+  // Slide position (1-based). Legacy — prefer 'slide'.
+  optional int32 position = 3;
+  // New HTML content for the slide.
+  string content = 4;
+  // Expected slide version from read_slide. Omit or pass 'latest' to skip.
+  optional string expected_version = 5;
+}
+
+// SlideEditResult is the entity state after a successful edit.
+message SlideEditResult {
+  // New slide content version after the write.
+  string version = 1;
+  // New deck version after the write.
+  string deck_version = 2;
+  // Position of the edited slide (1-based).
+  int32 position = 3;
+}
+
+message QuerySlideRequest {
+  string deck = 1;
+  // Slide reference: position number or filename substring.
+  string slide = 2;
+  // CSS selector (goquery syntax).
+  string selector = 3;
+  // Return inner HTML instead of text.
+  optional bool html = 4;
+  // Return the value of this attribute.
+  optional string attr = 5;
+  // Return match count instead of content.
+  optional bool count = 6;
+  // Set inner text of matched elements.
+  optional string set = 7;
+  // Set inner HTML of matched elements.
+  optional string set_html = 8;
+  // Set attribute (NAME=VALUE format).
+  optional string set_attr = 9;
+  // Append child HTML to matched elements.
+  optional string append = 10;
+  // Remove matched elements.
+  optional bool remove = 11;
+  // Apply to all matches (default: first only).
+  optional bool all = 12;
+}
+
+message QuerySlideResponse {
+  // Query results — text, HTML, attribute values, or count depending on options.
+  repeated string results = 1;
+}
+
+message AddSlideRequest {
+  string deck = 1;
+  // Position to insert at (1-based).
+  int32 position = 2;
+  // Slide filename (without .html extension or number prefix).
+  string name = 3;
+  // Layout template: title, content, two-col, section, blank, closing.
+  optional string layout = 4;
+  // Slide title (used in template rendering).
+  optional string title = 5;
+  // Expected deck version. Omit or pass 'latest' to skip.
+  optional string expected_deck_version = 6;
+}
+
+// AddSlideResponse is the entity state after inserting a slide.
+message AddSlideResponse {
+  // Final slug (may differ from requested name if auto-suffixed).
+  string slug = 1;
+  // Assigned slide ID (sl_ prefixed, stable across renames).
+  string slide_id = 2;
+  // New deck version after the insert.
+  string deck_version = 3;
+  // Actual position the slide was inserted at.
+  int32 position = 4;
+}
+
+message RemoveSlideRequest {
+  string deck = 1;
+  // Slide reference: slug, filename, or position number as string.
+  string slide = 2;
+  // Expected deck version. Omit or pass 'latest' to skip.
+  optional string expected_deck_version = 3;
+}
+
+// RemoveSlideResponse is the deck state after removing a slide.
+message RemoveSlideResponse {
+  // New deck version after the removal.
+  string deck_version = 1;
+  // Remaining slide count.
+  int32 slide_count = 2;
+  // Filename of the removed slide (for confirmation).
+  string removed_file = 3;
+}
+
+message CheckDeckResponse {
+  repeated Issue issues = 1;
+}
+
+// Issue is a single finding from deck validation.
+message Issue {
+  // "error", "warning", or "info"
+  string type = 1;
+  string slide = 2;
+  string detail = 3;
+}
+
+message BuildDeckResponse {
+  // Self-contained HTML output.
+  string html = 1;
+  // Warnings (missing assets, unresolved references).
+  repeated string warnings = 2;
+}
+
+// ── Resource request/response messages ──
+
+message ServerInfoRequest {}
+
+message ServerInfo {
+  string name = 1;
+  string version = 2;
+  repeated string themes = 3;
+  repeated string layouts = 4;
+  optional string deck_root = 5;
+}
+
+message DeckListRequest {}
+
+message GetDeckResourceRequest {
+  string name = 1;
+}
+
+message GetSlideListResourceRequest {
+  string name = 1;
+}
+
+message GetSlideContentResourceRequest {
+  string name = 1;
+  string n = 2;
+}
+
+// SlideContentResource wraps raw HTML for the slide content resource.
+message SlideContentResource {
+  string content = 1;
+}
+
+// DeckConfigResource wraps raw YAML for the config resource.
+message DeckConfigResource {
+  string content = 1;
+}
+
+// AgentGuideResource wraps the AGENT.md markdown content.
+message AgentGuideResource {
+  string content = 1;
+}
+
+// ── Status detail types ──
+// These are carried in google.rpc.Status.details (as Any) when an RPC
+// returns a gRPC error code. protogen maps them to structured MCP error
+// results so agents can parse and recover.
+
+// VersionConflictDetail is attached to ABORTED status when an optimistic
+// version check fails. Includes current state so the agent can recover
+// without a read_slide round-trip.
+message VersionConflictDetail {
+  // Current slide content version on the server.
+  string current_version = 1;
+  // Current slide HTML (for edit_slide conflicts — lets agent diff/merge).
+  optional string current_content = 2;
+  // Current deck version (for structural conflicts).
+  optional string deck_version = 3;
+}
