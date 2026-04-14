@@ -24,8 +24,8 @@ github.com/panyam/goutils v0.1.13 h1:V819IdZTEJ3rpu33ZqohC6O9ou7KOu6cxfigoYT12OQ
 github.com/panyam/goutils v0.1.13/go.mod h1:vd3iFcv1DjaeV6h8tslIJh9d09RLndg8UYNSGROBrM4=
 github.com/panyam/mcpkit v0.2.15 h1:CG/18lbB3ellZbsTcjk9duBl9QMtSfntUI/ie0rspkw=
 github.com/panyam/mcpkit v0.2.15/go.mod h1:KFZkDQ6TKD83JiXx/gC28yVvxd3VGOUc7OkN2/32/U8=
-github.com/panyam/mcpkit/ext/protogen v0.2.15 h1:biE+bZYwWraTxBF7Um5ZifEiin5Rcl8mfTPvY4A5S3A=
-github.com/panyam/mcpkit/ext/protogen v0.2.15/go.mod h1:OsUFh8AYmBfkTiDorZ8anjZiltYcOvZ/CB+o5xXnhNU=
+github.com/panyam/mcpkit/ext/protogen v0.2.16 h1:TULo/GDyXBaSl0hFwjXmlptnvcJDJP8NCCp2aZFuhi4=
+github.com/panyam/mcpkit/ext/protogen v0.2.16/go.mod h1:OsUFh8AYmBfkTiDorZ8anjZiltYcOvZ/CB+o5xXnhNU=
 github.com/panyam/mcpkit/ext/ui v0.2.15 h1:cN136A5LqTOwFFbfQG+mVBGixvQqyw224UvcqHc3zA4=
 github.com/panyam/mcpkit/ext/ui v0.2.15/go.mod h1:6p+jRwrdSCnk0zrykYzbzn3Uy/M9VmF8EPM/kzB8dkg=
 github.com/panyam/protokit v0.0.4 h1:t5ZLbDS+YjUm0vNq2ON4zQof+hKgAK+ix+CL/utMD9g=

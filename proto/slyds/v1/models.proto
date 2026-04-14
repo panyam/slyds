@@ -186,7 +186,10 @@ message RemoveSlideResponse {
 }
 
 message CheckDeckResponse {
-  repeated Issue issues = 1;
+  int32 slide_count = 1;
+  bool in_sync = 2;
+  repeated Issue issues = 3;
+  double estimated_minutes = 4;
 }
 
 // Issue is a single finding from deck validation.

@@ -223,7 +223,8 @@ func TestCheckDeckTool(t *testing.T) {
 }
 
 // TestBuildDeckTool verifies that build_deck produces a self-contained HTML
-// file with inlined CSS and the presentation title.
+// file with inlined CSS and the presentation title. The result is always
+// a JSON object {"html": "...", "warnings": [...]}.
 func TestBuildDeckTool(t *testing.T) {
 	root := scaffoldTestDeck(t, "test-deck", "Build Test", "default", 3)
 	tool := buildDeckTool()
@@ -233,11 +234,14 @@ func TestBuildDeckTool(t *testing.T) {
 		t.Fatalf("build_deck error: %s", toolText(result))
 	}
 
-	text := toolText(result)
-	if !strings.Contains(text, "<style>") {
+	var parsed buildWarningResult
+	if err := json.Unmarshal([]byte(toolText(result)), &parsed); err != nil {
+		t.Fatalf("build_deck not JSON: %v", err)
+	}
+	if !strings.Contains(parsed.HTML, "<style>") {
 		t.Error("build_deck missing inlined CSS")
 	}
-	if !strings.Contains(text, "Build Test") {
+	if !strings.Contains(parsed.HTML, "Build Test") {
 		t.Error("build_deck missing title")
 	}
 }

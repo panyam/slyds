@@ -611,14 +611,10 @@ func buildDeckTool() server.Tool {
 			if err != nil {
 				return mcpcore.ErrorResult(err.Error()), nil
 			}
-			// Return build result with warnings if any
-			if len(result.Warnings) > 0 {
-				return jsonResult(buildWarningResult{
-					HTML:     result.HTML,
-					Warnings: result.Warnings,
-				})
-			}
-			return mcpcore.TextResult(result.HTML), nil
+			return jsonResult(buildWarningResult{
+				HTML:     result.HTML,
+				Warnings: result.Warnings,
+			})
 		},
 	}
 }

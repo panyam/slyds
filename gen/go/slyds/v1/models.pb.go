@@ -1300,10 +1300,13 @@ func (x *RemoveSlideResponse) GetRemovedFile() string {
 }
 
 type CheckDeckResponse struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	Issues        []*Issue               `protobuf:"bytes,1,rep,name=issues,proto3" json:"issues,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
+	state            protoimpl.MessageState `protogen:"open.v1"`
+	SlideCount       int32                  `protobuf:"varint,1,opt,name=slide_count,json=slideCount,proto3" json:"slide_count,omitempty"`
+	InSync           bool                   `protobuf:"varint,2,opt,name=in_sync,json=inSync,proto3" json:"in_sync,omitempty"`
+	Issues           []*Issue               `protobuf:"bytes,3,rep,name=issues,proto3" json:"issues,omitempty"`
+	EstimatedMinutes float64                `protobuf:"fixed64,4,opt,name=estimated_minutes,json=estimatedMinutes,proto3" json:"estimated_minutes,omitempty"`
+	unknownFields    protoimpl.UnknownFields
+	sizeCache        protoimpl.SizeCache
 }
 
 func (x *CheckDeckResponse) Reset() {
@@ -1336,11 +1339,32 @@ func (*CheckDeckResponse) Descriptor() ([]byte, []int) {
 	return file_slyds_v1_models_proto_rawDescGZIP(), []int{18}
 }
 
+func (x *CheckDeckResponse) GetSlideCount() int32 {
+	if x != nil {
+		return x.SlideCount
+	}
+	return 0
+}
+
+func (x *CheckDeckResponse) GetInSync() bool {
+	if x != nil {
+		return x.InSync
+	}
+	return false
+}
+
 func (x *CheckDeckResponse) GetIssues() []*Issue {
 	if x != nil {
 		return x.Issues
 	}
 	return nil
+}
+
+func (x *CheckDeckResponse) GetEstimatedMinutes() float64 {
+	if x != nil {
+		return x.EstimatedMinutes
+	}
+	return 0
 }
 
 // Issue is a single finding from deck validation.
@@ -2066,9 +2090,13 @@ const file_slyds_v1_models_proto_rawDesc = "" +
 	"\fdeck_version\x18\x01 \x01(\tR\vdeckVersion\x12\x1f\n" +
 	"\vslide_count\x18\x02 \x01(\x05R\n" +
 	"slideCount\x12!\n" +
-	"\fremoved_file\x18\x03 \x01(\tR\vremovedFile\"<\n" +
-	"\x11CheckDeckResponse\x12'\n" +
-	"\x06issues\x18\x01 \x03(\v2\x0f.slyds.v1.IssueR\x06issues\"I\n" +
+	"\fremoved_file\x18\x03 \x01(\tR\vremovedFile\"\xa3\x01\n" +
+	"\x11CheckDeckResponse\x12\x1f\n" +
+	"\vslide_count\x18\x01 \x01(\x05R\n" +
+	"slideCount\x12\x17\n" +
+	"\ain_sync\x18\x02 \x01(\bR\x06inSync\x12'\n" +
+	"\x06issues\x18\x03 \x03(\v2\x0f.slyds.v1.IssueR\x06issues\x12+\n" +
+	"\x11estimated_minutes\x18\x04 \x01(\x01R\x10estimatedMinutes\"I\n" +
 	"\x05Issue\x12\x12\n" +
 	"\x04type\x18\x01 \x01(\tR\x04type\x12\x14\n" +
 	"\x05slide\x18\x02 \x01(\tR\x05slide\x12\x16\n" +

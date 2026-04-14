@@ -315,7 +315,12 @@ func (s *SlydsServiceImpl) CheckDeck(ctx context.Context, req *pb.DeckRequest) (
 			Detail: issue.Detail,
 		})
 	}
-	return &pb.CheckDeckResponse{Issues: pbIssues}, nil
+	return &pb.CheckDeckResponse{
+		SlideCount:       int32(result.SlideCount),
+		InSync:           result.InSync,
+		Issues:           pbIssues,
+		EstimatedMinutes: result.EstimatedMinutes,
+	}, nil
 }
 
 func (s *SlydsServiceImpl) BuildDeck(ctx context.Context, req *pb.DeckRequest) (*pb.BuildDeckResponse, error) {

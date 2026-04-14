@@ -192,12 +192,16 @@ func TestE2E_FullAgentWorkflow(t *testing.T) {
 		t.Error("check_deck missing in_sync field")
 	}
 
-	// 11. Build deck via tool
-	buildResult := c.ToolCall("build_deck", map[string]any{"deck": "new-deck"})
-	if !strings.Contains(buildResult, "<style>") {
+	// 11. Build deck via tool — returns {"html": "...", "warnings": [...]}
+	buildRaw := c.ToolCall("build_deck", map[string]any{"deck": "new-deck"})
+	var buildRes struct {
+		HTML string `json:"html"`
+	}
+	json.Unmarshal([]byte(buildRaw), &buildRes)
+	if !strings.Contains(buildRes.HTML, "<style>") {
 		t.Error("build missing inlined CSS")
 	}
-	if strings.Contains(buildResult, "{{#") {
+	if strings.Contains(buildRes.HTML, "{{#") {
 		t.Error("build has unresolved includes")
 	}
 }
@@ -457,11 +461,13 @@ func TestE2E_SlugOnlyDeckWorkflow(t *testing.T) {
 	}
 
 	// 8. Build — should produce valid self-contained HTML.
-	buildResult := c.ToolCall("build_deck", map[string]any{"deck": "slugonly"})
-	if !strings.Contains(buildResult, "<style>") {
+	buildRaw := c.ToolCall("build_deck", map[string]any{"deck": "slugonly"})
+	var slugBuild struct{ HTML string `json:"html"` }
+	json.Unmarshal([]byte(buildRaw), &slugBuild)
+	if !strings.Contains(slugBuild.HTML, "<style>") {
 		t.Error("build missing inlined CSS on slug-only deck")
 	}
-	if !strings.Contains(buildResult, "Edited Slug Only") {
+	if !strings.Contains(slugBuild.HTML, "Edited Slug Only") {
 		t.Error("build missing edited content on slug-only deck")
 	}
 }
@@ -510,11 +516,12 @@ func TestBuildDeckTool_WithEmitContent(t *testing.T) {
 		t.Fatalf("build_deck error: %s", toolText(result))
 	}
 
-	text := toolText(result)
-	if !strings.Contains(text, "<style>") {
+	var parsed struct{ HTML string `json:"html"` }
+	json.Unmarshal([]byte(toolText(result)), &parsed)
+	if !strings.Contains(parsed.HTML, "<style>") {
 		t.Error("build_deck missing inlined CSS after EmitContent addition")
 	}
-	if !strings.Contains(text, "Progress Test") {
+	if !strings.Contains(parsed.HTML, "Progress Test") {
 		t.Error("build_deck missing title after EmitContent addition")
 	}
 }

@@ -461,3 +461,300 @@ func TestProtoE2E_CompletionParity(t *testing.T) {
 		}
 	}
 }
+
+// --- Deep parity tests: compare JSON field-by-field ---
+
+// assertJSONKeysMatch verifies that two JSON objects have the same top-level
+// keys. Reports which keys are missing from each side.
+func assertJSONKeysMatch(t *testing.T, label string, protoJSON, handJSON string) {
+	t.Helper()
+	var protoMap, handMap map[string]any
+	if err := json.Unmarshal([]byte(protoJSON), &protoMap); err != nil {
+		t.Fatalf("%s: proto result not a JSON object: %v\nraw: %s", label, err, protoJSON[:min(200, len(protoJSON))])
+	}
+	if err := json.Unmarshal([]byte(handJSON), &handMap); err != nil {
+		t.Fatalf("%s: hand result not a JSON object: %v\nraw: %s", label, err, handJSON[:min(200, len(handJSON))])
+	}
+	for k := range handMap {
+		if _, ok := protoMap[k]; !ok {
+			t.Errorf("%s: proto missing key %q (present in hand-written)", label, k)
+		}
+	}
+	for k := range protoMap {
+		if _, ok := handMap[k]; !ok {
+			t.Errorf("%s: proto has extra key %q (not in hand-written)", label, k)
+		}
+	}
+}
+
+// setupParityDecks creates a test workspace with consistent decks for
+// parity testing. Returns the root and a cleanup function.
+func setupParityDecks(t *testing.T) (string, *testutil.TestClient, *testutil.TestClient) {
+	t.Helper()
+	root := t.TempDir()
+	core.CreateInDir("Parity Test", 3, "dark", filepath.Join(root, "deck"), true)
+	return root, newProtoMCPClient(t, root), newSlydsMCPClient(t, root)
+}
+
+// TestParity_ListDecks verifies that list_decks returns the same JSON
+// structure from both proto and hand-written paths.
+func TestParity_ListDecks(t *testing.T) {
+	_, pc, hc := setupParityDecks(t)
+
+	protoRaw := pc.ToolCall("list_decks", map[string]any{})
+	handRaw := hc.ToolCall("list_decks", map[string]any{})
+
+	assertJSONKeysMatch(t, "list_decks", protoRaw, handRaw)
+
+	// Parse and compare deck entries.
+	var protoList, handList struct {
+		Decks []map[string]any `json:"decks"`
+	}
+	json.Unmarshal([]byte(protoRaw), &protoList)
+	json.Unmarshal([]byte(handRaw), &handList)
+
+	if len(protoList.Decks) != len(handList.Decks) {
+		t.Fatalf("deck count: proto=%d hand=%d", len(protoList.Decks), len(handList.Decks))
+	}
+	for i := range protoList.Decks {
+		for _, key := range []string{"name", "title", "theme", "slides"} {
+			pv, hv := protoList.Decks[i][key], handList.Decks[i][key]
+			if pv != hv {
+				t.Errorf("list_decks[%d].%s: proto=%v hand=%v", i, key, pv, hv)
+			}
+		}
+	}
+}
+
+// TestParity_DescribeDeck verifies describe_deck JSON field parity.
+func TestParity_DescribeDeck(t *testing.T) {
+	_, pc, hc := setupParityDecks(t)
+
+	protoRaw := pc.ToolCall("describe_deck", map[string]any{"deck": "deck"})
+	handRaw := hc.ToolCall("describe_deck", map[string]any{"deck": "deck"})
+
+	assertJSONKeysMatch(t, "describe_deck", protoRaw, handRaw)
+
+	var protoDesc, handDesc map[string]any
+	json.Unmarshal([]byte(protoRaw), &protoDesc)
+	json.Unmarshal([]byte(handRaw), &handDesc)
+
+	for _, key := range []string{"title", "theme", "slide_count", "deck_version"} {
+		if protoDesc[key] != handDesc[key] {
+			t.Errorf("describe_deck.%s: proto=%v hand=%v", key, protoDesc[key], handDesc[key])
+		}
+	}
+
+	// Verify slide array has same length and per-slide keys match.
+	protoSlides, _ := protoDesc["slides"].([]any)
+	handSlides, _ := handDesc["slides"].([]any)
+	if len(protoSlides) != len(handSlides) {
+		t.Fatalf("slides count: proto=%d hand=%d", len(protoSlides), len(handSlides))
+	}
+	for i := range protoSlides {
+		ps, _ := protoSlides[i].(map[string]any)
+		hs, _ := handSlides[i].(map[string]any)
+		for _, key := range []string{"position", "file", "slug", "layout", "title", "words", "has_notes", "images", "version"} {
+			if ps[key] != hs[key] {
+				t.Errorf("slides[%d].%s: proto=%v hand=%v", i, key, ps[key], hs[key])
+			}
+		}
+	}
+}
+
+// TestParity_ReadSlide verifies read_slide returns identical content,
+// version, and deck_version.
+func TestParity_ReadSlide(t *testing.T) {
+	_, pc, hc := setupParityDecks(t)
+
+	protoRaw := pc.ToolCall("read_slide", map[string]any{"deck": "deck", "position": 1})
+	handRaw := hc.ToolCall("read_slide", map[string]any{"deck": "deck", "position": 1})
+
+	assertJSONKeysMatch(t, "read_slide", protoRaw, handRaw)
+
+	var pr, hr slideReadResult
+	json.Unmarshal([]byte(protoRaw), &pr)
+	json.Unmarshal([]byte(handRaw), &hr)
+
+	if pr.Content != hr.Content {
+		t.Error("read_slide content differs")
+	}
+	if pr.Version != hr.Version {
+		t.Errorf("read_slide version: proto=%q hand=%q", pr.Version, hr.Version)
+	}
+	if pr.DeckVersion != hr.DeckVersion {
+		t.Errorf("read_slide deck_version: proto=%q hand=%q", pr.DeckVersion, hr.DeckVersion)
+	}
+}
+
+// TestParity_ListSlides verifies list_slides returns same slide metadata.
+func TestParity_ListSlides(t *testing.T) {
+	_, pc, hc := setupParityDecks(t)
+
+	protoRaw := pc.ToolCall("list_slides", map[string]any{"deck": "deck"})
+	handRaw := hc.ToolCall("list_slides", map[string]any{"deck": "deck"})
+
+	assertJSONKeysMatch(t, "list_slides", protoRaw, handRaw)
+
+	var protoList, handList struct {
+		Slides []map[string]any `json:"slides"`
+	}
+	json.Unmarshal([]byte(protoRaw), &protoList)
+	json.Unmarshal([]byte(handRaw), &handList)
+
+	if len(protoList.Slides) != len(handList.Slides) {
+		t.Fatalf("slide count: proto=%d hand=%d", len(protoList.Slides), len(handList.Slides))
+	}
+	for i := range protoList.Slides {
+		for _, key := range []string{"position", "file", "slug", "layout", "version"} {
+			pv, hv := protoList.Slides[i][key], handList.Slides[i][key]
+			if pv != hv {
+				t.Errorf("slides[%d].%s: proto=%v hand=%v", i, key, pv, hv)
+			}
+		}
+	}
+}
+
+// TestParity_CheckDeck verifies check_deck returns same issue structure.
+func TestParity_CheckDeck(t *testing.T) {
+	_, pc, hc := setupParityDecks(t)
+
+	protoRaw := pc.ToolCall("check_deck", map[string]any{"deck": "deck"})
+	handRaw := hc.ToolCall("check_deck", map[string]any{"deck": "deck"})
+
+	var protoMap, handMap map[string]any
+	if err := json.Unmarshal([]byte(protoRaw), &protoMap); err != nil {
+		t.Fatalf("proto check_deck not JSON: %v\nraw: %s", err, protoRaw[:min(200, len(protoRaw))])
+	}
+	if err := json.Unmarshal([]byte(handRaw), &handMap); err != nil {
+		t.Fatalf("hand check_deck not JSON: %v\nraw: %s", err, handRaw[:min(200, len(handRaw))])
+	}
+
+	// Compare key fields.
+	for _, key := range []string{"slide_count", "in_sync"} {
+		if protoMap[key] != handMap[key] {
+			t.Errorf("check_deck.%s: proto=%v hand=%v", key, protoMap[key], handMap[key])
+		}
+	}
+}
+
+// TestParity_BuildDeck verifies build_deck returns the same HTML content.
+// Both paths should return {"html": "...", "warnings": [...]}.
+func TestParity_BuildDeck(t *testing.T) {
+	_, pc, hc := setupParityDecks(t)
+
+	protoRaw := pc.ToolCall("build_deck", map[string]any{"deck": "deck"})
+	handRaw := hc.ToolCall("build_deck", map[string]any{"deck": "deck"})
+
+	var protoRes, handRes map[string]any
+	if err := json.Unmarshal([]byte(protoRaw), &protoRes); err != nil {
+		t.Fatalf("proto build not JSON: %v\nraw: %s", err, protoRaw[:min(200, len(protoRaw))])
+	}
+	if err := json.Unmarshal([]byte(handRaw), &handRes); err != nil {
+		t.Fatalf("hand build not JSON: %v\nraw: %s", err, handRaw[:min(200, len(handRaw))])
+	}
+
+	// Both should have an "html" key with the built content.
+	protoHTML, _ := protoRes["html"].(string)
+	handHTML, _ := handRes["html"].(string)
+
+	for _, marker := range []string{"<html", "Parity Test", `class="slide`, "<style>"} {
+		if !strings.Contains(protoHTML, marker) {
+			t.Errorf("proto build html missing %q", marker)
+		}
+		if !strings.Contains(handHTML, marker) {
+			t.Errorf("hand build html missing %q", marker)
+		}
+	}
+}
+
+// TestParity_EditSlide verifies edit_slide response has matching version fields.
+func TestParity_EditSlide(t *testing.T) {
+	root := t.TempDir()
+	// Create two identical decks — one for each path.
+	core.CreateInDir("Edit Parity", 3, "default", filepath.Join(root, "proto-deck"), true)
+	core.CreateInDir("Edit Parity", 3, "default", filepath.Join(root, "hand-deck"), true)
+
+	pc := newProtoMCPClient(t, root)
+	hc := newSlydsMCPClient(t, root)
+
+	newContent := `<div class="slide"><h1>Parity Edit</h1></div>`
+
+	protoRaw := pc.ToolCall("edit_slide", map[string]any{
+		"deck": "proto-deck", "position": 1, "content": newContent,
+	})
+	handRaw := hc.ToolCall("edit_slide", map[string]any{
+		"deck": "hand-deck", "position": 1, "content": newContent,
+	})
+
+	// Both should return version fields.
+	var protoRes, handRes map[string]any
+	json.Unmarshal([]byte(protoRaw), &protoRes)
+	json.Unmarshal([]byte(handRaw), &handRes)
+
+	// Version should be the same — same content written to identical decks.
+	if protoRes["version"] != handRes["version"] {
+		t.Errorf("edit version: proto=%v hand=%v", protoRes["version"], handRes["version"])
+	}
+
+	// Verify edit persisted identically in both paths.
+	protoRead := pc.ToolCall("read_slide", map[string]any{"deck": "proto-deck", "position": 1})
+	handRead := hc.ToolCall("read_slide", map[string]any{"deck": "hand-deck", "position": 1})
+
+	var protoSlide, handSlide slideReadResult
+	json.Unmarshal([]byte(protoRead), &protoSlide)
+	json.Unmarshal([]byte(handRead), &handSlide)
+
+	if protoSlide.Content != handSlide.Content {
+		t.Error("edited content differs between proto and hand paths")
+	}
+}
+
+// TestParity_ResourceServerInfo verifies server info resource has same fields.
+func TestParity_ResourceServerInfo(t *testing.T) {
+	_, pc, hc := setupParityDecks(t)
+
+	protoInfo := pc.ReadResource("slyds://server/info")
+	handInfo := hc.ReadResource("slyds://server/info")
+
+	var protoMap, handMap map[string]any
+	json.Unmarshal([]byte(protoInfo), &protoMap)
+	json.Unmarshal([]byte(handInfo), &handMap)
+
+	for _, key := range []string{"name", "version", "themes", "layouts"} {
+		if protoMap[key] == nil {
+			t.Errorf("proto server/info missing %q", key)
+		}
+		if handMap[key] == nil {
+			t.Errorf("hand server/info missing %q", key)
+		}
+	}
+}
+
+// TestParity_ResourceSlideContent verifies slide resource returns same HTML.
+func TestParity_ResourceSlideContent(t *testing.T) {
+	_, pc, hc := setupParityDecks(t)
+
+	protoHTML := pc.ReadResource("slyds://decks/deck/slides/1")
+	handHTML := hc.ReadResource("slyds://decks/deck/slides/1")
+
+	if protoHTML != handHTML {
+		t.Errorf("slide resource content differs:\nproto: %s\nhand:  %s",
+			protoHTML[:min(100, len(protoHTML))],
+			handHTML[:min(100, len(handHTML))])
+	}
+}
+
+// TestParity_ResourceDeckConfig verifies config resource returns same YAML.
+func TestParity_ResourceDeckConfig(t *testing.T) {
+	_, pc, hc := setupParityDecks(t)
+
+	protoConfig := pc.ReadResource("slyds://decks/deck/config")
+	handConfig := hc.ReadResource("slyds://decks/deck/config")
+
+	if protoConfig != handConfig {
+		t.Errorf("config resource differs:\nproto: %s\nhand:  %s",
+			protoConfig[:min(100, len(protoConfig))],
+			handConfig[:min(100, len(handConfig))])
+	}
+}
