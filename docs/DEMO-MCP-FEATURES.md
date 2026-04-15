@@ -1,6 +1,6 @@
 # MCP Features Demo Cheatsheet
 
-Step-by-step walkthrough showcasing all MCP capabilities in slyds. Uses MCPJam as the client.
+Step-by-step walkthrough showcasing all MCP capabilities in slyds. Uses VS Code Copilot as the client — it handles elicitation inline in chat, making for the best demo UX.
 
 ## Setup
 
@@ -16,218 +16,150 @@ make demo
 slyds mcp --deck-root /tmp/slyds-demo/ --listen 127.0.0.1:8274
 ```
 
-Connect MCPJam to `http://127.0.0.1:8274/mcp`.
+In VS Code, `.vscode/mcp.json` is already configured:
+```json
+{ "servers": { "slyds": { "type": "http", "url": "http://127.0.0.1:8274/mcp" } } }
+```
+
+Open Copilot Chat (Ctrl+Shift+I / Cmd+Shift+I) and switch to Agent mode.
 
 ---
 
-## 1. Tools (14 tools)
+## 1. Tools — "What decks do I have?"
 
-### List decks
-Call `list_decks` — returns all 3 demo decks with titles, themes, slide counts.
+**Say:** "What presentation decks are available?"
 
-### Create a new deck
-Call `create_deck`:
-```json
-{ "name": "demo-talk", "title": "MCP Features Demo", "slides": 4 }
-```
-**Note:** Don't pass `theme` — this triggers elicitation (see section 6).
+Copilot calls `list_decks` and shows all 3 demo decks with titles, themes, and slide counts.
 
-### Read + edit a slide
-```json
-// read_slide
-{ "deck": "demo-talk", "slide": "1" }
+**Then:** "Describe the getting-started deck"
 
-// edit_slide — use the version from read_slide
-{ "deck": "demo-talk", "slide": "1",
-  "content": "<div class=\"slide\" data-layout=\"title\"><h1>MCP Features</h1><p>A tour of prompts, sampling, and elicitation</p></div>",
-  "expected_version": "<version from read>" }
-```
-
-### Check + build
-```json
-// check_deck
-{ "deck": "demo-talk" }
-
-// build_deck
-{ "deck": "demo-talk" }
-```
+Copilot calls `describe_deck` — shows structured metadata including per-slide layouts, word counts, and versions.
 
 ---
 
-## 2. Resources (9 resources)
+## 2. Elicitation — "Create a presentation" (the wow moment)
 
-Browse these in MCPJam's resource explorer:
-
-| URI | What it shows |
-|-----|---------------|
-| `slyds://server/info` | Server version, available themes/layouts |
-| `slyds://decks` | All decks in workspace |
-| `slyds://decks/demo-talk` | Deck metadata (JSON) |
-| `slyds://decks/demo-talk/slides` | Slide list with positions, layouts |
-| `slyds://decks/demo-talk/slides/1` | Raw HTML of slide 1 |
-| `slyds://decks/demo-talk/config` | .slyds.yaml manifest |
-| `slyds://decks/demo-talk/agent` | AGENT.md guide |
-
----
-
-## 3. Prompts (3 prompts)
-
-### create-presentation
-In MCPJam's prompt explorer, invoke `create-presentation`:
-```json
-{ "topic": "Kubernetes Security", "slide_count": "8", "theme": "dark" }
-```
-Returns structured guidance messages with available themes, layouts, and step-by-step instructions.
-
-### review-slides
-```json
-{ "name": "getting-started" }
-```
-Returns the full deck content with review instructions — the LLM sees all slides and provides feedback.
-
-### suggest-speaker-notes
-```json
-{ "name": "getting-started", "slide": "2" }
-```
-Returns the specific slide content with guidance for drafting speaker notes.
-
----
-
-## 4. Completions
-
-In MCPJam, when filling in resource template parameters:
-
-- Type in the `name` field on `slyds://decks/{name}` → auto-completes with deck names (`getting-started`, `dark-mode-talk`, etc.)
-- Type `d` → filters to `dark-mode-talk`, `demo-talk`
-- On `slyds://decks/{name}/slides/{n}` → `n` completes with valid position numbers
-
----
-
-## 5. Sampling (improve_slide)
-
-**Requires MCPJam sampling support enabled.**
-
-Call `improve_slide`:
-```json
-{
-  "deck": "getting-started",
-  "slide": "2",
-  "instruction": "Make the bullet points more concise and add a code example"
-}
-```
+**Say:** "Create a new presentation called demo-talk titled MCP Features Demo"
 
 **What happens:**
-1. Server reads the current slide HTML
-2. Server sends a `sampling/createMessage` request back to MCPJam with:
-   - System prompt: "You are an HTML slide editor for slyds..."
-   - User message: current HTML + your instruction
-3. MCPJam's LLM generates improved HTML
-4. Server validates (lint + sanitize) and writes the result
-5. Returns the new version
+1. Copilot calls `create_deck` with name + title but **no theme** (the description says "omit to let the user choose interactively")
+2. Mid-tool-call, the slyds server sends an elicitation request back to VS Code
+3. **A theme selection form appears inline in the chat** — dropdown with default, dark, minimal, corporate, hacker
+4. Pick a theme → tool completes → deck created with your choice
 
-**If sampling not supported:** Returns a helpful error: "sampling not supported by this client — use edit_slide directly"
-
-**Demo the error case too** — disconnect sampling in MCPJam, call `improve_slide` again → graceful fallback.
+This is server-driven UI inside the chat — the server controls what options appear, not the LLM.
 
 ---
 
-## 6. Elicitation
+## 3. Elicitation — Destructive action confirmation
 
-### Theme choice on create_deck
-
-Call `create_deck` WITHOUT a theme:
-```json
-{ "name": "elicit-demo", "title": "Elicitation Demo" }
-```
+**Say:** "Remove the second slide from demo-talk"
 
 **What happens:**
-1. Server detects no theme provided
-2. Sends an `elicitation/elicit` request to MCPJam with:
-   - Message: "Choose a theme for 'Elicitation Demo':"
-   - Schema: `{ theme: enum["default", "dark", "minimal", "corporate", "hacker"] }`
-3. MCPJam shows a form/dropdown to the user
-4. User picks "hacker" → deck created with hacker theme
+1. Copilot calls `remove_slide`
+2. Server sends elicitation: "Remove slide '02-slide.html' from deck 'demo-talk'? This cannot be undone."
+3. **A confirmation form appears** with a confirm checkbox
+4. **Accept** → slide removed. **Decline** → "Slide removal cancelled."
 
-**If elicitation not supported:** Falls back to "default" theme silently.
+**Demo both paths** — accept once, then create another deck and decline the removal.
 
-### Confirmation on remove_slide
+---
 
-```json
-{ "deck": "elicit-demo", "slide": "2" }
-```
+## 4. Sampling — AI-powered slide improvement
+
+**Say:** "Improve slide 1 of demo-talk — make it more visual with bullet points and a code example"
 
 **What happens:**
-1. Server resolves the slide filename
-2. Sends elicitation: "Remove slide '02-slide.html' from deck 'elicit-demo'? This cannot be undone."
-3. Schema: `{ confirm: boolean }`
-4. User can accept or decline
-5. **Accept** → slide removed. **Decline** → "Slide removal cancelled."
+1. Copilot calls `improve_slide`
+2. Server reads the current slide HTML
+3. Server sends a `sampling/createMessage` request back to VS Code — asking VS Code's LLM to rewrite the slide
+4. The LLM generates improved HTML (server provides the system prompt with slyds constraints)
+5. Server validates (lint + sanitize) and writes the result
+6. Returns the new version
 
-**Demo both paths** — accept once, decline once.
-
----
-
-## 7. MCP Apps (preview iframes)
-
-### Host theme adaptation (#100)
-
-Call `preview_deck`:
-```json
-{ "deck": "getting-started" }
-```
-
-In MCPJam:
-- Switch MCPJam to **dark mode** → preview chrome (nav bar, background) adapts automatically
-- Switch to **light mode** → chrome reverts
-- Slide content keeps its own deck theme (independent)
-
-### Interactive navigation (#101)
-
-While the preview is open, call these **app-side tools** (MCPJam routes them directly to the iframe):
-
-- `next_slide` → iframe navigates forward
-- `prev_slide` → iframe navigates backward  
-- `goto_slide { "position": 3 }` → jumps to slide 3
-- `get_current_slide` → returns `{ "position": 2, "total": 5 }`
-
-**Key demo point:** No server round-trip — the bridge handles navigation locally in the iframe.
-
-### Live edit refresh
-
-1. Open preview for `getting-started`
-2. In another tab/tool, call `edit_slide` on slide 1
-3. Preview auto-refreshes via `toolresult` event
-
-### Fullscreen mode
-
-```json
-{ "deck": "getting-started", "display_mode": "fullscreen" }
-```
-MCPJam renders the deck in fullscreen presentation mode.
+**Key point:** The server controls the prompt (knows about slyds HTML constraints, `class="slide"` requirement, no `<style>` blocks) while the client provides the LLM.
 
 ---
 
-## 8. Proto path parity
+## 5. Prompts — Structured guidance templates
 
-Repeat any of the above with `slyds mcp-proto` instead:
+**Say:** "Use the create-presentation prompt for a talk about Kubernetes Security with 8 slides"
+
+Or browse prompts in Copilot's prompt picker. Three available:
+
+| Prompt | What to say | What it returns |
+|--------|-------------|-----------------|
+| `create-presentation` | "Use the create-presentation prompt about AI Safety" | Step-by-step guidance with available themes + layouts |
+| `review-slides` | "Use the review-slides prompt for getting-started" | Full deck content with review instructions |
+| `suggest-speaker-notes` | "Use the suggest-speaker-notes prompt for slide 2 of getting-started" | Slide content with speaker notes guidance |
+
+---
+
+## 6. Resources — Browsable deck content
+
+In Copilot, ask about specific resources or use `@slyds` references:
+
+| What to ask | Resource hit |
+|-------------|-------------|
+| "Show me the server info" | `slyds://server/info` — version, themes, layouts |
+| "Show me the config for getting-started" | `slyds://decks/getting-started/config` — .slyds.yaml |
+| "Show me slide 3 of dark-mode-talk" | `slyds://decks/dark-mode-talk/slides/3` — raw HTML |
+
+---
+
+## 7. Completions — Auto-complete in action
+
+Completions work when VS Code fills in resource template parameters. When browsing resources:
+- Typing a deck name auto-completes from available decks
+- Typing a slide position auto-completes from valid positions
+
+Best demonstrated in VS Code's MCP resource browser or when Copilot resolves template URIs.
+
+---
+
+## 8. Read + Edit + Verify cycle
+
+**Say:** "Read slide 1 of getting-started, make the title bigger and bolder, then verify the change"
+
+Copilot will:
+1. Call `read_slide` → gets HTML + version
+2. Call `edit_slide` with new content + `expected_version` (optimistic concurrency)
+3. Call `read_slide` again to verify
+
+**Try a conflict:** Open the slide in an editor, change it manually, then ask Copilot to edit it — it gets a `version_conflict` error with the current content, and recovers.
+
+---
+
+## 9. Build + Check
+
+**Say:** "Check the getting-started deck for issues, then build it"
+
+1. `check_deck` → validates sync, missing notes, broken assets, estimates talk time
+2. `build_deck` → produces self-contained HTML with all CSS/JS/images inlined
+
+---
+
+## 10. Proto path parity
+
+Stop the server and restart with the proto-generated path:
 ```bash
 slyds mcp-proto --deck-root /tmp/slyds-demo/ --listen 127.0.0.1:8274
 ```
 
-All features work identically — proto-generated tools, resources, prompts, sampling helpers, elicitation helpers. The proto path uses `SampleForImproveSlide()`, `ElicitThemeChoice()`, `ElicitRemoveSlideConfirmation()` generated from proto annotations.
+Repeat any of the above — all features work identically. The proto path uses generated helpers: `SampleForImproveSlide()`, `ElicitThemeChoice()`, `ElicitRemoveSlideConfirmation()`.
 
 ---
 
 ## Quick demo script (5 minutes)
 
-1. **Setup** (30s): `make demo && slyds mcp --deck-root /tmp/slyds-demo/` → connect MCPJam
-2. **Tools** (30s): `list_decks` → `describe_deck getting-started` → show JSON response
-3. **Resources** (30s): Browse `slyds://server/info`, `slyds://decks/getting-started/slides/1`
-4. **Completions** (15s): Type in resource URI field, show auto-complete
-5. **Prompts** (30s): `create-presentation` with topic "AI Safety" → show structured guidance
-6. **Elicitation** (45s): `create_deck` without theme → choose from dropdown → verify theme applied
-7. **Elicitation decline** (15s): `remove_slide` → decline → verify slide still exists
-8. **Sampling** (45s): `improve_slide` → watch server↔client LLM round-trip → verify slide updated
-9. **Preview** (30s): `preview_deck` → show iframe, switch dark mode, navigate with app tools
+| Step | Say this | Shows |
+|------|----------|-------|
+| 1 | "What decks do I have?" | **Tools** — list_decks |
+| 2 | "Create a presentation called k8s-talk titled Kubernetes Overview" | **Elicitation** — theme picker form appears |
+| 3 | "Remove slide 2 from k8s-talk" | **Elicitation** — confirmation dialog |
+| 4 | "Improve slide 1 of k8s-talk — add bullet points about key concepts" | **Sampling** — server↔client LLM round-trip |
+| 5 | "Use the review-slides prompt for getting-started" | **Prompts** — structured review guidance |
+| 6 | "Show me the server info" | **Resources** — browsable content |
+| 7 | "Check getting-started for issues then build it" | **Tools** — validation + build |
 
-**Total: ~5 minutes covering all 6 MCP capabilities + MCP Apps bridge**
+**Total: ~5 minutes covering all 6 MCP capabilities in a natural conversation**
