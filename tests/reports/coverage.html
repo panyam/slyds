@@ -77,11 +77,11 @@
 				
 				<option value="file10">github.com/panyam/slyds/cmd/mcp_proto.go (15.4%)</option>
 				
-				<option value="file11">github.com/panyam/slyds/cmd/mcp_proto_impl.go (55.7%)</option>
+				<option value="file11">github.com/panyam/slyds/cmd/mcp_proto_impl.go (60.5%)</option>
 				
-				<option value="file12">github.com/panyam/slyds/cmd/mcp_resources.go (56.3%)</option>
+				<option value="file12">github.com/panyam/slyds/cmd/mcp_resources.go (63.4%)</option>
 				
-				<option value="file13">github.com/panyam/slyds/cmd/mcp_tools.go (82.7%)</option>
+				<option value="file13">github.com/panyam/slyds/cmd/mcp_tools.go (82.6%)</option>
 				
 				<option value="file14">github.com/panyam/slyds/cmd/preview.go (2.9%)</option>
 				
@@ -89,7 +89,7 @@
 				
 				<option value="file16">github.com/panyam/slyds/cmd/root.go (28.6%)</option>
 				
-				<option value="file17">github.com/panyam/slyds/cmd/serve.go (5.7%)</option>
+				<option value="file17">github.com/panyam/slyds/cmd/serve.go (5.4%)</option>
 				
 				<option value="file18">github.com/panyam/slyds/cmd/slides.go (13.7%)</option>
 				
@@ -101,9 +101,9 @@
 				
 				<option value="file22">github.com/panyam/slyds/core/agentmd.go (86.4%)</option>
 				
-				<option value="file23">github.com/panyam/slyds/core/builder.go (69.6%)</option>
+				<option value="file23">github.com/panyam/slyds/core/builder.go (65.4%)</option>
 				
-				<option value="file24">github.com/panyam/slyds/core/check.go (97.1%)</option>
+				<option value="file24">github.com/panyam/slyds/core/check.go (75.8%)</option>
 				
 				<option value="file25">github.com/panyam/slyds/core/deck.go (86.9%)</option>
 				
@@ -1542,9 +1542,11 @@ func runMCPProtoServer() error <span class="cov0" title="0">{
         slydsv1.RegisterSlydsServiceMCP(srv, impl)
         slydsv1.RegisterSlydsServiceMCPResources(srv, impl)
 
-        // MCP Apps and completions stay hand-written (outside proto scope)
+        // MCP Apps stays hand-written (outside proto scope).
         registerAppTools(srv)
-        registerCompletions(srv)
+
+        // Completions: proto-generated from completable_fields annotations.
+        slydsv1.RegisterSlydsServiceMCPCompletions(srv, impl)
 
         if mcpUseStdio </span><span class="cov0" title="0">{
                 fmt.Fprintf(os.Stderr, "MCP proto server (stdio) — deck root: %s\n", root)
@@ -1603,8 +1605,11 @@ func runMCPProtoServer() error <span class="cov0" title="0">{
 import (
         "context"
         "encoding/json"
+        "fmt"
         "strconv"
+        "strings"
 
+        mcpcore "github.com/panyam/mcpkit/core"
         "google.golang.org/grpc/codes"
         "google.golang.org/grpc/status"
 
@@ -1701,16 +1706,16 @@ func (s *SlydsServiceImpl) DescribeDeck(ctx context.Context, req *pb.DeckRequest
         <span class="cov8" title="1">return s.describeDeck(d)</span>
 }
 
-func (s *SlydsServiceImpl) ListSlides(ctx context.Context, req *pb.DeckRequest) (*pb.ListSlidesResponse, error) <span class="cov0" title="0">{
+func (s *SlydsServiceImpl) ListSlides(ctx context.Context, req *pb.DeckRequest) (*pb.ListSlidesResponse, error) <span class="cov8" title="1">{
         d, err := s.deck(ctx, req.Deck)
         if err != nil </span><span class="cov0" title="0">{
                 return nil, err
         }</span>
-        <span class="cov0" title="0">desc, err := s.describeDeck(d)
+        <span class="cov8" title="1">desc, err := s.describeDeck(d)
         if err != nil </span><span class="cov0" title="0">{
                 return nil, err
         }</span>
-        <span class="cov0" title="0">return &amp;pb.ListSlidesResponse{Slides: desc.Slides}, nil</span>
+        <span class="cov8" title="1">return &amp;pb.ListSlidesResponse{Slides: desc.Slides}, nil</span>
 }
 
 func (s *SlydsServiceImpl) ReadSlide(ctx context.Context, req *pb.ReadSlideRequest) (*pb.SlideReadResult, error) <span class="cov8" title="1">{
@@ -1762,7 +1767,11 @@ func (s *SlydsServiceImpl) EditSlide(ctx context.Context, req *pb.EditSlideReque
                         return nil, st.Err()
                 }</span>
         }
-        <span class="cov8" title="1">if err := d.EditSlideContent(pos, req.Content); err != nil </span><span class="cov0" title="0">{
+        <span class="cov8" title="1">if issues := core.LintSlideContent(req.Content); issues.HasErrors() </span><span class="cov0" title="0">{
+                return nil, status.Errorf(codes.InvalidArgument, "rejected: %s", issues[0].Detail)
+        }</span>
+        <span class="cov8" title="1">content, _ := core.SanitizeSlideContent(req.Content)
+        if err := d.EditSlideContent(pos, content); err != nil </span><span class="cov0" title="0">{
                 return nil, status.Errorf(codes.Internal, "edit slide: %v", err)
         }</span>
         <span class="cov8" title="1">newVer, _ := d.SlideVersion(pos)
@@ -1912,7 +1921,12 @@ func (s *SlydsServiceImpl) CheckDeck(ctx context.Context, req *pb.DeckRequest) (
                         Detail: issue.Detail,
                 })
         }</span>
-        <span class="cov8" title="1">return &amp;pb.CheckDeckResponse{Issues: pbIssues}, nil</span>
+        <span class="cov8" title="1">return &amp;pb.CheckDeckResponse{
+                SlideCount:       int32(result.SlideCount),
+                InSync:           result.InSync,
+                Issues:           pbIssues,
+                EstimatedMinutes: result.EstimatedMinutes,
+        }, nil</span>
 }
 
 func (s *SlydsServiceImpl) BuildDeck(ctx context.Context, req *pb.DeckRequest) (*pb.BuildDeckResponse, error) <span class="cov8" title="1">{
@@ -2074,6 +2088,66 @@ func (s *SlydsServiceImpl) resolvePosition(d *core.Deck, slide *string, position
                 return int(*position), nil
         }</span>
         <span class="cov0" title="0">return 0, status.Error(codes.InvalidArgument, "either 'slide' or 'position' is required")</span>
+}
+
+// --- Completer implementations ---
+
+// CompleteName returns deck names matching the partial input.
+func (s *SlydsServiceImpl) CompleteName(ctx mcpcore.PromptContext, _ mcpcore.CompletionRef, arg mcpcore.CompletionArgument) (mcpcore.CompletionResult, error) <span class="cov8" title="1">{
+        ws := workspaceFromContext(ctx)
+        if ws == nil </span><span class="cov0" title="0">{
+                return mcpcore.CompletionResult{}, nil
+        }</span>
+        <span class="cov8" title="1">refs, err := ws.ListDecks()
+        if err != nil </span><span class="cov0" title="0">{
+                return mcpcore.CompletionResult{}, nil
+        }</span>
+        <span class="cov8" title="1">prefix := strings.ToLower(arg.Value)
+        var matches []string
+        for _, ref := range refs </span><span class="cov8" title="1">{
+                if prefix == "" || strings.HasPrefix(strings.ToLower(ref.Name), prefix) </span><span class="cov8" title="1">{
+                        matches = append(matches, ref.Name)
+                }</span>
+        }
+        <span class="cov8" title="1">return mcpcore.CompletionResult{
+                Values:  matches,
+                Total:   len(matches),
+                HasMore: false,
+        }, nil</span>
+}
+
+// CompleteN returns slide position numbers matching the partial input.
+func (s *SlydsServiceImpl) CompleteN(ctx mcpcore.PromptContext, _ mcpcore.CompletionRef, arg mcpcore.CompletionArgument) (mcpcore.CompletionResult, error) <span class="cov8" title="1">{
+        ws := workspaceFromContext(ctx)
+        if ws == nil </span><span class="cov0" title="0">{
+                return mcpcore.CompletionResult{}, nil
+        }</span>
+        // Use the first deck as default — same heuristic as hand-written completions.
+        <span class="cov8" title="1">refs, err := ws.ListDecks()
+        if err != nil || len(refs) == 0 </span><span class="cov0" title="0">{
+                return mcpcore.CompletionResult{}, nil
+        }</span>
+        <span class="cov8" title="1">d, err := ws.OpenDeck(refs[0].Name)
+        if err != nil </span><span class="cov0" title="0">{
+                return mcpcore.CompletionResult{}, nil
+        }</span>
+        <span class="cov8" title="1">count, err := d.SlideCount()
+        if err != nil || count == 0 </span><span class="cov0" title="0">{
+                return mcpcore.CompletionResult{}, nil
+        }</span>
+        <span class="cov8" title="1">prefix := arg.Value
+        var matches []string
+        for i := 1; i &lt;= count; i++ </span><span class="cov8" title="1">{
+                s := fmt.Sprintf("%d", i)
+                if prefix == "" || strings.HasPrefix(s, prefix) </span><span class="cov8" title="1">{
+                        matches = append(matches, s)
+                }</span>
+        }
+        <span class="cov8" title="1">return mcpcore.CompletionResult{
+                Values:  matches,
+                Total:   len(matches),
+                HasMore: false,
+        }, nil</span>
 }
 </pre>
 		
@@ -2264,16 +2338,16 @@ func registerResources(srv *server.Server) <span class="cov8" title="1">{
                                 Description: "Raw .slyds.yaml manifest content",
                                 MimeType:    "text/yaml",
                         },
-                        Handler: func(ctx mcpcore.ResourceContext, uri string, params map[string]string) (mcpcore.ResourceResult, error) <span class="cov0" title="0">{
+                        Handler: func(ctx mcpcore.ResourceContext, uri string, params map[string]string) (mcpcore.ResourceResult, error) <span class="cov8" title="1">{
                                 d, err := openDeckForResource(ctx, params["name"])
                                 if err != nil </span><span class="cov0" title="0">{
                                         return mcpcore.ResourceResult{}, err
                                 }</span>
-                                <span class="cov0" title="0">data, err := d.FS.ReadFile(".slyds.yaml")
+                                <span class="cov8" title="1">data, err := d.FS.ReadFile(".slyds.yaml")
                                 if err != nil </span><span class="cov0" title="0">{
                                         return mcpcore.ResourceResult{}, fmt.Errorf("no .slyds.yaml in deck %q", params["name"])
                                 }</span>
-                                <span class="cov0" title="0">return mcpcore.ResourceResult{
+                                <span class="cov8" title="1">return mcpcore.ResourceResult{
                                         Contents: []mcpcore.ResourceReadContent{{
                                                 URI:      uri,
                                                 MimeType: "text/yaml",
@@ -2596,7 +2670,7 @@ func editSlideTool() server.Tool <span class="cov8" title="1">{
         return server.Tool{
                 ToolDef: mcpcore.ToolDef{
                         Name:        "edit_slide",
-                        Description: "Replace the HTML content of a slide. Supply either 'slide' (preferred: slug, filename, or position as string) or 'position' (legacy: 1-based integer). Pass expected_version (from read_slide or describe_deck) for optimistic concurrency; omit or pass 'latest' for last-write-wins.",
+                        Description: "Replace the HTML content of a slide. Content MUST be a raw HTML fragment (not JSON-escaped) whose root element is &lt;div class=\"slide\" data-layout=\"...\"&gt;. Do NOT use class=\"slide-content\" or other variants — the engine requires exactly class=\"slide\" for pagination. Do NOT escape quotes with backslashes. Do NOT include &lt;style&gt; blocks — they pollute global CSS and break navigation; use inline style= attributes instead. Supply either 'slide' (preferred: slug, filename, or position as string) or 'position' (legacy: 1-based integer). Pass expected_version (from read_slide or describe_deck) for optimistic concurrency; omit or pass 'latest' for last-write-wins.",
                         InputSchema: map[string]any{
                                 "type": "object",
                                 "properties": map[string]any{
@@ -2646,15 +2720,23 @@ func editSlideTool() server.Tool <span class="cov8" title="1">{
                                         return mcpcore.ErrorResult(string(conflict)), nil
                                 }</span>
                         }
-                        <span class="cov8" title="1">if err := d.EditSlideContent(pos, p.Content); err != nil </span><span class="cov0" title="0">{
+                        <span class="cov8" title="1">if issues := core.LintSlideContent(p.Content); issues.HasErrors() </span><span class="cov0" title="0">{
+                                return mcpcore.ErrorResult("rejected: " + issues[0].Detail), nil
+                        }</span>
+                        <span class="cov8" title="1">content, sanitizeWarnings := core.SanitizeSlideContent(p.Content)
+                        if err := d.EditSlideContent(pos, content); err != nil </span><span class="cov0" title="0">{
                                 return mcpcore.ErrorResult(err.Error()), nil
                         }</span>
                         <span class="cov8" title="1">newVer, _ := d.SlideVersion(pos)
                         deckVer, _ := d.DeckVersion()
                         mcpcore.NotifyResourceUpdated(ctx, fmt.Sprintf("ui://slyds/decks/%s/preview", p.Deck))
                         mcpcore.NotifyResourceUpdated(ctx, fmt.Sprintf("ui://slyds/decks/%s/slides/%d/preview", p.Deck, pos))
-                        return jsonResult(slideEditResult{
-                                Message:     fmt.Sprintf("Slide %d updated.", pos),
+                        msg := fmt.Sprintf("Slide %d updated.", pos)
+                        for _, w := range sanitizeWarnings </span><span class="cov0" title="0">{
+                                msg += " WARNING: " + w.Detail
+                        }</span>
+                        <span class="cov8" title="1">return jsonResult(slideEditResult{
+                                Message:     msg,
                                 Version:     newVer,
                                 DeckVersion: deckVer,
                         })</span>
@@ -2941,14 +3023,10 @@ func buildDeckTool() server.Tool <span class="cov8" title="1">{
                         if err != nil </span><span class="cov0" title="0">{
                                 return mcpcore.ErrorResult(err.Error()), nil
                         }</span>
-                        // Return build result with warnings if any
-                        <span class="cov8" title="1">if len(result.Warnings) &gt; 0 </span><span class="cov0" title="0">{
-                                return jsonResult(buildWarningResult{
-                                        HTML:     result.HTML,
-                                        Warnings: result.Warnings,
-                                })
-                        }</span>
-                        <span class="cov8" title="1">return mcpcore.TextResult(result.HTML), nil</span>
+                        <span class="cov8" title="1">return jsonResult(buildWarningResult{
+                                HTML:     result.HTML,
+                                Warnings: result.Warnings,
+                        })</span>
                 },
         }
 }
@@ -3385,11 +3463,7 @@ var serveCmd = &amp;cobra.Command{
                         return err
                 }</span>
 
-                // Set up templar for on-the-fly include resolution.
-                // Uses SourceLoader if .slyds.yaml declares sources, otherwise FileSystemLoader.
-                <span class="cov0" title="0">group := templar.NewTemplateGroup()
-                group.Loader = core.NewLoaderForDeck(templar.NewLocalFS(root))
-
+                <span class="cov0" title="0">fs := templar.NewLocalFS(root)
                 mux := http.NewServeMux()
 
                 // Serve static files (CSS, JS, images, slide assets)
@@ -3401,21 +3475,25 @@ var serveCmd = &amp;cobra.Command{
                                 path = "/index.html"
                         }</span>
 
-                        // Only render .html files through templar (to resolve includes)
+                        // Only render .html files through the deck's RenderHTML
+                        // (same path as Build / MCP preview).
                         <span class="cov0" title="0">if filepath.Ext(path) == ".html" </span><span class="cov0" title="0">{
                                 templateName := path[1:] // strip leading /
-                                templates, err := group.Loader.Load(templateName, "")
+                                d, err := core.OpenDeck(fs)
                                 if err != nil </span><span class="cov0" title="0">{
-                                        log.Printf("Template load error: %s: %v", templateName, err)
-                                        http.NotFound(w, r)
+                                        log.Printf("Deck open error: %v", err)
+                                        http.Error(w, "Render error", http.StatusInternalServerError)
+                                        return
+                                }</span>
+                                <span class="cov0" title="0">html, err := d.RenderHTML(templateName)
+                                if err != nil </span><span class="cov0" title="0">{
+                                        log.Printf("Render error: %s: %v", templateName, err)
+                                        http.Error(w, "Render error", http.StatusInternalServerError)
                                         return
                                 }</span>
                                 <span class="cov0" title="0">w.Header().Set("Content-Type", "text/html; charset=utf-8")
-                                if err := group.RenderHtmlTemplate(w, templates[0], "", map[string]any{}, nil); err != nil </span><span class="cov0" title="0">{
-                                        log.Printf("Template render error: %s: %v", templateName, err)
-                                        http.Error(w, "Render error", http.StatusInternalServerError)
-                                }</span>
-                                <span class="cov0" title="0">return</span>
+                                fmt.Fprint(w, html)
+                                return</span>
                         }
 
                         // Everything else: serve as static file
@@ -4350,35 +4428,49 @@ type Result struct {
         Warnings []string `json:"warnings"`
 }
 
+// RenderHTML resolves all templar includes in the named template and returns
+// the resulting HTML. Tries html/template first (full templar feature set);
+// if Go's contextual escaper rejects the content (complex inline styles,
+// SVG, agent-generated patterns), falls back to raw string-based include
+// resolution via FlattenIncludes.
+//
+// Both Build() and slyds serve use this as the single render path.
+func (d *Deck) RenderHTML(templateName string) (string, error) <span class="cov8" title="1">{
+        group := templar.NewTemplateGroup()
+        group.Loader = NewLoaderForDeck(d.FS)
+
+        templates, err := group.Loader.Load(templateName, "")
+        if err != nil </span><span class="cov0" title="0">{
+                return "", fmt.Errorf("failed to load %s: %w", templateName, err)
+        }</span>
+        <span class="cov8" title="1">if len(templates) == 0 </span><span class="cov0" title="0">{
+                return "", fmt.Errorf("no templates loaded from %s", templateName)
+        }</span>
+
+        <span class="cov8" title="1">var buf bytes.Buffer
+        err = group.RenderHtmlTemplate(&amp;buf, templates[0], "", map[string]any{}, nil)
+        if err != nil </span><span class="cov0" title="0">{
+                // html/template rejected the content; fall back to raw inclusion.
+                raw, readErr := d.FS.ReadFile(templateName)
+                if readErr != nil </span><span class="cov0" title="0">{
+                        return "", fmt.Errorf("template rendering failed: %w (fallback read: %v)", err, readErr)
+                }</span>
+                <span class="cov0" title="0">return d.FlattenIncludes(string(raw))</span>
+        }
+        <span class="cov8" title="1">return buf.String(), nil</span>
+}
+
 // Build reads index.html from the deck's FS, resolves all templar includes,
 // inlines CSS/JS/images, and returns a self-contained HTML string.
 // All I/O goes through the deck's WritableFS.
 func (d *Deck) Build() (*Result, error) <span class="cov8" title="1">{
-        // Same template resolution as `slyds serve` (NewLoaderForDeck): deck FS plus
-        // optional .slyds.yaml module sources. Keeps preview_deck / build output aligned
-        // with the dev server.
-        group := templar.NewTemplateGroup()
-        group.Loader = NewLoaderForDeck(d.FS)
-
-        templates, err := group.Loader.Load("index.html", "")
+        html, err := d.RenderHTML("index.html")
         if err != nil </span><span class="cov0" title="0">{
-                return nil, fmt.Errorf("failed to load index.html: %w", err)
+                return nil, err
         }</span>
-        <span class="cov8" title="1">if len(templates) == 0 </span><span class="cov0" title="0">{
-                return nil, fmt.Errorf("no templates loaded from index.html")
-        }</span>
-
-        // Render the template (resolves all includes)
-        <span class="cov8" title="1">var buf bytes.Buffer
-        err = group.RenderHtmlTemplate(&amp;buf, templates[0], "", map[string]any{}, nil)
-        if err != nil </span><span class="cov0" title="0">{
-                return nil, fmt.Errorf("template rendering failed: %w", err)
-        }</span>
-
-        <span class="cov8" title="1">html := buf.String()
 
         // Inline assets via FS
-        result, err := d.inlineAssets(html)
+        <span class="cov8" title="1">result, err := d.inlineAssets(html)
         if err != nil </span><span class="cov0" title="0">{
                 return nil, err
         }</span>
@@ -4450,6 +4542,8 @@ import (
         "fmt"
         "regexp"
         "strings"
+
+        "github.com/PuerkitoBio/goquery"
 )
 
 // IssueType categorizes a check finding.
@@ -4529,6 +4623,7 @@ var assetRefRe = regexp.MustCompile(`(?:src|href)="([^"]+)"`)
 var speakerNotesRe = regexp.MustCompile(`class="speaker-notes"`)
 var tagStripRe = regexp.MustCompile(`&lt;[^&gt;]+&gt;`)
 
+
 // Check validates the deck for common issues: missing/orphan slides,
 // broken asset references, missing speaker notes, unknown layouts,
 // and estimated talk time. All checks go through DeckFS.
@@ -4603,6 +4698,15 @@ func (d *Deck) Check() (*CheckResult, error) <span class="cov8" title="1">{
                         totalWords += len(strings.Fields(text))
                 }</span>
 
+                // Root element class
+                <span class="cov8" title="1">if !hasSlideClass(html) </span><span class="cov8" title="1">{
+                        result.Issues = append(result.Issues, Issue{
+                                Type:   IssueError,
+                                Slide:  s,
+                                Detail: fmt.Sprintf("%s: root element missing class=\"slide\" — presentation engine requires .slide for pagination", s),
+                        })
+                }</span>
+
                 // Layout attribute
                 <span class="cov8" title="1">detectedLayout := DetectLayout(html)
                 if !strings.Contains(html, "data-layout=") </span><span class="cov8" title="1">{
@@ -4656,6 +4760,69 @@ func (d *Deck) assetExists(ref, slideFile string) bool <span class="cov8" title=
                 return true
         }</span>
         <span class="cov8" title="1">return false</span>
+}
+
+// hasSlideClass uses goquery to check whether the root element of a slide
+// fragment has the "slide" CSS class (e.g. class="slide", class="slide title-slide").
+// Returns false for non-standard classes like "slide-content".
+func hasSlideClass(html string) bool <span class="cov8" title="1">{
+        doc, err := goquery.NewDocumentFromReader(strings.NewReader(html))
+        if err != nil </span><span class="cov0" title="0">{
+                return false
+        }</span>
+        <span class="cov8" title="1">return doc.Find("div.slide").Length() &gt; 0</span>
+}
+
+// LintSlideContent checks raw HTML for common agent authoring mistakes
+// before it is written to disk. Returns issues that should block the write.
+func LintSlideContent(html string) Issues <span class="cov0" title="0">{
+        var issues Issues
+        if strings.Contains(html, `=\"`) </span><span class="cov0" title="0">{
+                issues = append(issues, Issue{
+                        Type:   IssueError,
+                        Detail: `content contains escaped quotes (\"); this usually means the HTML was double-JSON-escaped — send raw HTML with normal quotes`,
+                })
+        }</span>
+        <span class="cov0" title="0">if strings.Contains(html, `\n`) &amp;&amp; !strings.Contains(html, "\n") </span><span class="cov0" title="0">{
+                issues = append(issues, Issue{
+                        Type:   IssueError,
+                        Detail: `content contains literal \n instead of newlines — send raw HTML, not a JSON-escaped string`,
+                })
+        }</span>
+        <span class="cov0" title="0">if !hasSlideClass(html) </span><span class="cov0" title="0">{
+                issues = append(issues, Issue{
+                        Type:   IssueError,
+                        Detail: `root element must have class="slide" (not "slide-content" or other variants) — the presentation engine uses .slide for pagination and navigation`,
+                })
+        }</span>
+        <span class="cov0" title="0">return issues</span>
+}
+
+// SanitizeSlideContent uses goquery to clean agent-generated HTML before
+// writing. Currently strips &lt;style&gt; blocks that would pollute global CSS
+// and break navigation. Returns the cleaned HTML and any warnings.
+func SanitizeSlideContent(html string) (string, Issues) <span class="cov0" title="0">{
+        doc, err := goquery.NewDocumentFromReader(strings.NewReader(html))
+        if err != nil </span><span class="cov0" title="0">{
+                return html, nil
+        }</span>
+
+        <span class="cov0" title="0">var warnings Issues
+        styleNodes := doc.Find("style")
+        if styleNodes.Length() &gt; 0 </span><span class="cov0" title="0">{
+                warnings = append(warnings, Issue{
+                        Type:   IssueWarning,
+                        Detail: fmt.Sprintf("removed %d &lt;style&gt; block(s) — they pollute global CSS and break navigation. Use inline style= attributes on individual elements instead, or put shared styles in theme.css", styleNodes.Length()),
+                })
+                styleNodes.Remove()
+        }</span>
+
+        // goquery wraps fragments in &lt;html&gt;&lt;body&gt;; extract just the body content.
+        <span class="cov0" title="0">out, err := doc.Find("body").Html()
+        if err != nil </span><span class="cov0" title="0">{
+                return html, warnings
+        }</span>
+        <span class="cov0" title="0">return strings.TrimSpace(out), warnings</span>
 }
 
 func isRemoteOrSpecialRef(ref string) bool <span class="cov8" title="1">{
@@ -7690,9 +7857,13 @@ type MCPResourceOptions struct {
         // MIME type of the resource content.
         MimeType string `protobuf:"bytes,3,opt,name=mime_type,json=mimeType,proto3" json:"mime_type,omitempty"`
         // Human-readable description.
-        Description   string `protobuf:"bytes,4,opt,name=description,proto3" json:"description,omitempty"`
-        unknownFields protoimpl.UnknownFields
-        sizeCache     protoimpl.SizeCache
+        Description string `protobuf:"bytes,4,opt,name=description,proto3" json:"description,omitempty"`
+        // Fields from the URI template that support auto-completion.
+        // Each name must match a {param} in uri_template.
+        // Generates a Completer interface method per field.
+        CompletableFields []string `protobuf:"bytes,5,rep,name=completable_fields,json=completableFields,proto3" json:"completable_fields,omitempty"`
+        unknownFields     protoimpl.UnknownFields
+        sizeCache         protoimpl.SizeCache
 }
 
 func (x *MCPResourceOptions) Reset() <span class="cov0" title="0">{
@@ -7753,15 +7924,25 @@ func (x *MCPResourceOptions) GetDescription() string <span class="cov0" title="0
         <span class="cov0" title="0">return ""</span>
 }
 
+func (x *MCPResourceOptions) GetCompletableFields() []string <span class="cov0" title="0">{
+        if x != nil </span><span class="cov0" title="0">{
+                return x.CompletableFields
+        }</span>
+        <span class="cov0" title="0">return nil</span>
+}
+
 // MCPPromptOptions exposes a gRPC method as an MCP prompt.
 type MCPPromptOptions struct {
         state protoimpl.MessageState `protogen:"open.v1"`
         // Custom prompt name. Defaults to snake_case of the method name.
         Name string `protobuf:"bytes,1,opt,name=name,proto3" json:"name,omitempty"`
         // Human-readable description.
-        Description   string `protobuf:"bytes,2,opt,name=description,proto3" json:"description,omitempty"`
-        unknownFields protoimpl.UnknownFields
-        sizeCache     protoimpl.SizeCache
+        Description string `protobuf:"bytes,2,opt,name=description,proto3" json:"description,omitempty"`
+        // Request message fields that support auto-completion.
+        // Generates a Completer interface method per field.
+        CompletableFields []string `protobuf:"bytes,3,rep,name=completable_fields,json=completableFields,proto3" json:"completable_fields,omitempty"`
+        unknownFields     protoimpl.UnknownFields
+        sizeCache         protoimpl.SizeCache
 }
 
 func (x *MCPPromptOptions) Reset() <span class="cov0" title="0">{
@@ -7806,6 +7987,13 @@ func (x *MCPPromptOptions) GetDescription() string <span class="cov0" title="0">
                 return x.Description
         }</span>
         <span class="cov0" title="0">return ""</span>
+}
+
+func (x *MCPPromptOptions) GetCompletableFields() []string <span class="cov0" title="0">{
+        if x != nil </span><span class="cov0" title="0">{
+                return x.CompletableFields
+        }</span>
+        <span class="cov0" title="0">return nil</span>
 }
 
 // MCPServiceOptions configures service-level MCP settings.
@@ -7916,15 +8104,17 @@ const file_mcp_v1_annotations_proto_rawDesc = "" +
         "\vdescription\x18\x02 \x01(\tR\vdescription\x12\x18\n" +
         "\atimeout\x18\x03 \x01(\tR\atimeout\x12+\n" +
         "\x11structured_output\x18\x04 \x01(\bR\x10structuredOutput\x12%\n" +
-        "\x0eresult_summary\x18\x05 \x01(\tR\rresultSummary\"\x8a\x01\n" +
+        "\x0eresult_summary\x18\x05 \x01(\tR\rresultSummary\"\xb9\x01\n" +
         "\x12MCPResourceOptions\x12!\n" +
         "\furi_template\x18\x01 \x01(\tR\vuriTemplate\x12\x12\n" +
         "\x04name\x18\x02 \x01(\tR\x04name\x12\x1b\n" +
         "\tmime_type\x18\x03 \x01(\tR\bmimeType\x12 \n" +
-        "\vdescription\x18\x04 \x01(\tR\vdescription\"H\n" +
+        "\vdescription\x18\x04 \x01(\tR\vdescription\x12-\n" +
+        "\x12completable_fields\x18\x05 \x03(\tR\x11completableFields\"w\n" +
         "\x10MCPPromptOptions\x12\x12\n" +
         "\x04name\x18\x01 \x01(\tR\x04name\x12 \n" +
-        "\vdescription\x18\x02 \x01(\tR\vdescription\"1\n" +
+        "\vdescription\x18\x02 \x01(\tR\vdescription\x12-\n" +
+        "\x12completable_fields\x18\x03 \x03(\tR\x11completableFields\"1\n" +
         "\x11MCPServiceOptions\x12\x1c\n" +
         "\tnamespace\x18\x01 \x01(\tR\tnamespace:S\n" +
         "\bmcp_tool\x12\x1e.google.protobuf.MethodOptions\x18\xb9\x8e\x03 \x01(\v2\x16.mcp.v1.MCPToolOptionsR\amcpTool:_\n" +
@@ -9301,10 +9491,13 @@ func (x *RemoveSlideResponse) GetRemovedFile() string <span class="cov0" title="
 }
 
 type CheckDeckResponse struct {
-        state         protoimpl.MessageState `protogen:"open.v1"`
-        Issues        []*Issue               `protobuf:"bytes,1,rep,name=issues,proto3" json:"issues,omitempty"`
-        unknownFields protoimpl.UnknownFields
-        sizeCache     protoimpl.SizeCache
+        state            protoimpl.MessageState `protogen:"open.v1"`
+        SlideCount       int32                  `protobuf:"varint,1,opt,name=slide_count,json=slideCount,proto3" json:"slide_count,omitempty"`
+        InSync           bool                   `protobuf:"varint,2,opt,name=in_sync,json=inSync,proto3" json:"in_sync,omitempty"`
+        Issues           []*Issue               `protobuf:"bytes,3,rep,name=issues,proto3" json:"issues,omitempty"`
+        EstimatedMinutes float64                `protobuf:"fixed64,4,opt,name=estimated_minutes,json=estimatedMinutes,proto3" json:"estimated_minutes,omitempty"`
+        unknownFields    protoimpl.UnknownFields
+        sizeCache        protoimpl.SizeCache
 }
 
 func (x *CheckDeckResponse) Reset() <span class="cov0" title="0">{
@@ -9337,11 +9530,32 @@ func (*CheckDeckResponse) Descriptor() ([]byte, []int) <span class="cov0" title=
         return file_slyds_v1_models_proto_rawDescGZIP(), []int{18}
 }</span>
 
+func (x *CheckDeckResponse) GetSlideCount() int32 <span class="cov0" title="0">{
+        if x != nil </span><span class="cov0" title="0">{
+                return x.SlideCount
+        }</span>
+        <span class="cov0" title="0">return 0</span>
+}
+
+func (x *CheckDeckResponse) GetInSync() bool <span class="cov0" title="0">{
+        if x != nil </span><span class="cov0" title="0">{
+                return x.InSync
+        }</span>
+        <span class="cov0" title="0">return false</span>
+}
+
 func (x *CheckDeckResponse) GetIssues() []*Issue <span class="cov0" title="0">{
         if x != nil </span><span class="cov0" title="0">{
                 return x.Issues
         }</span>
         <span class="cov0" title="0">return nil</span>
+}
+
+func (x *CheckDeckResponse) GetEstimatedMinutes() float64 <span class="cov0" title="0">{
+        if x != nil </span><span class="cov0" title="0">{
+                return x.EstimatedMinutes
+        }</span>
+        <span class="cov0" title="0">return 0</span>
 }
 
 // Issue is a single finding from deck validation.
@@ -10067,9 +10281,13 @@ const file_slyds_v1_models_proto_rawDesc = "" +
         "\fdeck_version\x18\x01 \x01(\tR\vdeckVersion\x12\x1f\n" +
         "\vslide_count\x18\x02 \x01(\x05R\n" +
         "slideCount\x12!\n" +
-        "\fremoved_file\x18\x03 \x01(\tR\vremovedFile\"&lt;\n" +
-        "\x11CheckDeckResponse\x12'\n" +
-        "\x06issues\x18\x01 \x03(\v2\x0f.slyds.v1.IssueR\x06issues\"I\n" +
+        "\fremoved_file\x18\x03 \x01(\tR\vremovedFile\"\xa3\x01\n" +
+        "\x11CheckDeckResponse\x12\x1f\n" +
+        "\vslide_count\x18\x01 \x01(\x05R\n" +
+        "slideCount\x12\x17\n" +
+        "\ain_sync\x18\x02 \x01(\bR\x06inSync\x12'\n" +
+        "\x06issues\x18\x03 \x03(\v2\x0f.slyds.v1.IssueR\x06issues\x12+\n" +
+        "\x11estimated_minutes\x18\x04 \x01(\x01R\x10estimatedMinutes\"I\n" +
         "\x05Issue\x12\x12\n" +
         "\x04type\x18\x01 \x01(\tR\x04type\x12\x14\n" +
         "\x05slide\x18\x02 \x01(\tR\x05slide\x12\x16\n" +
@@ -10234,7 +10452,7 @@ var File_slyds_v1_service_proto protoreflect.FileDescriptor
 
 const file_slyds_v1_service_proto_rawDesc = "" +
         "\n" +
-        "\x16slyds/v1/service.proto\x12\bslyds.v1\x1a\x18mcp/v1/annotations.proto\x1a\x15slyds/v1/models.proto2\xf8\x1c\n" +
+        "\x16slyds/v1/service.proto\x12\bslyds.v1\x1a\x18mcp/v1/annotations.proto\x1a\x15slyds/v1/models.proto2\x9c\x1d\n" +
         "\fSlydsService\x12\xbe\x01\n" +
         "\tListDecks\x12\x1a.slyds.v1.ListDecksRequest\x1a\x1b.slyds.v1.ListDecksResponse\"x\xca\xf3\x18t\n" +
         "\n" +
@@ -10269,18 +10487,18 @@ const file_slyds_v1_service_proto_rawDesc = "" +
         "\rGetServerInfo\x12\x1b.slyds.v1.ServerInfoRequest\x1a\x14.slyds.v1.ServerInfo\"t\xd2\xf3\x18p\n" +
         "\x13slyds://server/info\x12\vServer Info\x1a\x10application/json\":slyds MCP server version, capabilities, and workspace root\x12\xb5\x01\n" +
         "\vGetDeckList\x12\x19.slyds.v1.DeckListRequest\x1a\x1b.slyds.v1.ListDecksResponse\"n\xd2\xf3\x18j\n" +
-        "\rslyds://decks\x12\tDeck List\x1a\x10application/json\"&lt;List all presentation decks visible to the current workspace\x12\xca\x01\n" +
-        "\aGetDeck\x12 .slyds.v1.GetDeckResourceRequest\x1a\x19.slyds.v1.DeckDescription\"\x81\x01\xd2\xf3\x18}\n" +
-        "\x14slyds://decks/{name}\x12\rDeck Metadata\x1a\x10application/json\"DStructured description of a deck: title, theme, slides with metadata\x12\xe8\x01\n" +
-        "\fGetSlideList\x12%.slyds.v1.GetSlideListResourceRequest\x1a\x1c.slyds.v1.ListSlidesResponse\"\x92\x01\xd2\xf3\x18\x8d\x01\n" +
+        "\rslyds://decks\x12\tDeck List\x1a\x10application/json\"&lt;List all presentation decks visible to the current workspace\x12\xd1\x01\n" +
+        "\aGetDeck\x12 .slyds.v1.GetDeckResourceRequest\x1a\x19.slyds.v1.DeckDescription\"\x88\x01\xd2\xf3\x18\x83\x01\n" +
+        "\x14slyds://decks/{name}\x12\rDeck Metadata\x1a\x10application/json\"DStructured description of a deck: title, theme, slides with metadata*\x04name\x12\xee\x01\n" +
+        "\fGetSlideList\x12%.slyds.v1.GetSlideListResourceRequest\x1a\x1c.slyds.v1.ListSlidesResponse\"\x98\x01\xd2\xf3\x18\x93\x01\n" +
         "\x1bslyds://decks/{name}/slides\x12\n" +
-        "Slide List\x1a\x10application/json\"PList all slides in a deck with position, filename, layout, title, and word count\x12\xd8\x01\n" +
-        "\x0fGetSlideContent\x12(.slyds.v1.GetSlideContentResourceRequest\x1a\x1e.slyds.v1.SlideContentResource\"{\xd2\xf3\x18w\n" +
-        "\x1fslyds://decks/{name}/slides/{n}\x12\rSlide Content\x1a\ttext/html\":Raw HTML content of a specific slide by position (1-based)\x12\xb3\x01\n" +
-        "\rGetDeckConfig\x12 .slyds.v1.GetDeckResourceRequest\x1a\x1c.slyds.v1.DeckConfigResource\"b\xd2\xf3\x18^\n" +
-        "\x1bslyds://decks/{name}/config\x12\x12Deck Configuration\x1a\ttext/yaml\" Raw .slyds.yaml manifest content\x12\xac\x01\n" +
-        "\rGetAgentGuide\x12 .slyds.v1.GetDeckResourceRequest\x1a\x1c.slyds.v1.AgentGuideResource\"[\xd2\xf3\x18W\n" +
-        "\x1aslyds://decks/{name}/agent\x12\vAgent Guide\x1a\rtext/markdown\"\x1dAGENT.md content for the deckB\x8e\x01\n" +
+        "Slide List\x1a\x10application/json\"PList all slides in a deck with position, filename, layout, title, and word count*\x04name\x12\xe3\x01\n" +
+        "\x0fGetSlideContent\x12(.slyds.v1.GetSlideContentResourceRequest\x1a\x1e.slyds.v1.SlideContentResource\"\x85\x01\xd2\xf3\x18\x80\x01\n" +
+        "\x1fslyds://decks/{name}/slides/{n}\x12\rSlide Content\x1a\ttext/html\":Raw HTML content of a specific slide by position (1-based)*\x04name*\x01n\x12\xb9\x01\n" +
+        "\rGetDeckConfig\x12 .slyds.v1.GetDeckResourceRequest\x1a\x1c.slyds.v1.DeckConfigResource\"h\xd2\xf3\x18d\n" +
+        "\x1bslyds://decks/{name}/config\x12\x12Deck Configuration\x1a\ttext/yaml\" Raw .slyds.yaml manifest content*\x04name\x12\xb2\x01\n" +
+        "\rGetAgentGuide\x12 .slyds.v1.GetDeckResourceRequest\x1a\x1c.slyds.v1.AgentGuideResource\"a\xd2\xf3\x18]\n" +
+        "\x1aslyds://decks/{name}/agent\x12\vAgent Guide\x1a\rtext/markdown\"\x1dAGENT.md content for the deck*\x04nameB\x8e\x01\n" +
         "\fcom.slyds.v1B\fServiceProtoP\x01Z/github.com/panyam/slyds/gen/go/slyds/v1;slydsv1\xa2\x02\x03SXX\xaa\x02\bSlyds.V1\xca\x02\bSlyds\\V1\xe2\x02\x14Slyds\\V1\\GPBMetadata\xea\x02\tSlyds::V1b\x06proto3"
 
 var file_slyds_v1_service_proto_goTypes = []any{
@@ -10767,6 +10985,59 @@ func RegisterSlydsServiceMCPResources(srv *server.Server, impl SlydsServiceMCPRe
                         },
                 },
         )
+}
+
+// SlydsServiceMCPCompleter provides auto-completion for resource template params
+// and prompt arguments. Each method handles one completable field.
+type SlydsServiceMCPCompleter interface {
+        CompleteName(ctx mcpcore.PromptContext, ref mcpcore.CompletionRef, arg mcpcore.CompletionArgument) (mcpcore.CompletionResult, error)
+        CompleteN(ctx mcpcore.PromptContext, ref mcpcore.CompletionRef, arg mcpcore.CompletionArgument) (mcpcore.CompletionResult, error)
+}
+
+// RegisterSlydsServiceMCPCompletions registers auto-completion handlers from SlydsService.
+func RegisterSlydsServiceMCPCompletions(srv *server.Server, completer SlydsServiceMCPCompleter) <span class="cov0" title="0">{
+        srv.RegisterCompletion("ref/resource", "slyds://decks/{name}", func(ctx mcpcore.PromptContext, ref mcpcore.CompletionRef, arg mcpcore.CompletionArgument) (mcpcore.CompletionResult, error) </span><span class="cov0" title="0">{
+                switch arg.Name </span>{
+                case "name":<span class="cov0" title="0">
+                        return completer.CompleteName(ctx, ref, arg)</span>
+                default:<span class="cov0" title="0">
+                        return mcpcore.CompletionResult{}, nil</span>
+                }
+        })
+        <span class="cov0" title="0">srv.RegisterCompletion("ref/resource", "slyds://decks/{name}/slides", func(ctx mcpcore.PromptContext, ref mcpcore.CompletionRef, arg mcpcore.CompletionArgument) (mcpcore.CompletionResult, error) </span><span class="cov0" title="0">{
+                switch arg.Name </span>{
+                case "name":<span class="cov0" title="0">
+                        return completer.CompleteName(ctx, ref, arg)</span>
+                default:<span class="cov0" title="0">
+                        return mcpcore.CompletionResult{}, nil</span>
+                }
+        })
+        <span class="cov0" title="0">srv.RegisterCompletion("ref/resource", "slyds://decks/{name}/slides/{n}", func(ctx mcpcore.PromptContext, ref mcpcore.CompletionRef, arg mcpcore.CompletionArgument) (mcpcore.CompletionResult, error) </span><span class="cov0" title="0">{
+                switch arg.Name </span>{
+                case "name":<span class="cov0" title="0">
+                        return completer.CompleteName(ctx, ref, arg)</span>
+                case "n":<span class="cov0" title="0">
+                        return completer.CompleteN(ctx, ref, arg)</span>
+                default:<span class="cov0" title="0">
+                        return mcpcore.CompletionResult{}, nil</span>
+                }
+        })
+        <span class="cov0" title="0">srv.RegisterCompletion("ref/resource", "slyds://decks/{name}/config", func(ctx mcpcore.PromptContext, ref mcpcore.CompletionRef, arg mcpcore.CompletionArgument) (mcpcore.CompletionResult, error) </span><span class="cov0" title="0">{
+                switch arg.Name </span>{
+                case "name":<span class="cov0" title="0">
+                        return completer.CompleteName(ctx, ref, arg)</span>
+                default:<span class="cov0" title="0">
+                        return mcpcore.CompletionResult{}, nil</span>
+                }
+        })
+        <span class="cov0" title="0">srv.RegisterCompletion("ref/resource", "slyds://decks/{name}/agent", func(ctx mcpcore.PromptContext, ref mcpcore.CompletionRef, arg mcpcore.CompletionArgument) (mcpcore.CompletionResult, error) </span><span class="cov0" title="0">{
+                switch arg.Name </span>{
+                case "name":<span class="cov0" title="0">
+                        return completer.CompleteName(ctx, ref, arg)</span>
+                default:<span class="cov0" title="0">
+                        return mcpcore.CompletionResult{}, nil</span>
+                }
+        })
 }
 </pre>
 		
