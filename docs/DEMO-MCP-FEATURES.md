@@ -83,15 +83,29 @@ This is server-driven UI inside the chat — the server controls what options ap
 
 ## 5. Prompts — Structured guidance templates
 
-**Say:** "Use the create-presentation prompt for a talk about Kubernetes Security with 8 slides"
+MCP prompts are server-defined prompt templates that the **client** discovers and invokes — they're not triggered by natural language in chat. The LLM doesn't know about them unless the client surfaces them.
 
-Or browse prompts in Copilot's prompt picker. Three available:
+**In VS Code:** Type `/` in the Copilot chat input to open the prompt picker. MCP prompts from slyds appear as slash commands. Look for:
 
-| Prompt | What to say | What it returns |
-|--------|-------------|-----------------|
-| `create-presentation` | "Use the create-presentation prompt about AI Safety" | Step-by-step guidance with available themes + layouts |
-| `review-slides` | "Use the review-slides prompt for getting-started" | Full deck content with review instructions |
-| `suggest-speaker-notes` | "Use the suggest-speaker-notes prompt for slide 2 of getting-started" | Slide content with speaker notes guidance |
+- `/create-presentation` — takes `topic`, optional `slide_count` and `theme`
+- `/review-slides` — takes `name` (deck name)
+- `/suggest-speaker-notes` — takes `name` and `slide`
+
+**If VS Code doesn't show MCP prompts** in the `/` picker, you can verify they're registered by checking the MCP server logs or using a tool like `curl`:
+
+```bash
+curl -s -X POST http://127.0.0.1:8274/mcp \
+  -H "Content-Type: application/json" \
+  -d '{"jsonrpc":"2.0","id":1,"method":"prompts/list"}' | jq .
+```
+
+**What prompts return:** Unlike tools (which perform actions), prompts return pre-built messages that prime the LLM. For example, `review-slides` reads all slides from the deck and returns them with review instructions — the LLM then uses that context to provide feedback.
+
+| Prompt | Arguments | Output |
+|--------|-----------|--------|
+| `create-presentation` | `topic`, `slide_count`, `theme` | Guidance with available themes + layouts + step-by-step instructions |
+| `review-slides` | `name` (deck) | Full deck content + review checklist |
+| `suggest-speaker-notes` | `name`, `slide` | Slide content + notes guidance |
 
 ---
 
@@ -158,7 +172,7 @@ Repeat any of the above — all features work identically. The proto path uses g
 | 2 | "Create a presentation called k8s-talk titled Kubernetes Overview" | **Elicitation** — theme picker form appears |
 | 3 | "Remove slide 2 from k8s-talk" | **Elicitation** — confirmation dialog |
 | 4 | "Improve slide 1 of k8s-talk — add bullet points about key concepts" | **Sampling** — server↔client LLM round-trip |
-| 5 | "Use the review-slides prompt for getting-started" | **Prompts** — structured review guidance |
+| 5 | Type `/review-slides` in the chat input | **Prompts** — structured review of deck content |
 | 6 | "Show me the server info" | **Resources** — browsable content |
 | 7 | "Check getting-started for issues then build it" | **Tools** — validation + build |
 
