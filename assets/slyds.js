@@ -7,6 +7,7 @@
 
     var totalSlides = document.querySelectorAll('.slide').length;
     var notesWindow = null;
+    var isSandboxed = (window.parent !== window); // MCP App iframe detection
 
     // Timer state — lives in main window so closing/reopening notes preserves it
     var timerStart = null;
@@ -250,14 +251,101 @@
         if (prevBtn) prevBtn.disabled = currentSlide === 1;
         if (nextBtn) nextBtn.disabled = currentSlide === totalSlides;
 
-        // Update speaker notes window if it exists
+        // Update speaker notes (popup window or inline panel)
         updateNotesWindow();
+        updateNotesPanel();
     }
 
     function changeSlide(n) {
         var from = currentSlide;
         currentSlide += n;
         showSlide(currentSlide, from);
+    }
+
+    // ── Inline notes panel (sandboxed/iframe context) ──
+    // In MCP App iframes, window.open() is blocked. Instead we show a
+    // collapsible panel between the slide area and the nav bar.
+
+    function createNotesPanel() {
+        if (document.getElementById('slyds-notes-panel')) return;
+        var panel = document.createElement('div');
+        panel.id = 'slyds-notes-panel';
+        panel.className = 'slyds-notes-panel';
+        panel.style.display = 'none';
+
+        var header = document.createElement('div');
+        header.className = 'slyds-notes-header';
+
+        var titleEl = document.createElement('span');
+        titleEl.className = 'slyds-notes-title';
+        header.appendChild(titleEl);
+
+        var metaEl = document.createElement('span');
+        metaEl.className = 'slyds-notes-meta';
+        header.appendChild(metaEl);
+
+        var closeBtn = document.createElement('button');
+        closeBtn.className = 'slyds-notes-close';
+        closeBtn.textContent = '\u00d7';
+        closeBtn.setAttribute('title', 'Close notes');
+        closeBtn.onclick = function() { toggleNotesPanel(); };
+        header.appendChild(closeBtn);
+
+        var content = document.createElement('div');
+        content.className = 'slyds-notes-content';
+
+        panel.appendChild(header);
+        panel.appendChild(content);
+
+        var nav = document.querySelector('.navigation');
+        if (nav && nav.parentNode) {
+            nav.parentNode.insertBefore(panel, nav);
+        } else {
+            document.querySelector('.slideshow-container').appendChild(panel);
+        }
+    }
+
+    function toggleNotesPanel() {
+        var panel = document.getElementById('slyds-notes-panel');
+        if (!panel) return;
+        var visible = panel.style.display !== 'none';
+        panel.style.display = visible ? 'none' : 'flex';
+        if (!visible) updateNotesPanel();
+    }
+
+    function updateNotesPanel() {
+        var panel = document.getElementById('slyds-notes-panel');
+        if (!panel || panel.style.display === 'none') return;
+        updateNotesContent(
+            panel.querySelector('.slyds-notes-title'),
+            null, // no separate slide number element — included in meta
+            panel.querySelector('.slyds-notes-content'),
+            panel.querySelector('.slyds-notes-meta')
+        );
+    }
+
+    // Shared content update for both popup window and inline panel.
+    // Updates title, slide number, notes content, and reading time.
+    // Notes HTML comes from the user's own .speaker-notes DOM elements — not external input.
+    function updateNotesContent(titleEl, slideNumEl, contentEl, metaEl) {
+        var title = getSlideTitleForSlide(currentSlide);
+        var notes = getNotesForSlide(currentSlide);
+        var readTime = formatReadingTime(getReadingTime(currentSlide));
+        if (titleEl) titleEl.textContent = title;
+        if (slideNumEl) slideNumEl.textContent = currentSlide;
+        if (metaEl) metaEl.textContent = 'Slide ' + currentSlide + '/' + totalSlides + ' \u00b7 ' + readTime + ' read';
+        // Safe: notes HTML is from the user's own slides, not external input.
+        if (contentEl) contentEl.innerHTML = notes; // eslint-disable-line no-unsanitized/property
+    }
+
+    // openSpeakerNotes dispatches to inline panel or popup based on context.
+    // Pass asWindow=true to force the popup (ignored if sandboxed).
+    function openSpeakerNotes(asWindow) {
+        if (!asWindow && isSandboxed) {
+            toggleNotesPanel();
+            return;
+        }
+        openNotesWindow();
     }
 
     function openNotesWindow() {
@@ -326,21 +414,13 @@
 
     function updateNotesWindow() {
         if (notesWindow && !notesWindow.closed) {
-            var title = getSlideTitleForSlide(currentSlide);
-            var notes = getNotesForSlide(currentSlide);
-
-            var titleElement = notesWindow.document.getElementById('notesTitle');
-            var slideNumberElement = notesWindow.document.getElementById('slideNumber');
-            var contentElement = notesWindow.document.getElementById('notesContent');
-
-            if (titleElement && slideNumberElement && contentElement) {
-                titleElement.textContent = title;
-                slideNumberElement.textContent = currentSlide;
-                contentElement.innerHTML = notes;
-                notesWindow.document.title = 'Speaker Notes - ' + title;
-            }
-
-            // Update timer display and reading times
+            updateNotesContent(
+                notesWindow.document.getElementById('notesTitle'),
+                notesWindow.document.getElementById('slideNumber'),
+                notesWindow.document.getElementById('notesContent'),
+                null // popup has its own reading time UI
+            );
+            notesWindow.document.title = 'Speaker Notes - ' + getSlideTitleForSlide(currentSlide);
             updateTimerDisplay();
             updateNotesTimerUI();
         }
@@ -352,12 +432,18 @@
         }
     }
 
+    function closeSpeakerNotes() {
+        closeNotesWindow();
+        var panel = document.getElementById('slyds-notes-panel');
+        if (panel) panel.style.display = 'none';
+    }
+
     // Keyboard navigation
     document.addEventListener('keydown', function (e) {
         if (e.key === 'ArrowLeft') changeSlide(-1);
         if (e.key === 'ArrowRight') changeSlide(1);
-        if (e.key === 'Escape') closeNotesWindow();
-        if (e.key === 'n' || e.key === 'N') openNotesWindow();
+        if (e.key === 'Escape') closeSpeakerNotes();
+        if (e.key === 'n' || e.key === 'N') openSpeakerNotes();
         if (e.key === 't' || e.key === 'T') toggleTimer();
     });
 
@@ -441,7 +527,9 @@
     // Expose to onclick handlers in HTML and MCP App bridge
     window.changeSlide = changeSlide;
     window.showSlide = showSlide;
-    window.openNotesWindow = openNotesWindow;
+    window.openSpeakerNotes = openSpeakerNotes;
+    window.openNotesWindow = openNotesWindow; // legacy — use openSpeakerNotes
+    window.toggleNotesPanel = toggleNotesPanel;
     window.toggleTimer = toggleTimer;
     window.cycleTheme = cycleTheme;
     window.slydsGetCurrentSlide = function() {
@@ -453,5 +541,6 @@
 
     // Initialize
     computeReadingTimes();
+    if (isSandboxed) createNotesPanel();
     showSlide(currentSlide);
 })();
