@@ -3,6 +3,7 @@ package cmd
 import (
 	"context"
 	"fmt"
+	"os"
 	"strconv"
 	"strings"
 
@@ -109,7 +110,10 @@ func buildPreviewHTML(ctx context.Context, deckName string, position int) (strin
 			return "", err
 		}
 	}
-	return applyMCPAppEmbedHints(html), nil
+	html = applyMCPAppEmbedHints(html)
+	fmt.Fprintf(os.Stderr, "preview: deck=%s pos=%d size=%d bridge=%v\n",
+		deckName, position, len(html), mcpAppBridge)
+	return html, nil
 }
 
 // previewDisplayModes is the set of display modes supported by slyds preview

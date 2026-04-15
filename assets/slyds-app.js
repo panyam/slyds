@@ -12,9 +12,41 @@
  *   window.slydsTotalSlides()    — total slide count
  */
 (function() {
-  if (typeof MCPApp === 'undefined') return;
+  var PREFIX = '[slyds-app]';
 
-  // App-side tools: host or LLM can call these directly on the iframe.
+  // --- Diagnostics ---
+  // Logs lifecycle events to the host dev console for debugging preview
+  // rendering issues (e.g. VS Code iframe not showing content).
+  function log(msg) {
+    console.log(PREFIX, msg);
+  }
+
+  log('loaded — slides: ' + (window.slydsTotalSlides ? window.slydsTotalSlides() : '?') +
+      ', slyds.js: ' + (typeof window.changeSlide === 'function' ? 'ok' : 'MISSING'));
+
+  if (typeof MCPApp === 'undefined') {
+    log('bridge not available — running in standalone mode');
+    return;
+  }
+
+  log('bridge found — waiting for connection...');
+
+  MCPApp.on('connected', function(data) {
+    var ctx = data.hostContext || {};
+    log('connected to host' +
+        ' | theme: ' + (ctx.theme || 'none') +
+        ' | capabilities: ' + Object.keys(data.capabilities || {}).join(', '));
+  });
+
+  // Log if bridge fails to connect (2s timeout in bridge).
+  setTimeout(function() {
+    if (!MCPApp.connected) {
+      log('WARNING: bridge not connected after 3s — host may not support MCP Apps');
+    }
+  }, 3000);
+
+  // --- App-side tools ---
+  // Host or LLM can call these directly on the iframe.
   MCPApp.onlisttools = function() {
     return [
       { name: "next_slide", description: "Navigate to next slide" },
@@ -31,6 +63,7 @@
   };
 
   MCPApp.oncalltool = function(params) {
+    log('tool call: ' + params.name);
     switch (params.name) {
       case "next_slide":
         window.changeSlide(1);
@@ -55,10 +88,19 @@
     }
   };
 
-  // Live edit: refresh preview when host pushes edit_slide results.
+  // --- Live edit ---
+  // Refresh preview when host pushes mutation tool results.
   MCPApp.on('toolresult', function(data) {
+    log('toolresult: ' + data.tool);
     if (data.tool === 'edit_slide' || data.tool === 'add_slide' || data.tool === 'remove_slide') {
+      log('refreshing preview...');
       location.reload();
     }
+  });
+
+  // Theme changes from host.
+  MCPApp.on('hostcontextchanged', function(data) {
+    var ctx = data.hostContext || {};
+    log('host context changed — theme: ' + (ctx.theme || 'none'));
   });
 })();
