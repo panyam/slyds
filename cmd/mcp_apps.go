@@ -3,6 +3,7 @@ package cmd
 import (
 	"context"
 	"fmt"
+	"os"
 	"strconv"
 	"strings"
 
@@ -26,10 +27,36 @@ import (
 var mcpAppsEmbedStyleTag = `<style id="slyds-mcp-embed">` + "\n" + assets.MCPEmbedCSS + `</style>`
 
 // applyMCPAppEmbedHints adds a root class and embed CSS for MCP App iframes.
+// When --app-bridge is enabled, also injects the MCP App Bridge for host
+// theme adaptation and bidirectional tool calls.
 func applyMCPAppEmbedHints(html string) string {
 	html = strings.Replace(html, "<html", "<html class=\"slyds-mcp-embed\"", 1)
 	html = strings.Replace(html, "<head>", "<head>\n"+mcpAppsEmbedStyleTag+"\n", 1)
+	if mcpAppBridge {
+		// Inject MCP App Bridge for host communication (theme adaptation,
+		// bidirectional tools). Idempotent — skips if already present.
+		html = ui.InjectAppBridge(html, &ui.BridgeConfig{
+			Name:    "slyds",
+			Version: Version,
+		})
+		// Inject slyds-specific app JS (navigation tools, live edit).
+		html = injectAppScript(html)
+	}
 	return html
+}
+
+// mcpAppsAppScriptTag wraps the embedded slyds-app.js (MCP App bridge
+// handlers for slide navigation and live edit) in a <script> tag.
+var mcpAppsAppScriptTag = "<script>\n" + assets.SlydsAppJS + "</script>"
+
+// injectAppScript appends the slyds-specific MCP App JS before </body>.
+// Must run AFTER InjectAppBridge so MCPApp is available.
+func injectAppScript(html string) string {
+	lower := strings.ToLower(html)
+	if i := strings.LastIndex(lower, "</body>"); i >= 0 {
+		return html[:i] + mcpAppsAppScriptTag + "\n" + html[i:]
+	}
+	return html + mcpAppsAppScriptTag
 }
 
 // buildDeckForPreview is the single rendering path for both preview_deck and
@@ -83,7 +110,10 @@ func buildPreviewHTML(ctx context.Context, deckName string, position int) (strin
 			return "", err
 		}
 	}
-	return applyMCPAppEmbedHints(html), nil
+	html = applyMCPAppEmbedHints(html)
+	fmt.Fprintf(os.Stderr, "preview: deck=%s pos=%d size=%d bridge=%v\n",
+		deckName, position, len(html), mcpAppBridge)
+	return html, nil
 }
 
 // previewDisplayModes is the set of display modes supported by slyds preview

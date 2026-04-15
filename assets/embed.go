@@ -22,6 +22,9 @@ var SlydsExportJS string
 //go:embed mcp-embed.css
 var MCPEmbedCSS string
 
+//go:embed slyds-app.js
+var SlydsAppJS string
+
 //go:embed all:templates
 var TemplatesFS embed.FS
 

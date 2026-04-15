@@ -30,7 +30,7 @@ service SlydsService {
   rpc CreateDeck(CreateDeckRequest) returns (DeckDescription) {
     option (mcp.v1.mcp_tool) = {
       name: "create_deck"
-      description: "Create a new presentation deck with the given name, title, theme, and slide count."
+      description: "Create a new presentation deck with the given name, title, and slide count. Omit theme to let the user choose interactively via the host UI."
       structured_output: true
     };
     option (mcp.v1.mcp_elicit) = {

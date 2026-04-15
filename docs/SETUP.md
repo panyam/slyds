@@ -21,7 +21,7 @@ slyds MCP supports three transports:
 | Transport | Flag | When to use |
 |-----------|------|-------------|
 | **Stdio** | `--stdio` | Local editors (Claude Desktop, Claude Code, Cursor). Editor spawns slyds directly. No port conflicts, no server to manage. |
-| **Streamable HTTP** | (default) | Multi-client, remote access, curl testing. Runs on `:6274`. |
+| **Streamable HTTP** | (default) | Multi-client, remote access, curl testing. Runs on `:8274`. |
 | **SSE** | `--sse` | Legacy clients that don't support Streamable HTTP. Same port. |
 
 **Stdio** is recommended for local development. The editor spawns `slyds mcp --stdio` as a subprocess — no separate server to start, no port to remember.
@@ -41,10 +41,10 @@ All three transports, all testable locally.
 make demo
 
 # Streamable HTTP
-make dev-http          # http://127.0.0.1:6274/mcp
+make dev-http          # http://127.0.0.1:8274/mcp
 
 # SSE
-make dev-sse           # http://127.0.0.1:6274/sse + /message
+make dev-sse           # http://127.0.0.1:8274/sse + /message
 
 # Stdio (pipe testing)
 make dev-stdio         # reads JSON-RPC from stdin
@@ -104,7 +104,7 @@ See [issue #63](https://github.com/panyam/slyds/issues/63) for planned JWT/OAuth
 | Symptom | Fix |
 |---------|-----|
 | `command not found: slyds` | Run `go install github.com/panyam/slyds@latest` or `make install` |
-| `Connection refused` | Ensure `slyds mcp` is running. Check port with `lsof -i :6274`. |
+| `Connection refused` | Ensure `slyds mcp` is running. Check port with `lsof -i :8274`. |
 | Tools not showing in Claude | Restart Claude Desktop/Code after editing config. Check `slyds version` matches. |
 | `401 Unauthorized` | Add `Authorization: Bearer <token>` header, or remove `--token` from server. |
 | Tunnel URL not working | Ensure local server is running before starting tunnel. Check ngrok dashboard at `http://127.0.0.1:4040`. |

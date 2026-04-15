@@ -26,7 +26,7 @@ var mcpCmd = &cobra.Command{
 	Long: `mcp starts an MCP server exposing slyds deck operations as semantic tools
 and deck content as browsable resources.
 
-  slyds mcp                          Streamable HTTP on 127.0.0.1:6274
+  slyds mcp                          Streamable HTTP on 127.0.0.1:8274
   slyds mcp --sse                    Legacy HTTP+SSE transport
   slyds mcp --deck-root ./decks      Serve decks from a specific directory`,
 	Args: cobra.NoArgs,
@@ -43,16 +43,18 @@ var (
 	mcpUseStdio     bool
 	mcpDeckRoot     string
 	mcpAllowOrigins []string
+	mcpAppBridge    bool
 )
 
 func init() {
-	mcpCmd.Flags().StringVar(&mcpListen, "listen", "127.0.0.1:6274", "Listen address")
+	mcpCmd.Flags().StringVar(&mcpListen, "listen", "127.0.0.1:8274", "Listen address")
 	mcpCmd.Flags().StringVar(&mcpToken, "token", "", "Bearer token for authentication")
 	mcpCmd.Flags().StringVar(&mcpPublicURL, "public-url", "", "Public URL for reverse proxy")
 	mcpCmd.Flags().BoolVar(&mcpUseSSE, "sse", false, "Use legacy HTTP+SSE transport")
 	mcpCmd.Flags().BoolVar(&mcpUseStdio, "stdio", false, "Use stdio transport (Content-Length framed JSON-RPC on stdin/stdout)")
 	mcpCmd.Flags().StringVar(&mcpDeckRoot, "deck-root", "", "Root directory for deck discovery (default: $SLYDS_DECK_ROOT, or current directory)")
 	mcpCmd.Flags().StringSliceVar(&mcpAllowOrigins, "allow-origin", nil, "Allowed Origin headers (default: localhost only). Use '*' to allow all origins (e.g. behind a tunnel)")
+	mcpCmd.Flags().BoolVar(&mcpAppBridge, "app-bridge", true, "Inject MCP App Bridge into previews (host theme adaptation, interactive navigation). Disable with --app-bridge=false if the bridge breaks preview rendering in your host.")
 	rootCmd.AddCommand(mcpCmd)
 }
 

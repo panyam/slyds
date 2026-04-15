@@ -37,7 +37,7 @@ message CreateDeckRequest {
   string name = 1;
   // Presentation title.
   string title = 2;
-  // Theme: default, dark, minimal, corporate, hacker.
+  // Theme (optional — omit to let the user choose interactively).
   optional string theme = 3;
   // Number of slides to scaffold (default: 3).
   optional int32 slides = 4;

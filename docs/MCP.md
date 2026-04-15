@@ -35,7 +35,7 @@ slyds init "Q3 Review" --theme corporate -n 8
 
 ```bash
 slyds mcp --deck-root ~/presentations/
-# MCP server (Streamable HTTP) on 127.0.0.1:6274 — deck root: /Users/you/presentations
+# MCP server (Streamable HTTP) on 127.0.0.1:8274 — deck root: /Users/you/presentations
 ```
 
 ### 4. Connect your agent
@@ -96,7 +96,7 @@ Agents browse resources to discover and read deck content — no mutations.
 slyds mcp [flags]
 
 --deck-root string    Root directory for deck discovery (default ".")
---listen string       Listen address (default "127.0.0.1:6274")
+--listen string       Listen address (default "127.0.0.1:8274")
 --token string        Bearer token for authentication
 --public-url string   Public URL for reverse proxy deployments
 --sse                 Use legacy HTTP+SSE transport instead of Streamable HTTP
@@ -107,8 +107,8 @@ slyds mcp [flags]
 
 | Transport | Flag | Port | Clients |
 |-----------|------|------|---------|
-| **Streamable HTTP** | (default) | 6274 | Any HTTP client, remote agents |
-| **SSE** | `--sse` | 6274 | Legacy SSE clients |
+| **Streamable HTTP** | (default) | 8274 | Any HTTP client, remote agents |
+| **SSE** | `--sse` | 8274 | Legacy SSE clients |
 | **stdio** | `--stdio` | — | Local editors (Cursor, Claude Desktop, VS Code) |
 
 ## Slide Identity
@@ -188,7 +188,7 @@ Streamable HTTP transport uses an in-memory EventStore (1000 events per stream) 
    {
      "mcpServers": {
        "slyds": {
-         "url": "http://127.0.0.1:6274/mcp"
+         "url": "http://127.0.0.1:8274/mcp"
        }
      }
    }
@@ -219,7 +219,7 @@ Try it: *"List my presentations"* → agent calls `resources/read slyds://decks`
 {
   "mcpServers": {
     "slyds": {
-      "url": "http://127.0.0.1:6274/mcp"
+      "url": "http://127.0.0.1:8274/mcp"
     }
   }
 }
@@ -248,7 +248,7 @@ Try it: *"List my presentations"* → agent calls `resources/read slyds://decks`
 {
   "mcpServers": {
     "slyds": {
-      "url": "http://127.0.0.1:6274/mcp"
+      "url": "http://127.0.0.1:8274/mcp"
     }
   }
 }
@@ -297,7 +297,7 @@ You can use `${workspaceFolder}` in `--deck-root` to point at a repo folder.
   "servers": {
     "slyds": {
       "type": "http",
-      "url": "http://127.0.0.1:6274/mcp"
+      "url": "http://127.0.0.1:8274/mcp"
     }
   }
 }
@@ -306,7 +306,7 @@ You can use `${workspaceFolder}` in `--deck-root` to point at a repo folder.
 Example (this repo’s `examples/` decks):
 
 ```bash
-slyds mcp --listen 127.0.0.1:6274 --deck-root /path/to/slyds/examples
+slyds mcp --listen 127.0.0.1:8274 --deck-root /path/to/slyds/examples
 ```
 
 Use **MCP: Open Workspace Folder MCP Configuration** or **MCP: Add Server** from the Command Palette. Trust the server when prompted. Check [VS Code release notes](https://code.visualstudio.com/updates) if anything is missing.
@@ -474,7 +474,7 @@ slyds mcp --deck-root ~/presentations/
 ### Behind HTTPS / reverse proxy
 
 ```bash
-slyds mcp --listen 127.0.0.1:6274 \
+slyds mcp --listen 127.0.0.1:8274 \
   --public-url https://mcp.example.com/mcp \
   --token YOUR_SECRET
 ```
@@ -503,25 +503,25 @@ make e2e       # MCP e2e tests only (full agent workflow via httptest)
 slyds mcp --deck-root examples/
 
 # Initialize session
-RESP=$(curl -si -X POST http://127.0.0.1:6274/mcp \
+RESP=$(curl -si -X POST http://127.0.0.1:8274/mcp \
   -H 'Content-Type: application/json' \
   -d '{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"protocolVersion":"2024-11-05","capabilities":{},"clientInfo":{"name":"curl","version":"1"}}}')
 SESSION=$(echo "$RESP" | grep -i mcp-session-id | awk '{print $2}' | tr -d '\r')
 
 # Send initialized notification
-curl -s -X POST http://127.0.0.1:6274/mcp \
+curl -s -X POST http://127.0.0.1:8274/mcp \
   -H "Mcp-Session-Id: $SESSION" \
   -H 'Content-Type: application/json' \
   -d '{"jsonrpc":"2.0","method":"notifications/initialized"}'
 
 # List decks
-curl -s -X POST http://127.0.0.1:6274/mcp \
+curl -s -X POST http://127.0.0.1:8274/mcp \
   -H "Mcp-Session-Id: $SESSION" \
   -H 'Content-Type: application/json' \
   -d '{"jsonrpc":"2.0","id":2,"method":"resources/read","params":{"uri":"slyds://decks"}}' | python3 -m json.tool
 
 # Call a tool
-curl -s -X POST http://127.0.0.1:6274/mcp \
+curl -s -X POST http://127.0.0.1:8274/mcp \
   -H "Mcp-Session-Id: $SESSION" \
   -H 'Content-Type: application/json' \
   -d '{"jsonrpc":"2.0","id":3,"method":"tools/call","params":{"name":"describe_deck","arguments":{"deck":"slyds-intro"}}}' | python3 -m json.tool

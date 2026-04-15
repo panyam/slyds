@@ -58,3 +58,30 @@ html.slyds-mcp-embed .slide.active {
 html.slyds-mcp-embed .slide-nav {
   flex-shrink: 0;
 }
+
+/* ── Host dark mode adaptation ──
+ * The MCP App Bridge sets data-theme="dark" when the host (Claude, VS Code,
+ * etc.) uses a dark theme. These rules adapt the preview CHROME (container
+ * background, nav bar, buttons) — slide content keeps its own deck theme.
+ * CSS custom properties from the host are used with sensible fallbacks.
+ */
+html.slyds-mcp-embed[data-theme="dark"] body {
+  background: var(--color-background-primary, #1a1a1a);
+  color: var(--color-text-primary, #e0e0e0);
+}
+
+html.slyds-mcp-embed[data-theme="dark"] .navigation {
+  background: var(--color-background-secondary, #2a2a2a);
+  border-color: var(--color-border-primary, #444);
+}
+
+html.slyds-mcp-embed[data-theme="dark"] .navigation button,
+html.slyds-mcp-embed[data-theme="dark"] .navigation .nav-button {
+  color: var(--color-text-primary, #e0e0e0);
+  background: var(--color-background-tertiary, #333);
+  border-color: var(--color-border-primary, #555);
+}
+
+html.slyds-mcp-embed[data-theme="dark"] .navigation .slide-counter {
+  color: var(--color-text-secondary, #aaa);
+}

@@ -17,7 +17,7 @@
 
 set -euo pipefail
 
-PORT="${SLYDS_MCP_PORT:-6274}"
+PORT="${SLYDS_MCP_PORT:-8274}"
 TOKEN="${SLYDS_MCP_TOKEN:-}"
 TOOL="${TOOL:-cf}"
 NGROK_DOMAIN="${NGROK_DOMAIN:-}"

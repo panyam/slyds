@@ -34,13 +34,14 @@ registration path differs.`,
 
 func init() {
 	// Reuse the same flags as mcp command
-	mcpProtoCmd.Flags().StringVar(&mcpListen, "listen", "127.0.0.1:6274", "Listen address")
+	mcpProtoCmd.Flags().StringVar(&mcpListen, "listen", "127.0.0.1:8274", "Listen address")
 	mcpProtoCmd.Flags().StringVar(&mcpToken, "token", "", "Bearer token for authentication")
 	mcpProtoCmd.Flags().StringVar(&mcpPublicURL, "public-url", "", "Public URL for reverse proxy")
 	mcpProtoCmd.Flags().BoolVar(&mcpUseSSE, "sse", false, "Use legacy HTTP+SSE transport")
 	mcpProtoCmd.Flags().BoolVar(&mcpUseStdio, "stdio", false, "Use stdio transport")
 	mcpProtoCmd.Flags().StringVar(&mcpDeckRoot, "deck-root", "", "Root directory for deck discovery")
 	mcpProtoCmd.Flags().StringSliceVar(&mcpAllowOrigins, "allow-origin", nil, "Allowed Origin headers. Use '*' for all.")
+	mcpProtoCmd.Flags().BoolVar(&mcpAppBridge, "app-bridge", true, "Inject MCP App Bridge into previews. Disable with --app-bridge=false if needed.")
 	rootCmd.AddCommand(mcpProtoCmd)
 }
 

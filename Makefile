@@ -101,7 +101,7 @@ gh-pages: examples
 # =============================================================================
 
 DEMO_DIR := /tmp/slyds-demo
-SLYDS_MCP_PORT ?= 6274
+SLYDS_MCP_PORT ?= 8274
 
 # Scaffold 3 demo decks for testing all transports and LLM integrations.
 demo: build
