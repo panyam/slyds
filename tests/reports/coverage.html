@@ -71,7 +71,7 @@
 				
 				<option value="file7">github.com/panyam/slyds/cmd/mcp.go (19.8%)</option>
 				
-				<option value="file8">github.com/panyam/slyds/cmd/mcp_apps.go (81.0%)</option>
+				<option value="file8">github.com/panyam/slyds/cmd/mcp_apps.go (81.1%)</option>
 				
 				<option value="file9">github.com/panyam/slyds/cmd/mcp_completions.go (81.6%)</option>
 				
@@ -188,6 +188,9 @@ var SlydsExportJS string
 
 //go:embed mcp-embed.css
 var MCPEmbedCSS string
+
+//go:embed slyds-app.js
+var SlydsAppJS string
 
 //go:embed all:templates
 var TemplatesFS embed.FS
@@ -1114,12 +1117,36 @@ import (
 // the postMessage `ui/notifications/size-changed` shim (GH issue #75).
 var mcpAppsEmbedStyleTag = `&lt;style id="slyds-mcp-embed"&gt;` + "\n" + assets.MCPEmbedCSS + `&lt;/style&gt;`
 
-// applyMCPAppEmbedHints adds a root class and embed CSS for MCP App iframes.
+// applyMCPAppEmbedHints adds a root class, embed CSS, and the MCP App Bridge
+// for MCP App iframes. The bridge enables host theme adaptation (dark mode,
+// CSS variables, fonts) and bidirectional tool calls (slide navigation).
 func applyMCPAppEmbedHints(html string) string <span class="cov8" title="1">{
         html = strings.Replace(html, "&lt;html", "&lt;html class=\"slyds-mcp-embed\"", 1)
         html = strings.Replace(html, "&lt;head&gt;", "&lt;head&gt;\n"+mcpAppsEmbedStyleTag+"\n", 1)
+        // Inject MCP App Bridge for host communication (theme adaptation,
+        // bidirectional tools). Idempotent — skips if already present.
+        html = ui.InjectAppBridge(html, &amp;ui.BridgeConfig{
+                Name:    "slyds",
+                Version: Version,
+        })
+        // Inject slyds-specific app JS (navigation tools, live edit).
+        html = injectAppScript(html)
         return html
 }</span>
+
+// mcpAppsAppScriptTag wraps the embedded slyds-app.js (MCP App bridge
+// handlers for slide navigation and live edit) in a &lt;script&gt; tag.
+var mcpAppsAppScriptTag = "&lt;script&gt;\n" + assets.SlydsAppJS + "&lt;/script&gt;"
+
+// injectAppScript appends the slyds-specific MCP App JS before &lt;/body&gt;.
+// Must run AFTER InjectAppBridge so MCPApp is available.
+func injectAppScript(html string) string <span class="cov8" title="1">{
+        lower := strings.ToLower(html)
+        if i := strings.LastIndex(lower, "&lt;/body&gt;"); i &gt;= 0 </span><span class="cov8" title="1">{
+                return html[:i] + mcpAppsAppScriptTag + "\n" + html[i:]
+        }</span>
+        <span class="cov0" title="0">return html + mcpAppsAppScriptTag</span>
+}
 
 // buildDeckForPreview is the single rendering path for both preview_deck and
 // preview_slide. Goes through d.Build() (same templar loader as `slyds serve`),
