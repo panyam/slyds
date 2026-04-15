@@ -416,6 +416,84 @@ func TestE2E_FullscreenDisplayMode(t *testing.T) {
 	}
 }
 
+// --- Bridge integration tests (#100, #101) ---
+
+// TestE2E_PreviewContainsBridge verifies the MCP App Bridge is injected
+// into preview HTML, enabling host communication.
+func TestE2E_PreviewContainsBridge(t *testing.T) {
+	root := t.TempDir()
+	core.CreateInDir("Bridge Test", 2, "default", filepath.Join(root, "deck"), true)
+	c := newSlydsMCPClientWithUI(t, root)
+	c.ToolCall("preview_deck", map[string]any{"deck": "deck"})
+	html := c.ReadResource("ui://slyds/decks/deck/preview")
+
+	checks := map[string]string{
+		"mcpkit:app-bridge":   "bridge sentinel",
+		"MCPAppConfig":        "bridge config object",
+		`"slyds"`:             "app name in config",
+	}
+	for marker, desc := range checks {
+		if !strings.Contains(html, marker) {
+			t.Errorf("preview missing %s (marker: %q)", desc, marker)
+		}
+	}
+}
+
+// TestE2E_PreviewContainsDarkModeCSS verifies that host dark mode
+// adaptation CSS rules are present in the preview HTML.
+func TestE2E_PreviewContainsDarkModeCSS(t *testing.T) {
+	root := t.TempDir()
+	core.CreateInDir("Dark Test", 2, "default", filepath.Join(root, "deck"), true)
+	c := newSlydsMCPClientWithUI(t, root)
+	c.ToolCall("preview_deck", map[string]any{"deck": "deck"})
+	html := c.ReadResource("ui://slyds/decks/deck/preview")
+
+	if !strings.Contains(html, `[data-theme="dark"]`) {
+		t.Error("preview missing dark mode CSS rules")
+	}
+}
+
+// TestE2E_PreviewContainsAppJS verifies that slyds-app.js (navigation
+// tools, live edit handler) is injected into the preview HTML.
+func TestE2E_PreviewContainsAppJS(t *testing.T) {
+	root := t.TempDir()
+	core.CreateInDir("App JS Test", 2, "default", filepath.Join(root, "deck"), true)
+	c := newSlydsMCPClientWithUI(t, root)
+	c.ToolCall("preview_deck", map[string]any{"deck": "deck"})
+	html := c.ReadResource("ui://slyds/decks/deck/preview")
+
+	checks := map[string]string{
+		"onlisttools":   "app-side tool listing",
+		"oncalltool":    "app-side tool handler",
+		"next_slide":    "next slide navigation tool",
+		"goto_slide":    "goto slide navigation tool",
+		"get_current_slide": "current slide query tool",
+		"toolresult":    "live edit event listener",
+	}
+	for marker, desc := range checks {
+		if !strings.Contains(html, marker) {
+			t.Errorf("preview missing %s (marker: %q)", desc, marker)
+		}
+	}
+}
+
+// TestE2E_PreviewSlideContainsBridge verifies that slide-specific previews
+// also include the bridge (same pipeline as deck preview).
+func TestE2E_PreviewSlideContainsBridge(t *testing.T) {
+	root := t.TempDir()
+	core.CreateInDir("Slide Bridge", 3, "default", filepath.Join(root, "deck"), true)
+	c := newSlydsMCPClientWithUI(t, root)
+	c.ToolCall("preview_slide", map[string]any{"deck": "deck", "position": 2})
+	html := c.ReadResource("ui://slyds/decks/deck/slides/2/preview")
+
+	if !strings.Contains(html, "mcpkit:app-bridge") {
+		t.Error("slide preview missing bridge")
+	}
+	if !strings.Contains(html, "oncalltool") {
+		t.Error("slide preview missing app JS")
+	}
+}
+
 // --- Helpers to extract tool defs for unit testing ---
 
 func previewDeckToolDef(root string) server.Tool {

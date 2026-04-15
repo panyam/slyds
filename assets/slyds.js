@@ -438,11 +438,18 @@
         } catch (e) { /* ignore */ }
     })();
 
-    // Expose to onclick handlers in HTML
+    // Expose to onclick handlers in HTML and MCP App bridge
     window.changeSlide = changeSlide;
+    window.showSlide = showSlide;
     window.openNotesWindow = openNotesWindow;
     window.toggleTimer = toggleTimer;
     window.cycleTheme = cycleTheme;
+    window.slydsGetCurrentSlide = function() {
+        return currentSlide + 1; // 1-based
+    };
+    window.slydsTotalSlides = function() {
+        return document.querySelectorAll('.slide').length;
+    };
 
     // Initialize
     computeReadingTimes();

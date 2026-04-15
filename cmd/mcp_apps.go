@@ -25,11 +25,35 @@ import (
 // the postMessage `ui/notifications/size-changed` shim (GH issue #75).
 var mcpAppsEmbedStyleTag = `<style id="slyds-mcp-embed">` + "\n" + assets.MCPEmbedCSS + `</style>`
 
-// applyMCPAppEmbedHints adds a root class and embed CSS for MCP App iframes.
+// applyMCPAppEmbedHints adds a root class, embed CSS, and the MCP App Bridge
+// for MCP App iframes. The bridge enables host theme adaptation (dark mode,
+// CSS variables, fonts) and bidirectional tool calls (slide navigation).
 func applyMCPAppEmbedHints(html string) string {
 	html = strings.Replace(html, "<html", "<html class=\"slyds-mcp-embed\"", 1)
 	html = strings.Replace(html, "<head>", "<head>\n"+mcpAppsEmbedStyleTag+"\n", 1)
+	// Inject MCP App Bridge for host communication (theme adaptation,
+	// bidirectional tools). Idempotent — skips if already present.
+	html = ui.InjectAppBridge(html, &ui.BridgeConfig{
+		Name:    "slyds",
+		Version: Version,
+	})
+	// Inject slyds-specific app JS (navigation tools, live edit).
+	html = injectAppScript(html)
 	return html
+}
+
+// mcpAppsAppScriptTag wraps the embedded slyds-app.js (MCP App bridge
+// handlers for slide navigation and live edit) in a <script> tag.
+var mcpAppsAppScriptTag = "<script>\n" + assets.SlydsAppJS + "</script>"
+
+// injectAppScript appends the slyds-specific MCP App JS before </body>.
+// Must run AFTER InjectAppBridge so MCPApp is available.
+func injectAppScript(html string) string {
+	lower := strings.ToLower(html)
+	if i := strings.LastIndex(lower, "</body>"); i >= 0 {
+		return html[:i] + mcpAppsAppScriptTag + "\n" + html[i:]
+	}
+	return html + mcpAppsAppScriptTag
 }
 
 // buildDeckForPreview is the single rendering path for both preview_deck and
