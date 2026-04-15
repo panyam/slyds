@@ -94,7 +94,7 @@ No server to start. Editor spawns slyds directly.
 Start server separately:
 ```bash
 slyds mcp --deck-root <PATH_TO_DECKS>
-# Streamable HTTP on 127.0.0.1:6274
+# Streamable HTTP on 127.0.0.1:8274
 ```
 
 Config for all editors:
@@ -102,7 +102,7 @@ Config for all editors:
 {
   "mcpServers": {
     "slyds": {
-      "url": "http://127.0.0.1:6274/mcp"
+      "url": "http://127.0.0.1:8274/mcp"
     }
   }
 }
@@ -135,7 +135,7 @@ make tunnel   # or: bash scripts/tunnel.sh
 {
   "mcpServers": {
     "slyds": {
-      "url": "http://127.0.0.1:6274/mcp",
+      "url": "http://127.0.0.1:8274/mcp",
       "headers": {
         "Authorization": "Bearer <SECRET>"
       }
@@ -154,7 +154,7 @@ make tunnel   # or: bash scripts/tunnel.sh
 
 **curl (HTTP):**
 ```bash
-curl -s -X POST http://127.0.0.1:6274/mcp \
+curl -s -X POST http://127.0.0.1:8274/mcp \
   -H 'Content-Type: application/json' \
   -d '{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"protocolVersion":"2025-03-26","capabilities":{},"clientInfo":{"name":"curl","version":"1"}}}'
 ```

@@ -2,7 +2,7 @@
   "servers": {
     "slyds": {
       "type": "http",
-      "url": "http://127.0.0.1:6274/mcp"
+      "url": "http://127.0.0.1:8274/mcp"
     }
   }
 }

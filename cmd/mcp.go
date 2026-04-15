@@ -26,7 +26,7 @@ var mcpCmd = &cobra.Command{
 	Long: `mcp starts an MCP server exposing slyds deck operations as semantic tools
 and deck content as browsable resources.
 
-  slyds mcp                          Streamable HTTP on 127.0.0.1:6274
+  slyds mcp                          Streamable HTTP on 127.0.0.1:8274
   slyds mcp --sse                    Legacy HTTP+SSE transport
   slyds mcp --deck-root ./decks      Serve decks from a specific directory`,
 	Args: cobra.NoArgs,
@@ -46,7 +46,7 @@ var (
 )
 
 func init() {
-	mcpCmd.Flags().StringVar(&mcpListen, "listen", "127.0.0.1:6274", "Listen address")
+	mcpCmd.Flags().StringVar(&mcpListen, "listen", "127.0.0.1:8274", "Listen address")
 	mcpCmd.Flags().StringVar(&mcpToken, "token", "", "Bearer token for authentication")
 	mcpCmd.Flags().StringVar(&mcpPublicURL, "public-url", "", "Public URL for reverse proxy")
 	mcpCmd.Flags().BoolVar(&mcpUseSSE, "sse", false, "Use legacy HTTP+SSE transport")
