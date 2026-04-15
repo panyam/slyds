@@ -70,7 +70,7 @@ func RegisterSlydsServiceMCP(srv *server.Server, impl SlydsServiceMCPServer) {
 		server.Tool{
 			ToolDef: mcpcore.ToolDef{
 				Name:        "create_deck",
-				Description: "Create a new presentation deck with the given name, title, theme, and slide count.",
+				Description: "Create a new presentation deck with the given name, title, and slide count. Omit theme to let the user choose interactively via the host UI.",
 				InputSchema: json.RawMessage(`{"properties":{"name":{"type":"string"},"slides":{"type":"integer"},"theme":{"type":"string"},"title":{"type":"string"}},"required":["name","title"],"type":"object"}`),
 			},
 			Handler: func(ctx mcpcore.ToolContext, req mcpcore.ToolRequest) (mcpcore.ToolResult, error) {

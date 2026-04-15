@@ -228,7 +228,7 @@ type CreateDeckRequest struct {
 	Name string `protobuf:"bytes,1,opt,name=name,proto3" json:"name,omitempty"`
 	// Presentation title.
 	Title string `protobuf:"bytes,2,opt,name=title,proto3" json:"title,omitempty"`
-	// Theme: default, dark, minimal, corporate, hacker.
+	// Theme (optional — omit to let the user choose interactively).
 	Theme *string `protobuf:"bytes,3,opt,name=theme,proto3,oneof" json:"theme,omitempty"`
 	// Number of slides to scaffold (default: 3).
 	Slides        *int32 `protobuf:"varint,4,opt,name=slides,proto3,oneof" json:"slides,omitempty"`

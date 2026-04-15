@@ -460,14 +460,14 @@ const file_slyds_v1_service_proto_rawDesc = "" +
 	"\x05slide\x18\x02 \x01(\tR\x05slide\"Y\n" +
 	"!SuggestSpeakerNotesPromptResponse\x12 \n" +
 	"\vdescription\x18\x01 \x01(\tR\vdescription\x12\x12\n" +
-	"\x04text\x18\x02 \x01(\tR\x04text2\xd0)\n" +
+	"\x04text\x18\x02 \x01(\tR\x04text2\x8c*\n" +
 	"\fSlydsService\x12\xbe\x01\n" +
 	"\tListDecks\x12\x1a.slyds.v1.ListDecksRequest\x1a\x1b.slyds.v1.ListDecksResponse\"x\xca\xf3\x18t\n" +
 	"\n" +
-	"list_decks\x12fList all presentation decks visible to the current workspace with name, title, theme, and slide count.\x12\xd0\x01\n" +
+	"list_decks\x12fList all presentation decks visible to the current workspace with name, title, theme, and slide count.\x12\x8c\x02\n" +
 	"\n" +
-	"CreateDeck\x12\x1b.slyds.v1.CreateDeckRequest\x1a\x19.slyds.v1.DeckDescription\"\x89\x01\xca\xf3\x18c\n" +
-	"\vcreate_deck\x12RCreate a new presentation deck with the given name, title, theme, and slide count. \x01\xe2\xf3\x18\x1e\n" +
+	"CreateDeck\x12\x1b.slyds.v1.CreateDeckRequest\x1a\x19.slyds.v1.DeckDescription\"\xc5\x01\xca\xf3\x18\x9e\x01\n" +
+	"\vcreate_deck\x12\x8c\x01Create a new presentation deck with the given name, title, and slide count. Omit theme to let the user choose interactively via the host UI. \x01\xe2\xf3\x18\x1e\n" +
 	"\x0fChoose a theme:\x12\vThemeChoice\x12\xc3\x01\n" +
 	"\fDescribeDeck\x12\x15.slyds.v1.DeckRequest\x1a\x19.slyds.v1.DeckDescription\"\x80\x01\xca\xf3\x18|\n" +
 	"\rdescribe_deck\x12iGet structured metadata for a deck: title, theme, slide list with layouts, word counts, and notes status. \x01\x12\xa3\x01\n" +

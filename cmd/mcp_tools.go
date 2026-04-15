@@ -120,13 +120,13 @@ func createDeckTool() server.Tool {
 	return server.Tool{
 		ToolDef: mcpcore.ToolDef{
 			Name:        "create_deck",
-			Description: "Create a new presentation deck with the given name, title, theme, and slide count.",
+			Description: "Create a new presentation deck with the given name, title, and slide count. Omit theme to let the user choose interactively via the host UI.",
 			InputSchema: map[string]any{
 				"type": "object",
 				"properties": map[string]any{
 					"name":   propString("Deck name (becomes the deck identifier in the workspace)"),
 					"title":  propString("Presentation title"),
-					"theme":  propString("Theme: default, dark, minimal, corporate, hacker"),
+					"theme":  propString("Theme (optional — omit to let the user choose interactively)"),
 					"slides": propInt("Number of slides to scaffold (default: 3)"),
 				},
 				"required": []string{"name", "title"},
