@@ -43,6 +43,7 @@ var (
 	mcpUseStdio     bool
 	mcpDeckRoot     string
 	mcpAllowOrigins []string
+	mcpAppBridge    bool
 )
 
 func init() {
@@ -53,6 +54,7 @@ func init() {
 	mcpCmd.Flags().BoolVar(&mcpUseStdio, "stdio", false, "Use stdio transport (Content-Length framed JSON-RPC on stdin/stdout)")
 	mcpCmd.Flags().StringVar(&mcpDeckRoot, "deck-root", "", "Root directory for deck discovery (default: $SLYDS_DECK_ROOT, or current directory)")
 	mcpCmd.Flags().StringSliceVar(&mcpAllowOrigins, "allow-origin", nil, "Allowed Origin headers (default: localhost only). Use '*' to allow all origins (e.g. behind a tunnel)")
+	mcpCmd.Flags().BoolVar(&mcpAppBridge, "app-bridge", false, "Inject MCP App Bridge into previews (enables host theme adaptation and interactive navigation)")
 	rootCmd.AddCommand(mcpCmd)
 }
 

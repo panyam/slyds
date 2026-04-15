@@ -41,6 +41,7 @@ func init() {
 	mcpProtoCmd.Flags().BoolVar(&mcpUseStdio, "stdio", false, "Use stdio transport")
 	mcpProtoCmd.Flags().StringVar(&mcpDeckRoot, "deck-root", "", "Root directory for deck discovery")
 	mcpProtoCmd.Flags().StringSliceVar(&mcpAllowOrigins, "allow-origin", nil, "Allowed Origin headers. Use '*' for all.")
+	mcpProtoCmd.Flags().BoolVar(&mcpAppBridge, "app-bridge", false, "Inject MCP App Bridge into previews")
 	rootCmd.AddCommand(mcpProtoCmd)
 }
 

@@ -419,8 +419,10 @@ func TestE2E_FullscreenDisplayMode(t *testing.T) {
 // --- Bridge integration tests (#100, #101) ---
 
 // TestE2E_PreviewContainsBridge verifies the MCP App Bridge is injected
-// into preview HTML, enabling host communication.
+// into preview HTML when --app-bridge is enabled.
 func TestE2E_PreviewContainsBridge(t *testing.T) {
+	mcpAppBridge = true
+	t.Cleanup(func() { mcpAppBridge = false })
 	root := t.TempDir()
 	core.CreateInDir("Bridge Test", 2, "default", filepath.Join(root, "deck"), true)
 	c := newSlydsMCPClientWithUI(t, root)
@@ -454,8 +456,10 @@ func TestE2E_PreviewContainsDarkModeCSS(t *testing.T) {
 }
 
 // TestE2E_PreviewContainsAppJS verifies that slyds-app.js (navigation
-// tools, live edit handler) is injected into the preview HTML.
+// tools, live edit handler) is injected when --app-bridge is enabled.
 func TestE2E_PreviewContainsAppJS(t *testing.T) {
+	mcpAppBridge = true
+	t.Cleanup(func() { mcpAppBridge = false })
 	root := t.TempDir()
 	core.CreateInDir("App JS Test", 2, "default", filepath.Join(root, "deck"), true)
 	c := newSlydsMCPClientWithUI(t, root)
@@ -478,8 +482,10 @@ func TestE2E_PreviewContainsAppJS(t *testing.T) {
 }
 
 // TestE2E_PreviewSlideContainsBridge verifies that slide-specific previews
-// also include the bridge (same pipeline as deck preview).
+// also include the bridge when --app-bridge is enabled.
 func TestE2E_PreviewSlideContainsBridge(t *testing.T) {
+	mcpAppBridge = true
+	t.Cleanup(func() { mcpAppBridge = false })
 	root := t.TempDir()
 	core.CreateInDir("Slide Bridge", 3, "default", filepath.Join(root, "deck"), true)
 	c := newSlydsMCPClientWithUI(t, root)

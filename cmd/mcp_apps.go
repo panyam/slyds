@@ -25,20 +25,22 @@ import (
 // the postMessage `ui/notifications/size-changed` shim (GH issue #75).
 var mcpAppsEmbedStyleTag = `<style id="slyds-mcp-embed">` + "\n" + assets.MCPEmbedCSS + `</style>`
 
-// applyMCPAppEmbedHints adds a root class, embed CSS, and the MCP App Bridge
-// for MCP App iframes. The bridge enables host theme adaptation (dark mode,
-// CSS variables, fonts) and bidirectional tool calls (slide navigation).
+// applyMCPAppEmbedHints adds a root class and embed CSS for MCP App iframes.
+// When --app-bridge is enabled, also injects the MCP App Bridge for host
+// theme adaptation and bidirectional tool calls.
 func applyMCPAppEmbedHints(html string) string {
 	html = strings.Replace(html, "<html", "<html class=\"slyds-mcp-embed\"", 1)
 	html = strings.Replace(html, "<head>", "<head>\n"+mcpAppsEmbedStyleTag+"\n", 1)
-	// Inject MCP App Bridge for host communication (theme adaptation,
-	// bidirectional tools). Idempotent — skips if already present.
-	html = ui.InjectAppBridge(html, &ui.BridgeConfig{
-		Name:    "slyds",
-		Version: Version,
-	})
-	// Inject slyds-specific app JS (navigation tools, live edit).
-	html = injectAppScript(html)
+	if mcpAppBridge {
+		// Inject MCP App Bridge for host communication (theme adaptation,
+		// bidirectional tools). Idempotent — skips if already present.
+		html = ui.InjectAppBridge(html, &ui.BridgeConfig{
+			Name:    "slyds",
+			Version: Version,
+		})
+		// Inject slyds-specific app JS (navigation tools, live edit).
+		html = injectAppScript(html)
+	}
 	return html
 }
 
