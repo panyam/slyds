@@ -94,6 +94,7 @@ func runMCPServer() error {
 	registerTools(srv)
 	registerAppTools(srv)
 	registerCompletions(srv)
+	registerPrompts(srv)
 
 	// Transport selection
 	if mcpUseStdio {

@@ -14,6 +14,7 @@ package slydsv1
 
 import (
 	reflect "reflect"
+	sync "sync"
 	unsafe "unsafe"
 
 	_ "github.com/panyam/slyds/gen/go/mcp/v1"
@@ -28,18 +29,446 @@ const (
 	_ = protoimpl.EnforceVersion(protoimpl.MaxVersion - 20)
 )
 
+// RemoveSlideConfirmation is the elicitation schema for remove_slide.
+type RemoveSlideConfirmation struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Confirm       bool                   `protobuf:"varint,1,opt,name=confirm,proto3" json:"confirm,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *RemoveSlideConfirmation) Reset() {
+	*x = RemoveSlideConfirmation{}
+	mi := &file_slyds_v1_service_proto_msgTypes[0]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *RemoveSlideConfirmation) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*RemoveSlideConfirmation) ProtoMessage() {}
+
+func (x *RemoveSlideConfirmation) ProtoReflect() protoreflect.Message {
+	mi := &file_slyds_v1_service_proto_msgTypes[0]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use RemoveSlideConfirmation.ProtoReflect.Descriptor instead.
+func (*RemoveSlideConfirmation) Descriptor() ([]byte, []int) {
+	return file_slyds_v1_service_proto_rawDescGZIP(), []int{0}
+}
+
+func (x *RemoveSlideConfirmation) GetConfirm() bool {
+	if x != nil {
+		return x.Confirm
+	}
+	return false
+}
+
+// ThemeChoice is the elicitation schema for create_deck when no theme is given.
+type ThemeChoice struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Theme         string                 `protobuf:"bytes,1,opt,name=theme,proto3" json:"theme,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ThemeChoice) Reset() {
+	*x = ThemeChoice{}
+	mi := &file_slyds_v1_service_proto_msgTypes[1]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ThemeChoice) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ThemeChoice) ProtoMessage() {}
+
+func (x *ThemeChoice) ProtoReflect() protoreflect.Message {
+	mi := &file_slyds_v1_service_proto_msgTypes[1]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ThemeChoice.ProtoReflect.Descriptor instead.
+func (*ThemeChoice) Descriptor() ([]byte, []int) {
+	return file_slyds_v1_service_proto_rawDescGZIP(), []int{1}
+}
+
+func (x *ThemeChoice) GetTheme() string {
+	if x != nil {
+		return x.Theme
+	}
+	return ""
+}
+
+type CreatePresentationPromptRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Topic         string                 `protobuf:"bytes,1,opt,name=topic,proto3" json:"topic,omitempty"`
+	SlideCount    *string                `protobuf:"bytes,2,opt,name=slide_count,json=slideCount,proto3,oneof" json:"slide_count,omitempty"`
+	Theme         *string                `protobuf:"bytes,3,opt,name=theme,proto3,oneof" json:"theme,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *CreatePresentationPromptRequest) Reset() {
+	*x = CreatePresentationPromptRequest{}
+	mi := &file_slyds_v1_service_proto_msgTypes[2]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *CreatePresentationPromptRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*CreatePresentationPromptRequest) ProtoMessage() {}
+
+func (x *CreatePresentationPromptRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_slyds_v1_service_proto_msgTypes[2]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use CreatePresentationPromptRequest.ProtoReflect.Descriptor instead.
+func (*CreatePresentationPromptRequest) Descriptor() ([]byte, []int) {
+	return file_slyds_v1_service_proto_rawDescGZIP(), []int{2}
+}
+
+func (x *CreatePresentationPromptRequest) GetTopic() string {
+	if x != nil {
+		return x.Topic
+	}
+	return ""
+}
+
+func (x *CreatePresentationPromptRequest) GetSlideCount() string {
+	if x != nil && x.SlideCount != nil {
+		return *x.SlideCount
+	}
+	return ""
+}
+
+func (x *CreatePresentationPromptRequest) GetTheme() string {
+	if x != nil && x.Theme != nil {
+		return *x.Theme
+	}
+	return ""
+}
+
+type CreatePresentationPromptResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Description   string                 `protobuf:"bytes,1,opt,name=description,proto3" json:"description,omitempty"`
+	Text          string                 `protobuf:"bytes,2,opt,name=text,proto3" json:"text,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *CreatePresentationPromptResponse) Reset() {
+	*x = CreatePresentationPromptResponse{}
+	mi := &file_slyds_v1_service_proto_msgTypes[3]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *CreatePresentationPromptResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*CreatePresentationPromptResponse) ProtoMessage() {}
+
+func (x *CreatePresentationPromptResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_slyds_v1_service_proto_msgTypes[3]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use CreatePresentationPromptResponse.ProtoReflect.Descriptor instead.
+func (*CreatePresentationPromptResponse) Descriptor() ([]byte, []int) {
+	return file_slyds_v1_service_proto_rawDescGZIP(), []int{3}
+}
+
+func (x *CreatePresentationPromptResponse) GetDescription() string {
+	if x != nil {
+		return x.Description
+	}
+	return ""
+}
+
+func (x *CreatePresentationPromptResponse) GetText() string {
+	if x != nil {
+		return x.Text
+	}
+	return ""
+}
+
+type ReviewSlidesPromptRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Name          string                 `protobuf:"bytes,1,opt,name=name,proto3" json:"name,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ReviewSlidesPromptRequest) Reset() {
+	*x = ReviewSlidesPromptRequest{}
+	mi := &file_slyds_v1_service_proto_msgTypes[4]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ReviewSlidesPromptRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ReviewSlidesPromptRequest) ProtoMessage() {}
+
+func (x *ReviewSlidesPromptRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_slyds_v1_service_proto_msgTypes[4]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ReviewSlidesPromptRequest.ProtoReflect.Descriptor instead.
+func (*ReviewSlidesPromptRequest) Descriptor() ([]byte, []int) {
+	return file_slyds_v1_service_proto_rawDescGZIP(), []int{4}
+}
+
+func (x *ReviewSlidesPromptRequest) GetName() string {
+	if x != nil {
+		return x.Name
+	}
+	return ""
+}
+
+type ReviewSlidesPromptResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Description   string                 `protobuf:"bytes,1,opt,name=description,proto3" json:"description,omitempty"`
+	Text          string                 `protobuf:"bytes,2,opt,name=text,proto3" json:"text,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ReviewSlidesPromptResponse) Reset() {
+	*x = ReviewSlidesPromptResponse{}
+	mi := &file_slyds_v1_service_proto_msgTypes[5]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ReviewSlidesPromptResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ReviewSlidesPromptResponse) ProtoMessage() {}
+
+func (x *ReviewSlidesPromptResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_slyds_v1_service_proto_msgTypes[5]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ReviewSlidesPromptResponse.ProtoReflect.Descriptor instead.
+func (*ReviewSlidesPromptResponse) Descriptor() ([]byte, []int) {
+	return file_slyds_v1_service_proto_rawDescGZIP(), []int{5}
+}
+
+func (x *ReviewSlidesPromptResponse) GetDescription() string {
+	if x != nil {
+		return x.Description
+	}
+	return ""
+}
+
+func (x *ReviewSlidesPromptResponse) GetText() string {
+	if x != nil {
+		return x.Text
+	}
+	return ""
+}
+
+type SuggestSpeakerNotesPromptRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Name          string                 `protobuf:"bytes,1,opt,name=name,proto3" json:"name,omitempty"`
+	Slide         string                 `protobuf:"bytes,2,opt,name=slide,proto3" json:"slide,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *SuggestSpeakerNotesPromptRequest) Reset() {
+	*x = SuggestSpeakerNotesPromptRequest{}
+	mi := &file_slyds_v1_service_proto_msgTypes[6]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *SuggestSpeakerNotesPromptRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*SuggestSpeakerNotesPromptRequest) ProtoMessage() {}
+
+func (x *SuggestSpeakerNotesPromptRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_slyds_v1_service_proto_msgTypes[6]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use SuggestSpeakerNotesPromptRequest.ProtoReflect.Descriptor instead.
+func (*SuggestSpeakerNotesPromptRequest) Descriptor() ([]byte, []int) {
+	return file_slyds_v1_service_proto_rawDescGZIP(), []int{6}
+}
+
+func (x *SuggestSpeakerNotesPromptRequest) GetName() string {
+	if x != nil {
+		return x.Name
+	}
+	return ""
+}
+
+func (x *SuggestSpeakerNotesPromptRequest) GetSlide() string {
+	if x != nil {
+		return x.Slide
+	}
+	return ""
+}
+
+type SuggestSpeakerNotesPromptResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Description   string                 `protobuf:"bytes,1,opt,name=description,proto3" json:"description,omitempty"`
+	Text          string                 `protobuf:"bytes,2,opt,name=text,proto3" json:"text,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *SuggestSpeakerNotesPromptResponse) Reset() {
+	*x = SuggestSpeakerNotesPromptResponse{}
+	mi := &file_slyds_v1_service_proto_msgTypes[7]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *SuggestSpeakerNotesPromptResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*SuggestSpeakerNotesPromptResponse) ProtoMessage() {}
+
+func (x *SuggestSpeakerNotesPromptResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_slyds_v1_service_proto_msgTypes[7]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use SuggestSpeakerNotesPromptResponse.ProtoReflect.Descriptor instead.
+func (*SuggestSpeakerNotesPromptResponse) Descriptor() ([]byte, []int) {
+	return file_slyds_v1_service_proto_rawDescGZIP(), []int{7}
+}
+
+func (x *SuggestSpeakerNotesPromptResponse) GetDescription() string {
+	if x != nil {
+		return x.Description
+	}
+	return ""
+}
+
+func (x *SuggestSpeakerNotesPromptResponse) GetText() string {
+	if x != nil {
+		return x.Text
+	}
+	return ""
+}
+
 var File_slyds_v1_service_proto protoreflect.FileDescriptor
 
 const file_slyds_v1_service_proto_rawDesc = "" +
 	"\n" +
-	"\x16slyds/v1/service.proto\x12\bslyds.v1\x1a\x18mcp/v1/annotations.proto\x1a\x15slyds/v1/models.proto2\x9c\x1d\n" +
+	"\x16slyds/v1/service.proto\x12\bslyds.v1\x1a\x18mcp/v1/annotations.proto\x1a\x15slyds/v1/models.proto\"3\n" +
+	"\x17RemoveSlideConfirmation\x12\x18\n" +
+	"\aconfirm\x18\x01 \x01(\bR\aconfirm\"#\n" +
+	"\vThemeChoice\x12\x14\n" +
+	"\x05theme\x18\x01 \x01(\tR\x05theme\"\x92\x01\n" +
+	"\x1fCreatePresentationPromptRequest\x12\x14\n" +
+	"\x05topic\x18\x01 \x01(\tR\x05topic\x12$\n" +
+	"\vslide_count\x18\x02 \x01(\tH\x00R\n" +
+	"slideCount\x88\x01\x01\x12\x19\n" +
+	"\x05theme\x18\x03 \x01(\tH\x01R\x05theme\x88\x01\x01B\x0e\n" +
+	"\f_slide_countB\b\n" +
+	"\x06_theme\"X\n" +
+	" CreatePresentationPromptResponse\x12 \n" +
+	"\vdescription\x18\x01 \x01(\tR\vdescription\x12\x12\n" +
+	"\x04text\x18\x02 \x01(\tR\x04text\"/\n" +
+	"\x19ReviewSlidesPromptRequest\x12\x12\n" +
+	"\x04name\x18\x01 \x01(\tR\x04name\"R\n" +
+	"\x1aReviewSlidesPromptResponse\x12 \n" +
+	"\vdescription\x18\x01 \x01(\tR\vdescription\x12\x12\n" +
+	"\x04text\x18\x02 \x01(\tR\x04text\"L\n" +
+	" SuggestSpeakerNotesPromptRequest\x12\x12\n" +
+	"\x04name\x18\x01 \x01(\tR\x04name\x12\x14\n" +
+	"\x05slide\x18\x02 \x01(\tR\x05slide\"Y\n" +
+	"!SuggestSpeakerNotesPromptResponse\x12 \n" +
+	"\vdescription\x18\x01 \x01(\tR\vdescription\x12\x12\n" +
+	"\x04text\x18\x02 \x01(\tR\x04text2\xd0)\n" +
 	"\fSlydsService\x12\xbe\x01\n" +
 	"\tListDecks\x12\x1a.slyds.v1.ListDecksRequest\x1a\x1b.slyds.v1.ListDecksResponse\"x\xca\xf3\x18t\n" +
 	"\n" +
-	"list_decks\x12fList all presentation decks visible to the current workspace with name, title, theme, and slide count.\x12\xad\x01\n" +
+	"list_decks\x12fList all presentation decks visible to the current workspace with name, title, theme, and slide count.\x12\xd0\x01\n" +
 	"\n" +
-	"CreateDeck\x12\x1b.slyds.v1.CreateDeckRequest\x1a\x19.slyds.v1.DeckDescription\"g\xca\xf3\x18c\n" +
-	"\vcreate_deck\x12RCreate a new presentation deck with the given name, title, theme, and slide count. \x01\x12\xc3\x01\n" +
+	"CreateDeck\x12\x1b.slyds.v1.CreateDeckRequest\x1a\x19.slyds.v1.DeckDescription\"\x89\x01\xca\xf3\x18c\n" +
+	"\vcreate_deck\x12RCreate a new presentation deck with the given name, title, theme, and slide count. \x01\xe2\xf3\x18\x1e\n" +
+	"\x0fChoose a theme:\x12\vThemeChoice\x12\xc3\x01\n" +
 	"\fDescribeDeck\x12\x15.slyds.v1.DeckRequest\x1a\x19.slyds.v1.DeckDescription\"\x80\x01\xca\xf3\x18|\n" +
 	"\rdescribe_deck\x12iGet structured metadata for a deck: title, theme, slide list with layouts, word counts, and notes status. \x01\x12\xa3\x01\n" +
 	"\n" +
@@ -47,23 +476,33 @@ const file_slyds_v1_service_proto_rawDesc = "" +
 	"\vlist_slides\x12KList all slides in a deck with filenames, layouts, titles, and word counts. \x01\x12\xa7\x02\n" +
 	"\tReadSlide\x12\x1a.slyds.v1.ReadSlideRequest\x1a\x19.slyds.v1.SlideReadResult\"\xe2\x01\xca\xf3\x18\xdd\x01\n" +
 	"\n" +
-	"read_slide\x12\xcc\x01Read the HTML content of a slide. Supply either 'slide' (preferred: slug, filename, or position as string) or 'position' (legacy: 1-based integer). Returns content with version for optimistic concurrency. \x01\x12\xee\x01\n" +
-	"\tEditSlide\x12\x1a.slyds.v1.EditSlideRequest\x1a\x19.slyds.v1.SlideEditResult\"\xa9\x01\xca\xf3\x18\xa4\x01\n" +
+	"read_slide\x12\xcc\x01Read the HTML content of a slide. Supply either 'slide' (preferred: slug, filename, or position as string) or 'position' (legacy: 1-based integer). Returns content with version for optimistic concurrency. \x01\x12\xb6\x04\n" +
+	"\tEditSlide\x12\x1a.slyds.v1.EditSlideRequest\x1a\x19.slyds.v1.SlideEditResult\"\xf1\x03\xca\xf3\x18\xec\x03\n" +
 	"\n" +
-	"edit_slide\x12\x93\x01Replace the HTML content of a slide. Pass expected_version (from read_slide) for optimistic concurrency; omit or pass 'latest' for last-write-wins. \x01\x12\xcf\x01\n" +
+	"edit_slide\x12\xdb\x03Replace the HTML content of a slide. Content MUST be a raw HTML fragment (not JSON-escaped) whose root element is <div class='slide' data-layout='...'> — do NOT use class='slide-content' or other variants. Do NOT escape quotes with backslashes. Do NOT include <style> blocks — they pollute global CSS and break navigation; use inline style= attributes instead. Pass expected_version (from read_slide) for optimistic concurrency; omit or pass 'latest' for last-write-wins. \x01\x12\xcf\x01\n" +
 	"\n" +
 	"QuerySlide\x12\x1b.slyds.v1.QuerySlideRequest\x1a\x1c.slyds.v1.QuerySlideResponse\"\x85\x01\xca\xf3\x18\x80\x01\n" +
 	"\vquery_slide\x12oQuery or modify slide HTML using CSS selectors (goquery). Read text, attributes, inner HTML, or mutate content. \x01\x12\xce\x01\n" +
 	"\bAddSlide\x12\x19.slyds.v1.AddSlideRequest\x1a\x1a.slyds.v1.AddSlideResponse\"\x8a\x01\xca\xf3\x18\x85\x01\n" +
-	"\tadd_slide\x12xInsert a new slide at the given position using a layout template. Pass expected_deck_version for optimistic concurrency.\x12\xe9\x01\n" +
-	"\vRemoveSlide\x12\x1c.slyds.v1.RemoveSlideRequest\x1a\x1d.slyds.v1.RemoveSlideResponse\"\x9c\x01\xca\xf3\x18\x97\x01\n" +
-	"\fremove_slide\x12\x86\x01Remove a slide by filename or position number. Remaining slides are renumbered. Pass expected_deck_version for optimistic concurrency.\x12\xbd\x01\n" +
+	"\tadd_slide\x12xInsert a new slide at the given position using a layout template. Pass expected_deck_version for optimistic concurrency.\x12\x9e\x02\n" +
+	"\vRemoveSlide\x12\x1c.slyds.v1.RemoveSlideRequest\x1a\x1d.slyds.v1.RemoveSlideResponse\"\xd1\x01\xca\xf3\x18\x97\x01\n" +
+	"\fremove_slide\x12\x86\x01Remove a slide by filename or position number. Remaining slides are renumbered. Pass expected_deck_version for optimistic concurrency.\xe2\xf3\x181\n" +
+	"\x16Confirm slide removal?\x12\x17RemoveSlideConfirmation\x12\xbd\x01\n" +
 	"\tCheckDeck\x12\x15.slyds.v1.DeckRequest\x1a\x1b.slyds.v1.CheckDeckResponse\"|\xca\xf3\x18x\n" +
 	"\n" +
 	"check_deck\x12cValidate a deck: check for missing files, broken includes, missing speaker notes, and other issues.\x1a\x0310s \x01\x12\xb5\x01\n" +
 	"\tBuildDeck\x12\x15.slyds.v1.DeckRequest\x1a\x1b.slyds.v1.BuildDeckResponse\"t\xca\xf3\x18p\n" +
 	"\n" +
-	"build_deck\x12]Build a self-contained HTML file from the deck. Resolves all includes, inlines CSS/JS/images.\x1a\x0330s\x12\xb8\x01\n" +
+	"build_deck\x12]Build a self-contained HTML file from the deck. Resolves all includes, inlines CSS/JS/images.\x1a\x0330s\x12\xc6\x04\n" +
+	"\fImproveSlide\x12\x1d.slyds.v1.ImproveSlideRequest\x1a\x1e.slyds.v1.ImproveSlideResponse\"\xf6\x03\xca\xf3\x18\xc3\x01\n" +
+	"\rimprove_slide\x12\xb1\x01Improve a slide's content using AI. Reads the current slide, sends it to the client's LLM with your instruction, and applies the result. Requires the client to support sampling.\xea\xf3\x18\xa9\x02\n" +
+	"\xa3\x02You are an HTML presentation slide editor for slyds. You edit raw HTML fragments. The root element must be <div class=\"slide\" data-layout=\"...\">. Do NOT use <style> blocks — use inline style= attributes. Do NOT escape quotes with backslashes. Return ONLY the HTML fragment, no explanation.\x10\xa0\x1f\x12\xd4\x01\n" +
+	"\x12CreatePresentation\x12).slyds.v1.CreatePresentationPromptRequest\x1a*.slyds.v1.CreatePresentationPromptResponse\"g\xda\xf3\x18c\n" +
+	"\x13create-presentation\x12LGenerate guidance messages for creating a new presentation on a given topic.\x12\xae\x01\n" +
+	"\fReviewSlides\x12#.slyds.v1.ReviewSlidesPromptRequest\x1a$.slyds.v1.ReviewSlidesPromptResponse\"S\xda\xf3\x18O\n" +
+	"\rreview-slides\x12>Review a presentation deck for clarity, flow, and consistency.\x12\xc0\x01\n" +
+	"\x13SuggestSpeakerNotes\x12*.slyds.v1.SuggestSpeakerNotesPromptRequest\x1a+.slyds.v1.SuggestSpeakerNotesPromptResponse\"P\xda\xf3\x18L\n" +
+	"\x15suggest-speaker-notes\x123Draft speaker notes for a specific slide in a deck.\x12\xb8\x01\n" +
 	"\rGetServerInfo\x12\x1b.slyds.v1.ServerInfoRequest\x1a\x14.slyds.v1.ServerInfo\"t\xd2\xf3\x18p\n" +
 	"\x13slyds://server/info\x12\vServer Info\x1a\x10application/json\":slyds MCP server version, capabilities, and workspace root\x12\xb5\x01\n" +
 	"\vGetDeckList\x12\x19.slyds.v1.DeckListRequest\x1a\x1b.slyds.v1.ListDecksResponse\"n\xd2\xf3\x18j\n" +
@@ -81,74 +520,105 @@ const file_slyds_v1_service_proto_rawDesc = "" +
 	"\x1aslyds://decks/{name}/agent\x12\vAgent Guide\x1a\rtext/markdown\"\x1dAGENT.md content for the deck*\x04nameB\x8e\x01\n" +
 	"\fcom.slyds.v1B\fServiceProtoP\x01Z/github.com/panyam/slyds/gen/go/slyds/v1;slydsv1\xa2\x02\x03SXX\xaa\x02\bSlyds.V1\xca\x02\bSlyds\\V1\xe2\x02\x14Slyds\\V1\\GPBMetadata\xea\x02\tSlyds::V1b\x06proto3"
 
+var (
+	file_slyds_v1_service_proto_rawDescOnce sync.Once
+	file_slyds_v1_service_proto_rawDescData []byte
+)
+
+func file_slyds_v1_service_proto_rawDescGZIP() []byte {
+	file_slyds_v1_service_proto_rawDescOnce.Do(func() {
+		file_slyds_v1_service_proto_rawDescData = protoimpl.X.CompressGZIP(unsafe.Slice(unsafe.StringData(file_slyds_v1_service_proto_rawDesc), len(file_slyds_v1_service_proto_rawDesc)))
+	})
+	return file_slyds_v1_service_proto_rawDescData
+}
+
+var file_slyds_v1_service_proto_msgTypes = make([]protoimpl.MessageInfo, 8)
 var file_slyds_v1_service_proto_goTypes = []any{
-	(*ListDecksRequest)(nil),               // 0: slyds.v1.ListDecksRequest
-	(*CreateDeckRequest)(nil),              // 1: slyds.v1.CreateDeckRequest
-	(*DeckRequest)(nil),                    // 2: slyds.v1.DeckRequest
-	(*ReadSlideRequest)(nil),               // 3: slyds.v1.ReadSlideRequest
-	(*EditSlideRequest)(nil),               // 4: slyds.v1.EditSlideRequest
-	(*QuerySlideRequest)(nil),              // 5: slyds.v1.QuerySlideRequest
-	(*AddSlideRequest)(nil),                // 6: slyds.v1.AddSlideRequest
-	(*RemoveSlideRequest)(nil),             // 7: slyds.v1.RemoveSlideRequest
-	(*ServerInfoRequest)(nil),              // 8: slyds.v1.ServerInfoRequest
-	(*DeckListRequest)(nil),                // 9: slyds.v1.DeckListRequest
-	(*GetDeckResourceRequest)(nil),         // 10: slyds.v1.GetDeckResourceRequest
-	(*GetSlideListResourceRequest)(nil),    // 11: slyds.v1.GetSlideListResourceRequest
-	(*GetSlideContentResourceRequest)(nil), // 12: slyds.v1.GetSlideContentResourceRequest
-	(*ListDecksResponse)(nil),              // 13: slyds.v1.ListDecksResponse
-	(*DeckDescription)(nil),                // 14: slyds.v1.DeckDescription
-	(*ListSlidesResponse)(nil),             // 15: slyds.v1.ListSlidesResponse
-	(*SlideReadResult)(nil),                // 16: slyds.v1.SlideReadResult
-	(*SlideEditResult)(nil),                // 17: slyds.v1.SlideEditResult
-	(*QuerySlideResponse)(nil),             // 18: slyds.v1.QuerySlideResponse
-	(*AddSlideResponse)(nil),               // 19: slyds.v1.AddSlideResponse
-	(*RemoveSlideResponse)(nil),            // 20: slyds.v1.RemoveSlideResponse
-	(*CheckDeckResponse)(nil),              // 21: slyds.v1.CheckDeckResponse
-	(*BuildDeckResponse)(nil),              // 22: slyds.v1.BuildDeckResponse
-	(*ServerInfo)(nil),                     // 23: slyds.v1.ServerInfo
-	(*SlideContentResource)(nil),           // 24: slyds.v1.SlideContentResource
-	(*DeckConfigResource)(nil),             // 25: slyds.v1.DeckConfigResource
-	(*AgentGuideResource)(nil),             // 26: slyds.v1.AgentGuideResource
+	(*RemoveSlideConfirmation)(nil),           // 0: slyds.v1.RemoveSlideConfirmation
+	(*ThemeChoice)(nil),                       // 1: slyds.v1.ThemeChoice
+	(*CreatePresentationPromptRequest)(nil),   // 2: slyds.v1.CreatePresentationPromptRequest
+	(*CreatePresentationPromptResponse)(nil),  // 3: slyds.v1.CreatePresentationPromptResponse
+	(*ReviewSlidesPromptRequest)(nil),         // 4: slyds.v1.ReviewSlidesPromptRequest
+	(*ReviewSlidesPromptResponse)(nil),        // 5: slyds.v1.ReviewSlidesPromptResponse
+	(*SuggestSpeakerNotesPromptRequest)(nil),  // 6: slyds.v1.SuggestSpeakerNotesPromptRequest
+	(*SuggestSpeakerNotesPromptResponse)(nil), // 7: slyds.v1.SuggestSpeakerNotesPromptResponse
+	(*ListDecksRequest)(nil),                  // 8: slyds.v1.ListDecksRequest
+	(*CreateDeckRequest)(nil),                 // 9: slyds.v1.CreateDeckRequest
+	(*DeckRequest)(nil),                       // 10: slyds.v1.DeckRequest
+	(*ReadSlideRequest)(nil),                  // 11: slyds.v1.ReadSlideRequest
+	(*EditSlideRequest)(nil),                  // 12: slyds.v1.EditSlideRequest
+	(*QuerySlideRequest)(nil),                 // 13: slyds.v1.QuerySlideRequest
+	(*AddSlideRequest)(nil),                   // 14: slyds.v1.AddSlideRequest
+	(*RemoveSlideRequest)(nil),                // 15: slyds.v1.RemoveSlideRequest
+	(*ImproveSlideRequest)(nil),               // 16: slyds.v1.ImproveSlideRequest
+	(*ServerInfoRequest)(nil),                 // 17: slyds.v1.ServerInfoRequest
+	(*DeckListRequest)(nil),                   // 18: slyds.v1.DeckListRequest
+	(*GetDeckResourceRequest)(nil),            // 19: slyds.v1.GetDeckResourceRequest
+	(*GetSlideListResourceRequest)(nil),       // 20: slyds.v1.GetSlideListResourceRequest
+	(*GetSlideContentResourceRequest)(nil),    // 21: slyds.v1.GetSlideContentResourceRequest
+	(*ListDecksResponse)(nil),                 // 22: slyds.v1.ListDecksResponse
+	(*DeckDescription)(nil),                   // 23: slyds.v1.DeckDescription
+	(*ListSlidesResponse)(nil),                // 24: slyds.v1.ListSlidesResponse
+	(*SlideReadResult)(nil),                   // 25: slyds.v1.SlideReadResult
+	(*SlideEditResult)(nil),                   // 26: slyds.v1.SlideEditResult
+	(*QuerySlideResponse)(nil),                // 27: slyds.v1.QuerySlideResponse
+	(*AddSlideResponse)(nil),                  // 28: slyds.v1.AddSlideResponse
+	(*RemoveSlideResponse)(nil),               // 29: slyds.v1.RemoveSlideResponse
+	(*CheckDeckResponse)(nil),                 // 30: slyds.v1.CheckDeckResponse
+	(*BuildDeckResponse)(nil),                 // 31: slyds.v1.BuildDeckResponse
+	(*ImproveSlideResponse)(nil),              // 32: slyds.v1.ImproveSlideResponse
+	(*ServerInfo)(nil),                        // 33: slyds.v1.ServerInfo
+	(*SlideContentResource)(nil),              // 34: slyds.v1.SlideContentResource
+	(*DeckConfigResource)(nil),                // 35: slyds.v1.DeckConfigResource
+	(*AgentGuideResource)(nil),                // 36: slyds.v1.AgentGuideResource
 }
 var file_slyds_v1_service_proto_depIdxs = []int32{
-	0,  // 0: slyds.v1.SlydsService.ListDecks:input_type -> slyds.v1.ListDecksRequest
-	1,  // 1: slyds.v1.SlydsService.CreateDeck:input_type -> slyds.v1.CreateDeckRequest
-	2,  // 2: slyds.v1.SlydsService.DescribeDeck:input_type -> slyds.v1.DeckRequest
-	2,  // 3: slyds.v1.SlydsService.ListSlides:input_type -> slyds.v1.DeckRequest
-	3,  // 4: slyds.v1.SlydsService.ReadSlide:input_type -> slyds.v1.ReadSlideRequest
-	4,  // 5: slyds.v1.SlydsService.EditSlide:input_type -> slyds.v1.EditSlideRequest
-	5,  // 6: slyds.v1.SlydsService.QuerySlide:input_type -> slyds.v1.QuerySlideRequest
-	6,  // 7: slyds.v1.SlydsService.AddSlide:input_type -> slyds.v1.AddSlideRequest
-	7,  // 8: slyds.v1.SlydsService.RemoveSlide:input_type -> slyds.v1.RemoveSlideRequest
-	2,  // 9: slyds.v1.SlydsService.CheckDeck:input_type -> slyds.v1.DeckRequest
-	2,  // 10: slyds.v1.SlydsService.BuildDeck:input_type -> slyds.v1.DeckRequest
-	8,  // 11: slyds.v1.SlydsService.GetServerInfo:input_type -> slyds.v1.ServerInfoRequest
-	9,  // 12: slyds.v1.SlydsService.GetDeckList:input_type -> slyds.v1.DeckListRequest
-	10, // 13: slyds.v1.SlydsService.GetDeck:input_type -> slyds.v1.GetDeckResourceRequest
-	11, // 14: slyds.v1.SlydsService.GetSlideList:input_type -> slyds.v1.GetSlideListResourceRequest
-	12, // 15: slyds.v1.SlydsService.GetSlideContent:input_type -> slyds.v1.GetSlideContentResourceRequest
-	10, // 16: slyds.v1.SlydsService.GetDeckConfig:input_type -> slyds.v1.GetDeckResourceRequest
-	10, // 17: slyds.v1.SlydsService.GetAgentGuide:input_type -> slyds.v1.GetDeckResourceRequest
-	13, // 18: slyds.v1.SlydsService.ListDecks:output_type -> slyds.v1.ListDecksResponse
-	14, // 19: slyds.v1.SlydsService.CreateDeck:output_type -> slyds.v1.DeckDescription
-	14, // 20: slyds.v1.SlydsService.DescribeDeck:output_type -> slyds.v1.DeckDescription
-	15, // 21: slyds.v1.SlydsService.ListSlides:output_type -> slyds.v1.ListSlidesResponse
-	16, // 22: slyds.v1.SlydsService.ReadSlide:output_type -> slyds.v1.SlideReadResult
-	17, // 23: slyds.v1.SlydsService.EditSlide:output_type -> slyds.v1.SlideEditResult
-	18, // 24: slyds.v1.SlydsService.QuerySlide:output_type -> slyds.v1.QuerySlideResponse
-	19, // 25: slyds.v1.SlydsService.AddSlide:output_type -> slyds.v1.AddSlideResponse
-	20, // 26: slyds.v1.SlydsService.RemoveSlide:output_type -> slyds.v1.RemoveSlideResponse
-	21, // 27: slyds.v1.SlydsService.CheckDeck:output_type -> slyds.v1.CheckDeckResponse
-	22, // 28: slyds.v1.SlydsService.BuildDeck:output_type -> slyds.v1.BuildDeckResponse
-	23, // 29: slyds.v1.SlydsService.GetServerInfo:output_type -> slyds.v1.ServerInfo
-	13, // 30: slyds.v1.SlydsService.GetDeckList:output_type -> slyds.v1.ListDecksResponse
-	14, // 31: slyds.v1.SlydsService.GetDeck:output_type -> slyds.v1.DeckDescription
-	15, // 32: slyds.v1.SlydsService.GetSlideList:output_type -> slyds.v1.ListSlidesResponse
-	24, // 33: slyds.v1.SlydsService.GetSlideContent:output_type -> slyds.v1.SlideContentResource
-	25, // 34: slyds.v1.SlydsService.GetDeckConfig:output_type -> slyds.v1.DeckConfigResource
-	26, // 35: slyds.v1.SlydsService.GetAgentGuide:output_type -> slyds.v1.AgentGuideResource
-	18, // [18:36] is the sub-list for method output_type
-	0,  // [0:18] is the sub-list for method input_type
+	8,  // 0: slyds.v1.SlydsService.ListDecks:input_type -> slyds.v1.ListDecksRequest
+	9,  // 1: slyds.v1.SlydsService.CreateDeck:input_type -> slyds.v1.CreateDeckRequest
+	10, // 2: slyds.v1.SlydsService.DescribeDeck:input_type -> slyds.v1.DeckRequest
+	10, // 3: slyds.v1.SlydsService.ListSlides:input_type -> slyds.v1.DeckRequest
+	11, // 4: slyds.v1.SlydsService.ReadSlide:input_type -> slyds.v1.ReadSlideRequest
+	12, // 5: slyds.v1.SlydsService.EditSlide:input_type -> slyds.v1.EditSlideRequest
+	13, // 6: slyds.v1.SlydsService.QuerySlide:input_type -> slyds.v1.QuerySlideRequest
+	14, // 7: slyds.v1.SlydsService.AddSlide:input_type -> slyds.v1.AddSlideRequest
+	15, // 8: slyds.v1.SlydsService.RemoveSlide:input_type -> slyds.v1.RemoveSlideRequest
+	10, // 9: slyds.v1.SlydsService.CheckDeck:input_type -> slyds.v1.DeckRequest
+	10, // 10: slyds.v1.SlydsService.BuildDeck:input_type -> slyds.v1.DeckRequest
+	16, // 11: slyds.v1.SlydsService.ImproveSlide:input_type -> slyds.v1.ImproveSlideRequest
+	2,  // 12: slyds.v1.SlydsService.CreatePresentation:input_type -> slyds.v1.CreatePresentationPromptRequest
+	4,  // 13: slyds.v1.SlydsService.ReviewSlides:input_type -> slyds.v1.ReviewSlidesPromptRequest
+	6,  // 14: slyds.v1.SlydsService.SuggestSpeakerNotes:input_type -> slyds.v1.SuggestSpeakerNotesPromptRequest
+	17, // 15: slyds.v1.SlydsService.GetServerInfo:input_type -> slyds.v1.ServerInfoRequest
+	18, // 16: slyds.v1.SlydsService.GetDeckList:input_type -> slyds.v1.DeckListRequest
+	19, // 17: slyds.v1.SlydsService.GetDeck:input_type -> slyds.v1.GetDeckResourceRequest
+	20, // 18: slyds.v1.SlydsService.GetSlideList:input_type -> slyds.v1.GetSlideListResourceRequest
+	21, // 19: slyds.v1.SlydsService.GetSlideContent:input_type -> slyds.v1.GetSlideContentResourceRequest
+	19, // 20: slyds.v1.SlydsService.GetDeckConfig:input_type -> slyds.v1.GetDeckResourceRequest
+	19, // 21: slyds.v1.SlydsService.GetAgentGuide:input_type -> slyds.v1.GetDeckResourceRequest
+	22, // 22: slyds.v1.SlydsService.ListDecks:output_type -> slyds.v1.ListDecksResponse
+	23, // 23: slyds.v1.SlydsService.CreateDeck:output_type -> slyds.v1.DeckDescription
+	23, // 24: slyds.v1.SlydsService.DescribeDeck:output_type -> slyds.v1.DeckDescription
+	24, // 25: slyds.v1.SlydsService.ListSlides:output_type -> slyds.v1.ListSlidesResponse
+	25, // 26: slyds.v1.SlydsService.ReadSlide:output_type -> slyds.v1.SlideReadResult
+	26, // 27: slyds.v1.SlydsService.EditSlide:output_type -> slyds.v1.SlideEditResult
+	27, // 28: slyds.v1.SlydsService.QuerySlide:output_type -> slyds.v1.QuerySlideResponse
+	28, // 29: slyds.v1.SlydsService.AddSlide:output_type -> slyds.v1.AddSlideResponse
+	29, // 30: slyds.v1.SlydsService.RemoveSlide:output_type -> slyds.v1.RemoveSlideResponse
+	30, // 31: slyds.v1.SlydsService.CheckDeck:output_type -> slyds.v1.CheckDeckResponse
+	31, // 32: slyds.v1.SlydsService.BuildDeck:output_type -> slyds.v1.BuildDeckResponse
+	32, // 33: slyds.v1.SlydsService.ImproveSlide:output_type -> slyds.v1.ImproveSlideResponse
+	3,  // 34: slyds.v1.SlydsService.CreatePresentation:output_type -> slyds.v1.CreatePresentationPromptResponse
+	5,  // 35: slyds.v1.SlydsService.ReviewSlides:output_type -> slyds.v1.ReviewSlidesPromptResponse
+	7,  // 36: slyds.v1.SlydsService.SuggestSpeakerNotes:output_type -> slyds.v1.SuggestSpeakerNotesPromptResponse
+	33, // 37: slyds.v1.SlydsService.GetServerInfo:output_type -> slyds.v1.ServerInfo
+	22, // 38: slyds.v1.SlydsService.GetDeckList:output_type -> slyds.v1.ListDecksResponse
+	23, // 39: slyds.v1.SlydsService.GetDeck:output_type -> slyds.v1.DeckDescription
+	24, // 40: slyds.v1.SlydsService.GetSlideList:output_type -> slyds.v1.ListSlidesResponse
+	34, // 41: slyds.v1.SlydsService.GetSlideContent:output_type -> slyds.v1.SlideContentResource
+	35, // 42: slyds.v1.SlydsService.GetDeckConfig:output_type -> slyds.v1.DeckConfigResource
+	36, // 43: slyds.v1.SlydsService.GetAgentGuide:output_type -> slyds.v1.AgentGuideResource
+	22, // [22:44] is the sub-list for method output_type
+	0,  // [0:22] is the sub-list for method input_type
 	0,  // [0:0] is the sub-list for extension type_name
 	0,  // [0:0] is the sub-list for extension extendee
 	0,  // [0:0] is the sub-list for field type_name
@@ -160,18 +630,20 @@ func file_slyds_v1_service_proto_init() {
 		return
 	}
 	file_slyds_v1_models_proto_init()
+	file_slyds_v1_service_proto_msgTypes[2].OneofWrappers = []any{}
 	type x struct{}
 	out := protoimpl.TypeBuilder{
 		File: protoimpl.DescBuilder{
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_slyds_v1_service_proto_rawDesc), len(file_slyds_v1_service_proto_rawDesc)),
 			NumEnums:      0,
-			NumMessages:   0,
+			NumMessages:   8,
 			NumExtensions: 0,
 			NumServices:   1,
 		},
 		GoTypes:           file_slyds_v1_service_proto_goTypes,
 		DependencyIndexes: file_slyds_v1_service_proto_depIdxs,
+		MessageInfos:      file_slyds_v1_service_proto_msgTypes,
 	}.Build()
 	File_slyds_v1_service_proto = out.File
 	file_slyds_v1_service_proto_goTypes = nil

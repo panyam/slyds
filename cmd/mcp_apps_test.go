@@ -456,7 +456,8 @@ func extractRegisteredTool(root, name string) server.Tool {
 	var listResult struct {
 		Tools []mcpcore.ToolDef `json:"tools"`
 	}
-	json.Unmarshal(listResp.Result, &listResult)
+	resultBytes, _ := json.Marshal(listResp.Result)
+	json.Unmarshal(resultBytes, &listResult)
 
 	for _, tool := range listResult.Tools {
 		if tool.Name == name {
@@ -472,7 +473,8 @@ func extractRegisteredTool(root, name string) server.Tool {
 					}
 					callResp := srv.Dispatch(ctx, callReq)
 					var result mcpcore.ToolResult
-					json.Unmarshal(callResp.Result, &result)
+					crBytes, _ := json.Marshal(callResp.Result)
+						json.Unmarshal(crBytes, &result)
 					return result, nil
 				},
 			}

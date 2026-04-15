@@ -24,21 +24,26 @@ var (
 	_ time.Duration
 )
 
+func floatPtr(v float64) *float64 { return &v }
+
 // --- SlydsService ---
 
 // SlydsServiceMCPServer is the interface that in-process implementations must satisfy.
+// Methods receive mcpcore.ToolContext which provides access to Sample(), Elicit(),
+// EmitProgress(), and other MCP session capabilities.
 type SlydsServiceMCPServer interface {
-	ListDecks(ctx context.Context, req *ListDecksRequest) (*ListDecksResponse, error)
-	CreateDeck(ctx context.Context, req *CreateDeckRequest) (*DeckDescription, error)
-	DescribeDeck(ctx context.Context, req *DeckRequest) (*DeckDescription, error)
-	ListSlides(ctx context.Context, req *DeckRequest) (*ListSlidesResponse, error)
-	ReadSlide(ctx context.Context, req *ReadSlideRequest) (*SlideReadResult, error)
-	EditSlide(ctx context.Context, req *EditSlideRequest) (*SlideEditResult, error)
-	QuerySlide(ctx context.Context, req *QuerySlideRequest) (*QuerySlideResponse, error)
-	AddSlide(ctx context.Context, req *AddSlideRequest) (*AddSlideResponse, error)
-	RemoveSlide(ctx context.Context, req *RemoveSlideRequest) (*RemoveSlideResponse, error)
-	CheckDeck(ctx context.Context, req *DeckRequest) (*CheckDeckResponse, error)
-	BuildDeck(ctx context.Context, req *DeckRequest) (*BuildDeckResponse, error)
+	ListDecks(ctx mcpcore.ToolContext, req *ListDecksRequest) (*ListDecksResponse, error)
+	CreateDeck(ctx mcpcore.ToolContext, req *CreateDeckRequest) (*DeckDescription, error)
+	DescribeDeck(ctx mcpcore.ToolContext, req *DeckRequest) (*DeckDescription, error)
+	ListSlides(ctx mcpcore.ToolContext, req *DeckRequest) (*ListSlidesResponse, error)
+	ReadSlide(ctx mcpcore.ToolContext, req *ReadSlideRequest) (*SlideReadResult, error)
+	EditSlide(ctx mcpcore.ToolContext, req *EditSlideRequest) (*SlideEditResult, error)
+	QuerySlide(ctx mcpcore.ToolContext, req *QuerySlideRequest) (*QuerySlideResponse, error)
+	AddSlide(ctx mcpcore.ToolContext, req *AddSlideRequest) (*AddSlideResponse, error)
+	RemoveSlide(ctx mcpcore.ToolContext, req *RemoveSlideRequest) (*RemoveSlideResponse, error)
+	CheckDeck(ctx mcpcore.ToolContext, req *DeckRequest) (*CheckDeckResponse, error)
+	BuildDeck(ctx mcpcore.ToolContext, req *DeckRequest) (*BuildDeckResponse, error)
+	ImproveSlide(ctx mcpcore.ToolContext, req *ImproveSlideRequest) (*ImproveSlideResponse, error)
 }
 
 // RegisterSlydsServiceMCP registers MCP tools from SlydsService with an in-process implementation.
@@ -137,7 +142,7 @@ func RegisterSlydsServiceMCP(srv *server.Server, impl SlydsServiceMCPServer) {
 		server.Tool{
 			ToolDef: mcpcore.ToolDef{
 				Name:        "edit_slide",
-				Description: "Replace the HTML content of a slide. Pass expected_version (from read_slide) for optimistic concurrency; omit or pass 'latest' for last-write-wins.",
+				Description: "Replace the HTML content of a slide. Content MUST be a raw HTML fragment (not JSON-escaped) whose root element is <div class='slide' data-layout='...'> — do NOT use class='slide-content' or other variants. Do NOT escape quotes with backslashes. Do NOT include <style> blocks — they pollute global CSS and break navigation; use inline style= attributes instead. Pass expected_version (from read_slide) for optimistic concurrency; omit or pass 'latest' for last-write-wins.",
 				InputSchema: json.RawMessage(`{"properties":{"content":{"type":"string"},"deck":{"type":"string"},"expected_version":{"type":"string"},"position":{"type":"integer"},"slide":{"type":"string"}},"required":["deck","content"],"type":"object"}`),
 			},
 			Handler: func(ctx mcpcore.ToolContext, req mcpcore.ToolRequest) (mcpcore.ToolResult, error) {
@@ -244,18 +249,36 @@ func RegisterSlydsServiceMCP(srv *server.Server, impl SlydsServiceMCPServer) {
 				return runtime.ProtoTextResult(resp)
 			},
 		},
+		server.Tool{
+			ToolDef: mcpcore.ToolDef{
+				Name:        "improve_slide",
+				Description: "Improve a slide's content using AI. Reads the current slide, sends it to the client's LLM with your instruction, and applies the result. Requires the client to support sampling.",
+				InputSchema: json.RawMessage(`{"properties":{"deck":{"type":"string"},"instruction":{"type":"string"},"slide":{"type":"string"}},"required":["deck","slide","instruction"],"type":"object"}`),
+			},
+			Handler: func(ctx mcpcore.ToolContext, req mcpcore.ToolRequest) (mcpcore.ToolResult, error) {
+				var in ImproveSlideRequest
+				if err := runtime.BindProto(req, &in); err != nil {
+					return mcpcore.ErrorResult(err.Error()), nil
+				}
+				resp, err := impl.ImproveSlide(ctx, &in)
+				if err != nil {
+					return runtime.RPCError(err)
+				}
+				return runtime.ProtoTextResult(resp)
+			},
+		},
 	)
 }
 
 // SlydsServiceMCPResourceServer is the interface for in-process resource implementations.
 type SlydsServiceMCPResourceServer interface {
-	GetServerInfo(ctx context.Context, req *ServerInfoRequest) (*ServerInfo, error)
-	GetDeckList(ctx context.Context, req *DeckListRequest) (*ListDecksResponse, error)
-	GetDeck(ctx context.Context, req *GetDeckResourceRequest) (*DeckDescription, error)
-	GetSlideList(ctx context.Context, req *GetSlideListResourceRequest) (*ListSlidesResponse, error)
-	GetSlideContent(ctx context.Context, req *GetSlideContentResourceRequest) (*SlideContentResource, error)
-	GetDeckConfig(ctx context.Context, req *GetDeckResourceRequest) (*DeckConfigResource, error)
-	GetAgentGuide(ctx context.Context, req *GetDeckResourceRequest) (*AgentGuideResource, error)
+	GetServerInfo(ctx mcpcore.ResourceContext, req *ServerInfoRequest) (*ServerInfo, error)
+	GetDeckList(ctx mcpcore.ResourceContext, req *DeckListRequest) (*ListDecksResponse, error)
+	GetDeck(ctx mcpcore.ResourceContext, req *GetDeckResourceRequest) (*DeckDescription, error)
+	GetSlideList(ctx mcpcore.ResourceContext, req *GetSlideListResourceRequest) (*ListSlidesResponse, error)
+	GetSlideContent(ctx mcpcore.ResourceContext, req *GetSlideContentResourceRequest) (*SlideContentResource, error)
+	GetDeckConfig(ctx mcpcore.ResourceContext, req *GetDeckResourceRequest) (*DeckConfigResource, error)
+	GetAgentGuide(ctx mcpcore.ResourceContext, req *GetDeckResourceRequest) (*AgentGuideResource, error)
 }
 
 // RegisterSlydsServiceMCPResources registers MCP resources from SlydsService with an in-process implementation.
@@ -386,6 +409,82 @@ func RegisterSlydsServiceMCPResources(srv *server.Server, impl SlydsServiceMCPRe
 	)
 }
 
+// SlydsServiceMCPPromptServer is the interface for in-process prompt implementations.
+type SlydsServiceMCPPromptServer interface {
+	CreatePresentation(ctx mcpcore.PromptContext, req *CreatePresentationPromptRequest) (*CreatePresentationPromptResponse, error)
+	ReviewSlides(ctx mcpcore.PromptContext, req *ReviewSlidesPromptRequest) (*ReviewSlidesPromptResponse, error)
+	SuggestSpeakerNotes(ctx mcpcore.PromptContext, req *SuggestSpeakerNotesPromptRequest) (*SuggestSpeakerNotesPromptResponse, error)
+}
+
+// RegisterSlydsServiceMCPPrompts registers MCP prompts from SlydsService with an in-process implementation.
+func RegisterSlydsServiceMCPPrompts(srv *server.Server, impl SlydsServiceMCPPromptServer) {
+	srv.Register(
+		server.Prompt{
+			PromptDef: mcpcore.PromptDef{
+				Name:        "create-presentation",
+				Description: "Generate guidance messages for creating a new presentation on a given topic.",
+				Arguments: []mcpcore.PromptArgument{
+					{Name: "topic", Description: "", Required: true},
+					{Name: "slide_count", Description: "", Required: false},
+					{Name: "theme", Description: "", Required: false},
+				},
+			},
+			Handler: func(ctx mcpcore.PromptContext, req mcpcore.PromptRequest) (mcpcore.PromptResult, error) {
+				var in CreatePresentationPromptRequest
+				if err := runtime.BindPromptArgs(req.Arguments, &in); err != nil {
+					return mcpcore.PromptResult{}, err
+				}
+				resp, err := impl.CreatePresentation(ctx, &in)
+				if err != nil {
+					return mcpcore.PromptResult{}, err
+				}
+				return runtime.ProtoPromptResult(resp)
+			},
+		},
+		server.Prompt{
+			PromptDef: mcpcore.PromptDef{
+				Name:        "review-slides",
+				Description: "Review a presentation deck for clarity, flow, and consistency.",
+				Arguments: []mcpcore.PromptArgument{
+					{Name: "name", Description: "", Required: true},
+				},
+			},
+			Handler: func(ctx mcpcore.PromptContext, req mcpcore.PromptRequest) (mcpcore.PromptResult, error) {
+				var in ReviewSlidesPromptRequest
+				if err := runtime.BindPromptArgs(req.Arguments, &in); err != nil {
+					return mcpcore.PromptResult{}, err
+				}
+				resp, err := impl.ReviewSlides(ctx, &in)
+				if err != nil {
+					return mcpcore.PromptResult{}, err
+				}
+				return runtime.ProtoPromptResult(resp)
+			},
+		},
+		server.Prompt{
+			PromptDef: mcpcore.PromptDef{
+				Name:        "suggest-speaker-notes",
+				Description: "Draft speaker notes for a specific slide in a deck.",
+				Arguments: []mcpcore.PromptArgument{
+					{Name: "name", Description: "", Required: true},
+					{Name: "slide", Description: "", Required: true},
+				},
+			},
+			Handler: func(ctx mcpcore.PromptContext, req mcpcore.PromptRequest) (mcpcore.PromptResult, error) {
+				var in SuggestSpeakerNotesPromptRequest
+				if err := runtime.BindPromptArgs(req.Arguments, &in); err != nil {
+					return mcpcore.PromptResult{}, err
+				}
+				resp, err := impl.SuggestSpeakerNotes(ctx, &in)
+				if err != nil {
+					return mcpcore.PromptResult{}, err
+				}
+				return runtime.ProtoPromptResult(resp)
+			},
+		},
+	)
+}
+
 // SlydsServiceMCPCompleter provides auto-completion for resource template params
 // and prompt arguments. Each method handles one completable field.
 type SlydsServiceMCPCompleter interface {
@@ -436,5 +535,60 @@ func RegisterSlydsServiceMCPCompletions(srv *server.Server, completer SlydsServi
 		default:
 			return mcpcore.CompletionResult{}, nil
 		}
+	})
+}
+
+// ElicitThemeChoice sends a typed elicitation request using the schema derived
+// from ThemeChoice. Returns the populated proto message, the user's action
+// ("accept"/"decline"/"cancel"), and any error.
+// If the user does not accept, the returned message pointer is nil.
+func ElicitThemeChoice(ctx mcpcore.ToolContext, message string) (*ThemeChoice, string, error) {
+	result, err := ctx.Elicit(mcpcore.ElicitationRequest{
+		Message:         message,
+		RequestedSchema: json.RawMessage(`{"properties":{"theme":{"type":"string"}},"required":["theme"],"type":"object"}`),
+	})
+	if err != nil {
+		return nil, "", err
+	}
+	if result.Action != "accept" {
+		return nil, result.Action, nil
+	}
+	out, err := runtime.BindElicitResult[ThemeChoice](result.Content)
+	if err != nil {
+		return nil, "", err
+	}
+	return out, result.Action, nil
+}
+
+// ElicitRemoveSlideConfirmation sends a typed elicitation request using the schema derived
+// from RemoveSlideConfirmation. Returns the populated proto message, the user's action
+// ("accept"/"decline"/"cancel"), and any error.
+// If the user does not accept, the returned message pointer is nil.
+func ElicitRemoveSlideConfirmation(ctx mcpcore.ToolContext, message string) (*RemoveSlideConfirmation, string, error) {
+	result, err := ctx.Elicit(mcpcore.ElicitationRequest{
+		Message:         message,
+		RequestedSchema: json.RawMessage(`{"properties":{"confirm":{"type":"boolean"}},"required":["confirm"],"type":"object"}`),
+	})
+	if err != nil {
+		return nil, "", err
+	}
+	if result.Action != "accept" {
+		return nil, result.Action, nil
+	}
+	out, err := runtime.BindElicitResult[RemoveSlideConfirmation](result.Content)
+	if err != nil {
+		return nil, "", err
+	}
+	return out, result.Action, nil
+}
+
+// SampleForImproveSlide sends a pre-configured sampling request for ImproveSlide.
+// Caller provides the user messages; system prompt and model preferences come
+// from the mcp_sampling annotation.
+func SampleForImproveSlide(ctx mcpcore.ToolContext, messages []mcpcore.SamplingMessage) (mcpcore.CreateMessageResult, error) {
+	return ctx.Sample(mcpcore.CreateMessageRequest{
+		Messages:     messages,
+		SystemPrompt: "You are an HTML presentation slide editor for slyds. You edit raw HTML fragments. The root element must be <div class=\"slide\" data-layout=\"...\">. Do NOT use <style> blocks — use inline style= attributes. Do NOT escape quotes with backslashes. Return ONLY the HTML fragment, no explanation.",
+		MaxTokens:    4000,
 	})
 }

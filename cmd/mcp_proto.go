@@ -80,6 +80,9 @@ func runMCPProtoServer() error {
 	// Completions: proto-generated from completable_fields annotations.
 	slydsv1.RegisterSlydsServiceMCPCompletions(srv, impl)
 
+	// Proto-generated prompts.
+	slydsv1.RegisterSlydsServiceMCPPrompts(srv, impl)
+
 	if mcpUseStdio {
 		fmt.Fprintf(os.Stderr, "MCP proto server (stdio) — deck root: %s\n", root)
 		ctx, cancel := signal.NotifyContext(context.Background(), os.Interrupt)

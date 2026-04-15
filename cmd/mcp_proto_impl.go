@@ -3,6 +3,7 @@ package cmd
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"strconv"
 	"strings"
@@ -11,20 +12,14 @@ import (
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 
-	pb "github.com/panyam/slyds/gen/go/slyds/v1"
 	"github.com/panyam/slyds/core"
+	slydsv1 "github.com/panyam/slyds/gen/go/slyds/v1"
 )
 
-// SlydsServiceImpl implements the proto-generated SlydsServiceMCPServer and
-// SlydsServiceMCPResourceServer interfaces by delegating to a Workspace.
-// This is the proto equivalent of the hand-written handlers in mcp_tools.go
-// and mcp_resources.go.
-type SlydsServiceImpl struct {
-	// ws is resolved from request context via workspaceFromContext, not stored.
-	// Keeping it here would break multi-tenant deployments where the workspace
-	// is per-request. But for compatibility with the generated interface
-	// (which passes plain context.Context), we resolve from context in each method.
-}
+// SlydsServiceImpl implements the proto-generated SlydsServiceMCPServer,
+// SlydsServiceMCPResourceServer, and SlydsServiceMCPPromptServer interfaces
+// by delegating to a Workspace resolved from request context.
+type SlydsServiceImpl struct{}
 
 // deck opens a deck from the workspace on the request context.
 func (s *SlydsServiceImpl) deck(ctx context.Context, name string) (*core.Deck, error) {
@@ -50,7 +45,7 @@ func (s *SlydsServiceImpl) workspace(ctx context.Context) (Workspace, error) {
 
 // --- Tool implementations ---
 
-func (s *SlydsServiceImpl) ListDecks(ctx context.Context, req *pb.ListDecksRequest) (*pb.ListDecksResponse, error) {
+func (s *SlydsServiceImpl) ListDecks(ctx mcpcore.ToolContext, req *slydsv1.ListDecksRequest) (*slydsv1.ListDecksResponse, error) {
 	ws, err := s.workspace(ctx)
 	if err != nil {
 		return nil, err
@@ -59,31 +54,41 @@ func (s *SlydsServiceImpl) ListDecks(ctx context.Context, req *pb.ListDecksReque
 	if err != nil {
 		return nil, status.Errorf(codes.Internal, "list decks: %v", err)
 	}
-	var decks []*pb.DeckSummary
+	var decks []*slydsv1.DeckSummary
 	for _, ref := range refs {
 		d, err := ws.OpenDeck(ref.Name)
 		if err != nil {
 			continue
 		}
 		count, _ := d.SlideCount()
-		decks = append(decks, &pb.DeckSummary{
+		decks = append(decks, &slydsv1.DeckSummary{
 			Name:   ref.Name,
 			Title:  d.Title(),
 			Theme:  d.Theme(),
 			Slides: int32(count),
 		})
 	}
-	return &pb.ListDecksResponse{Decks: decks}, nil
+	return &slydsv1.ListDecksResponse{Decks: decks}, nil
 }
 
-func (s *SlydsServiceImpl) CreateDeck(ctx context.Context, req *pb.CreateDeckRequest) (*pb.DeckDescription, error) {
+func (s *SlydsServiceImpl) CreateDeck(ctx mcpcore.ToolContext, req *slydsv1.CreateDeckRequest) (*slydsv1.DeckDescription, error) {
 	ws, err := s.workspace(ctx)
 	if err != nil {
 		return nil, err
 	}
-	theme := "default"
+	theme := ""
 	if req.Theme != nil {
 		theme = *req.Theme
+	}
+	if theme == "" {
+		// Use generated elicitation helper.
+		choice, action, elicitErr := slydsv1.ElicitThemeChoice(ctx, fmt.Sprintf("Choose a theme for %q:", req.Title))
+		if elicitErr == nil && action == "accept" && choice != nil && choice.Theme != "" {
+			theme = choice.Theme
+		}
+		if theme == "" {
+			theme = "default"
+		}
 	}
 	slides := int32(3)
 	if req.Slides != nil {
@@ -96,7 +101,7 @@ func (s *SlydsServiceImpl) CreateDeck(ctx context.Context, req *pb.CreateDeckReq
 	return s.describeDeck(d)
 }
 
-func (s *SlydsServiceImpl) DescribeDeck(ctx context.Context, req *pb.DeckRequest) (*pb.DeckDescription, error) {
+func (s *SlydsServiceImpl) DescribeDeck(ctx mcpcore.ToolContext, req *slydsv1.DeckRequest) (*slydsv1.DeckDescription, error) {
 	d, err := s.deck(ctx, req.Deck)
 	if err != nil {
 		return nil, err
@@ -104,7 +109,7 @@ func (s *SlydsServiceImpl) DescribeDeck(ctx context.Context, req *pb.DeckRequest
 	return s.describeDeck(d)
 }
 
-func (s *SlydsServiceImpl) ListSlides(ctx context.Context, req *pb.DeckRequest) (*pb.ListSlidesResponse, error) {
+func (s *SlydsServiceImpl) ListSlides(ctx mcpcore.ToolContext, req *slydsv1.DeckRequest) (*slydsv1.ListSlidesResponse, error) {
 	d, err := s.deck(ctx, req.Deck)
 	if err != nil {
 		return nil, err
@@ -113,10 +118,10 @@ func (s *SlydsServiceImpl) ListSlides(ctx context.Context, req *pb.DeckRequest) 
 	if err != nil {
 		return nil, err
 	}
-	return &pb.ListSlidesResponse{Slides: desc.Slides}, nil
+	return &slydsv1.ListSlidesResponse{Slides: desc.Slides}, nil
 }
 
-func (s *SlydsServiceImpl) ReadSlide(ctx context.Context, req *pb.ReadSlideRequest) (*pb.SlideReadResult, error) {
+func (s *SlydsServiceImpl) ReadSlide(ctx mcpcore.ToolContext, req *slydsv1.ReadSlideRequest) (*slydsv1.SlideReadResult, error) {
 	d, err := s.deck(ctx, req.Deck)
 	if err != nil {
 		return nil, err
@@ -131,14 +136,14 @@ func (s *SlydsServiceImpl) ReadSlide(ctx context.Context, req *pb.ReadSlideReque
 	}
 	ver, _ := d.SlideVersion(pos)
 	deckVer, _ := d.DeckVersion()
-	return &pb.SlideReadResult{
+	return &slydsv1.SlideReadResult{
 		Content:     content,
 		Version:     ver,
 		DeckVersion: deckVer,
 	}, nil
 }
 
-func (s *SlydsServiceImpl) EditSlide(ctx context.Context, req *pb.EditSlideRequest) (*pb.SlideEditResult, error) {
+func (s *SlydsServiceImpl) EditSlide(ctx mcpcore.ToolContext, req *slydsv1.EditSlideRequest) (*slydsv1.SlideEditResult, error) {
 	d, err := s.deck(ctx, req.Deck)
 	if err != nil {
 		return nil, err
@@ -156,7 +161,7 @@ func (s *SlydsServiceImpl) EditSlide(ctx context.Context, req *pb.EditSlideReque
 		if currentVer != *req.ExpectedVersion {
 			currentContent, _ := d.GetSlideContent(pos)
 			deckVer, _ := d.DeckVersion()
-			detail := &pb.VersionConflictDetail{
+			detail := &slydsv1.VersionConflictDetail{
 				CurrentVersion: currentVer,
 				CurrentContent: &currentContent,
 				DeckVersion:    &deckVer,
@@ -174,14 +179,14 @@ func (s *SlydsServiceImpl) EditSlide(ctx context.Context, req *pb.EditSlideReque
 	}
 	newVer, _ := d.SlideVersion(pos)
 	deckVer, _ := d.DeckVersion()
-	return &pb.SlideEditResult{
+	return &slydsv1.SlideEditResult{
 		Version:     newVer,
 		DeckVersion: deckVer,
 		Position:    int32(pos),
 	}, nil
 }
 
-func (s *SlydsServiceImpl) QuerySlide(ctx context.Context, req *pb.QuerySlideRequest) (*pb.QuerySlideResponse, error) {
+func (s *SlydsServiceImpl) QuerySlide(ctx mcpcore.ToolContext, req *slydsv1.QuerySlideRequest) (*slydsv1.QuerySlideResponse, error) {
 	d, err := s.deck(ctx, req.Deck)
 	if err != nil {
 		return nil, err
@@ -218,14 +223,13 @@ func (s *SlydsServiceImpl) QuerySlide(ctx context.Context, req *pb.QuerySlideReq
 	if err != nil {
 		return nil, status.Errorf(codes.Internal, "query: %v", err)
 	}
-	// results is []core.QueryResult which is []string for text queries
 	data, _ := json.Marshal(results)
 	var strs []string
 	json.Unmarshal(data, &strs)
-	return &pb.QuerySlideResponse{Results: strs}, nil
+	return &slydsv1.QuerySlideResponse{Results: strs}, nil
 }
 
-func (s *SlydsServiceImpl) AddSlide(ctx context.Context, req *pb.AddSlideRequest) (*pb.AddSlideResponse, error) {
+func (s *SlydsServiceImpl) AddSlide(ctx mcpcore.ToolContext, req *slydsv1.AddSlideRequest) (*slydsv1.AddSlideResponse, error) {
 	d, err := s.deck(ctx, req.Deck)
 	if err != nil {
 		return nil, err
@@ -237,7 +241,7 @@ func (s *SlydsServiceImpl) AddSlide(ctx context.Context, req *pb.AddSlideRequest
 			return nil, status.Errorf(codes.Internal, "deck version: %v", err)
 		}
 		if currentDeckVer != *req.ExpectedDeckVersion {
-			detail := &pb.VersionConflictDetail{
+			detail := &slydsv1.VersionConflictDetail{
 				CurrentVersion: currentDeckVer,
 				DeckVersion:    &currentDeckVer,
 			}
@@ -258,7 +262,7 @@ func (s *SlydsServiceImpl) AddSlide(ctx context.Context, req *pb.AddSlideRequest
 		return nil, status.Errorf(codes.Internal, "insert slide: %v", err)
 	}
 	deckVer, _ := d.DeckVersion()
-	return &pb.AddSlideResponse{
+	return &slydsv1.AddSlideResponse{
 		Slug:        finalSlug,
 		SlideId:     slideID,
 		DeckVersion: deckVer,
@@ -266,7 +270,7 @@ func (s *SlydsServiceImpl) AddSlide(ctx context.Context, req *pb.AddSlideRequest
 	}, nil
 }
 
-func (s *SlydsServiceImpl) RemoveSlide(ctx context.Context, req *pb.RemoveSlideRequest) (*pb.RemoveSlideResponse, error) {
+func (s *SlydsServiceImpl) RemoveSlide(ctx mcpcore.ToolContext, req *slydsv1.RemoveSlideRequest) (*slydsv1.RemoveSlideResponse, error) {
 	d, err := s.deck(ctx, req.Deck)
 	if err != nil {
 		return nil, err
@@ -278,7 +282,7 @@ func (s *SlydsServiceImpl) RemoveSlide(ctx context.Context, req *pb.RemoveSlideR
 			return nil, status.Errorf(codes.Internal, "deck version: %v", err)
 		}
 		if currentDeckVer != *req.ExpectedDeckVersion {
-			detail := &pb.VersionConflictDetail{
+			detail := &slydsv1.VersionConflictDetail{
 				CurrentVersion: currentDeckVer,
 				DeckVersion:    &currentDeckVer,
 			}
@@ -290,19 +294,80 @@ func (s *SlydsServiceImpl) RemoveSlide(ctx context.Context, req *pb.RemoveSlideR
 	if err != nil {
 		return nil, status.Errorf(codes.NotFound, "resolve slide: %v", err)
 	}
+	// Use generated elicitation helper.
+	confirmation, action, elicitErr := slydsv1.ElicitRemoveSlideConfirmation(ctx,
+		fmt.Sprintf("Remove slide %q from deck %q? This cannot be undone.", filename, req.Deck))
+	if elicitErr == nil {
+		if action == "decline" || action == "cancel" {
+			return &slydsv1.RemoveSlideResponse{DeckVersion: "", RemovedFile: ""}, nil
+		}
+		if confirmation != nil && !confirmation.Confirm {
+			return &slydsv1.RemoveSlideResponse{DeckVersion: "", RemovedFile: ""}, nil
+		}
+	}
+	// ErrElicitationNotSupported: proceed without confirmation (backward compat).
+
 	if err := d.RemoveSlide(filename); err != nil {
 		return nil, status.Errorf(codes.Internal, "remove slide: %v", err)
 	}
 	deckVer, _ := d.DeckVersion()
 	count, _ := d.SlideCount()
-	return &pb.RemoveSlideResponse{
+	return &slydsv1.RemoveSlideResponse{
 		DeckVersion: deckVer,
 		SlideCount:  int32(count),
 		RemovedFile: filename,
 	}, nil
 }
 
-func (s *SlydsServiceImpl) CheckDeck(ctx context.Context, req *pb.DeckRequest) (*pb.CheckDeckResponse, error) {
+func (s *SlydsServiceImpl) ImproveSlide(ctx mcpcore.ToolContext, req *slydsv1.ImproveSlideRequest) (*slydsv1.ImproveSlideResponse, error) {
+	d, err := s.deck(ctx, req.Deck)
+	if err != nil {
+		return nil, err
+	}
+	pos, err := resolveSlidePosition(d, req.Slide, 0)
+	if err != nil {
+		return nil, status.Errorf(codes.NotFound, "resolve slide: %v", err)
+	}
+	content, err := d.GetSlideContent(pos)
+	if err != nil {
+		return nil, status.Errorf(codes.Internal, "read slide %d: %v", pos, err)
+	}
+
+	// Use generated sampling helper.
+	sampleResult, err := slydsv1.SampleForImproveSlide(ctx, []mcpcore.SamplingMessage{
+		{Role: "user", Content: mcpcore.Content{
+			Type: "text",
+			Text: fmt.Sprintf("Current slide HTML:\n\n%s\n\nInstruction: %s", content, req.Instruction),
+		}},
+	})
+	if errors.Is(err, mcpcore.ErrSamplingNotSupported) {
+		return nil, status.Error(codes.FailedPrecondition,
+			"sampling not supported by this client — use edit_slide directly with your own content")
+	}
+	if err != nil {
+		return nil, status.Errorf(codes.Internal, "sampling failed: %v", err)
+	}
+
+	newContent := sampleResult.Content.Text
+	if issues := core.LintSlideContent(newContent); issues.HasErrors() {
+		return nil, status.Errorf(codes.InvalidArgument,
+			"LLM-generated HTML failed lint: %s\n\nRaw output:\n%s", issues[0].Detail, newContent)
+	}
+	newContent, _ = core.SanitizeSlideContent(newContent)
+	if err := d.EditSlideContent(pos, newContent); err != nil {
+		return nil, status.Errorf(codes.Internal, "edit slide: %v", err)
+	}
+
+	ver, _ := d.SlideVersion(pos)
+	deckVer, _ := d.DeckVersion()
+	return &slydsv1.ImproveSlideResponse{
+		Message:     fmt.Sprintf("Slide %d improved.", pos),
+		Version:     ver,
+		DeckVersion: deckVer,
+	}, nil
+}
+
+func (s *SlydsServiceImpl) CheckDeck(ctx mcpcore.ToolContext, req *slydsv1.DeckRequest) (*slydsv1.CheckDeckResponse, error) {
 	d, err := s.deck(ctx, req.Deck)
 	if err != nil {
 		return nil, err
@@ -311,15 +376,15 @@ func (s *SlydsServiceImpl) CheckDeck(ctx context.Context, req *pb.DeckRequest) (
 	if err != nil {
 		return nil, status.Errorf(codes.Internal, "check: %v", err)
 	}
-	var pbIssues []*pb.Issue
+	var pbIssues []*slydsv1.Issue
 	for _, issue := range result.Issues {
-		pbIssues = append(pbIssues, &pb.Issue{
+		pbIssues = append(pbIssues, &slydsv1.Issue{
 			Type:   issue.Type.String(),
 			Slide:  issue.Slide,
 			Detail: issue.Detail,
 		})
 	}
-	return &pb.CheckDeckResponse{
+	return &slydsv1.CheckDeckResponse{
 		SlideCount:       int32(result.SlideCount),
 		InSync:           result.InSync,
 		Issues:           pbIssues,
@@ -327,7 +392,7 @@ func (s *SlydsServiceImpl) CheckDeck(ctx context.Context, req *pb.DeckRequest) (
 	}, nil
 }
 
-func (s *SlydsServiceImpl) BuildDeck(ctx context.Context, req *pb.DeckRequest) (*pb.BuildDeckResponse, error) {
+func (s *SlydsServiceImpl) BuildDeck(ctx mcpcore.ToolContext, req *slydsv1.DeckRequest) (*slydsv1.BuildDeckResponse, error) {
 	d, err := s.deck(ctx, req.Deck)
 	if err != nil {
 		return nil, err
@@ -336,7 +401,7 @@ func (s *SlydsServiceImpl) BuildDeck(ctx context.Context, req *pb.DeckRequest) (
 	if err != nil {
 		return nil, status.Errorf(codes.Internal, "build: %v", err)
 	}
-	return &pb.BuildDeckResponse{
+	return &slydsv1.BuildDeckResponse{
 		Html:     result.HTML,
 		Warnings: result.Warnings,
 	}, nil
@@ -344,11 +409,11 @@ func (s *SlydsServiceImpl) BuildDeck(ctx context.Context, req *pb.DeckRequest) (
 
 // --- Resource implementations ---
 
-func (s *SlydsServiceImpl) GetServerInfo(ctx context.Context, req *pb.ServerInfoRequest) (*pb.ServerInfo, error) {
+func (s *SlydsServiceImpl) GetServerInfo(ctx mcpcore.ResourceContext, req *slydsv1.ServerInfoRequest) (*slydsv1.ServerInfo, error) {
 	ws := workspaceFromContext(ctx)
 	themes := core.AvailableThemeNames()
 	layouts, _ := core.ListLayouts()
-	info := &pb.ServerInfo{
+	info := &slydsv1.ServerInfo{
 		Name:    "slyds",
 		Version: Version,
 		Themes:  themes,
@@ -361,11 +426,33 @@ func (s *SlydsServiceImpl) GetServerInfo(ctx context.Context, req *pb.ServerInfo
 	return info, nil
 }
 
-func (s *SlydsServiceImpl) GetDeckList(ctx context.Context, req *pb.DeckListRequest) (*pb.ListDecksResponse, error) {
-	return s.ListDecks(ctx, &pb.ListDecksRequest{})
+func (s *SlydsServiceImpl) GetDeckList(ctx mcpcore.ResourceContext, req *slydsv1.DeckListRequest) (*slydsv1.ListDecksResponse, error) {
+	ws, err := s.workspace(ctx)
+	if err != nil {
+		return nil, err
+	}
+	refs, err := ws.ListDecks()
+	if err != nil {
+		return nil, status.Errorf(codes.Internal, "list decks: %v", err)
+	}
+	var decks []*slydsv1.DeckSummary
+	for _, ref := range refs {
+		d, err := ws.OpenDeck(ref.Name)
+		if err != nil {
+			continue
+		}
+		count, _ := d.SlideCount()
+		decks = append(decks, &slydsv1.DeckSummary{
+			Name:   ref.Name,
+			Title:  d.Title(),
+			Theme:  d.Theme(),
+			Slides: int32(count),
+		})
+	}
+	return &slydsv1.ListDecksResponse{Decks: decks}, nil
 }
 
-func (s *SlydsServiceImpl) GetDeck(ctx context.Context, req *pb.GetDeckResourceRequest) (*pb.DeckDescription, error) {
+func (s *SlydsServiceImpl) GetDeck(ctx mcpcore.ResourceContext, req *slydsv1.GetDeckResourceRequest) (*slydsv1.DeckDescription, error) {
 	d, err := s.deck(ctx, req.Name)
 	if err != nil {
 		return nil, err
@@ -373,7 +460,7 @@ func (s *SlydsServiceImpl) GetDeck(ctx context.Context, req *pb.GetDeckResourceR
 	return s.describeDeck(d)
 }
 
-func (s *SlydsServiceImpl) GetSlideList(ctx context.Context, req *pb.GetSlideListResourceRequest) (*pb.ListSlidesResponse, error) {
+func (s *SlydsServiceImpl) GetSlideList(ctx mcpcore.ResourceContext, req *slydsv1.GetSlideListResourceRequest) (*slydsv1.ListSlidesResponse, error) {
 	d, err := s.deck(ctx, req.Name)
 	if err != nil {
 		return nil, err
@@ -382,10 +469,10 @@ func (s *SlydsServiceImpl) GetSlideList(ctx context.Context, req *pb.GetSlideLis
 	if err != nil {
 		return nil, err
 	}
-	return &pb.ListSlidesResponse{Slides: desc.Slides}, nil
+	return &slydsv1.ListSlidesResponse{Slides: desc.Slides}, nil
 }
 
-func (s *SlydsServiceImpl) GetSlideContent(ctx context.Context, req *pb.GetSlideContentResourceRequest) (*pb.SlideContentResource, error) {
+func (s *SlydsServiceImpl) GetSlideContent(ctx mcpcore.ResourceContext, req *slydsv1.GetSlideContentResourceRequest) (*slydsv1.SlideContentResource, error) {
 	d, err := s.deck(ctx, req.Name)
 	if err != nil {
 		return nil, err
@@ -398,10 +485,10 @@ func (s *SlydsServiceImpl) GetSlideContent(ctx context.Context, req *pb.GetSlide
 	if err != nil {
 		return nil, status.Errorf(codes.NotFound, "slide %d: %v", n, err)
 	}
-	return &pb.SlideContentResource{Content: content}, nil
+	return &slydsv1.SlideContentResource{Content: content}, nil
 }
 
-func (s *SlydsServiceImpl) GetDeckConfig(ctx context.Context, req *pb.GetDeckResourceRequest) (*pb.DeckConfigResource, error) {
+func (s *SlydsServiceImpl) GetDeckConfig(ctx mcpcore.ResourceContext, req *slydsv1.GetDeckResourceRequest) (*slydsv1.DeckConfigResource, error) {
 	d, err := s.deck(ctx, req.Name)
 	if err != nil {
 		return nil, err
@@ -410,10 +497,10 @@ func (s *SlydsServiceImpl) GetDeckConfig(ctx context.Context, req *pb.GetDeckRes
 	if err != nil {
 		return nil, status.Errorf(codes.NotFound, "no .slyds.yaml in deck %q", req.Name)
 	}
-	return &pb.DeckConfigResource{Content: string(data)}, nil
+	return &slydsv1.DeckConfigResource{Content: string(data)}, nil
 }
 
-func (s *SlydsServiceImpl) GetAgentGuide(ctx context.Context, req *pb.GetDeckResourceRequest) (*pb.AgentGuideResource, error) {
+func (s *SlydsServiceImpl) GetAgentGuide(ctx mcpcore.ResourceContext, req *slydsv1.GetDeckResourceRequest) (*slydsv1.AgentGuideResource, error) {
 	d, err := s.deck(ctx, req.Name)
 	if err != nil {
 		return nil, err
@@ -422,20 +509,135 @@ func (s *SlydsServiceImpl) GetAgentGuide(ctx context.Context, req *pb.GetDeckRes
 	if err != nil {
 		return nil, status.Errorf(codes.NotFound, "no AGENT.md in deck %q", req.Name)
 	}
-	return &pb.AgentGuideResource{Content: string(data)}, nil
+	return &slydsv1.AgentGuideResource{Content: string(data)}, nil
+}
+
+// --- Prompt implementations ---
+
+func (s *SlydsServiceImpl) CreatePresentation(ctx mcpcore.PromptContext, req *slydsv1.CreatePresentationPromptRequest) (*slydsv1.CreatePresentationPromptResponse, error) {
+	topic := req.Topic
+	if topic == "" {
+		return nil, fmt.Errorf("topic is required")
+	}
+	slideCount := "5"
+	if req.SlideCount != nil && *req.SlideCount != "" {
+		slideCount = *req.SlideCount
+	}
+	theme := "default"
+	if req.Theme != nil && *req.Theme != "" {
+		theme = *req.Theme
+	}
+	themes := core.AvailableThemeNames()
+	layouts, _ := core.ListLayouts()
+	text := fmt.Sprintf(
+		"Create a slyds presentation about %q with %s slides using the %q theme.\n\n"+
+			"Available themes: %s\n"+
+			"Available layouts: %s\n\n"+
+			"Steps:\n"+
+			"1. Use create_deck to scaffold the deck\n"+
+			"2. Use edit_slide on each slide to add content\n"+
+			"3. Use check_deck to validate\n"+
+			"4. Use build_deck to produce the final HTML",
+		topic, slideCount, theme,
+		strings.Join(themes, ", "),
+		strings.Join(layouts, ", "),
+	)
+	return &slydsv1.CreatePresentationPromptResponse{
+		Description: fmt.Sprintf("Create a presentation about %q", topic),
+		Text:        text,
+	}, nil
+}
+
+func (s *SlydsServiceImpl) ReviewSlides(ctx mcpcore.PromptContext, req *slydsv1.ReviewSlidesPromptRequest) (*slydsv1.ReviewSlidesPromptResponse, error) {
+	name := req.Name
+	if name == "" {
+		return nil, fmt.Errorf("name is required")
+	}
+	ws := workspaceFromContext(ctx)
+	if ws == nil {
+		return nil, fmt.Errorf("no workspace available")
+	}
+	d, err := ws.OpenDeck(name)
+	if err != nil {
+		return nil, fmt.Errorf("deck %q: %w", name, err)
+	}
+	desc, err := d.Describe()
+	if err != nil {
+		return nil, fmt.Errorf("describe deck: %w", err)
+	}
+	var sb strings.Builder
+	fmt.Fprintf(&sb, "Review the presentation %q (%d slides, theme: %s) for clarity, flow, and consistency.\n\n",
+		desc.Title, desc.SlideCount, desc.Theme)
+	for i := 1; i <= desc.SlideCount; i++ {
+		content, err := d.GetSlideContent(i)
+		if err != nil {
+			continue
+		}
+		fmt.Fprintf(&sb, "--- Slide %d ---\n%s\n\n", i, content)
+	}
+	sb.WriteString("Provide specific feedback on each slide and overall flow suggestions.")
+	return &slydsv1.ReviewSlidesPromptResponse{
+		Description: fmt.Sprintf("Review %q (%d slides)", desc.Title, desc.SlideCount),
+		Text:        sb.String(),
+	}, nil
+}
+
+func (s *SlydsServiceImpl) SuggestSpeakerNotes(ctx mcpcore.PromptContext, req *slydsv1.SuggestSpeakerNotesPromptRequest) (*slydsv1.SuggestSpeakerNotesPromptResponse, error) {
+	name := req.Name
+	if name == "" {
+		return nil, fmt.Errorf("name is required")
+	}
+	slide := req.Slide
+	if slide == "" {
+		return nil, fmt.Errorf("slide is required")
+	}
+	ws := workspaceFromContext(ctx)
+	if ws == nil {
+		return nil, fmt.Errorf("no workspace available")
+	}
+	d, err := ws.OpenDeck(name)
+	if err != nil {
+		return nil, fmt.Errorf("deck %q: %w", name, err)
+	}
+	pos, err := resolveSlidePosition(d, slide, 0)
+	if err != nil {
+		return nil, fmt.Errorf("resolve slide: %w", err)
+	}
+	content, err := d.GetSlideContent(pos)
+	if err != nil {
+		return nil, fmt.Errorf("read slide %d: %w", pos, err)
+	}
+	desc, _ := d.Describe()
+	title := name
+	if desc != nil {
+		title = desc.Title
+	}
+	text := fmt.Sprintf(
+		"Draft speaker notes for slide %d of the presentation %q.\n\n"+
+			"Slide content:\n%s\n\n"+
+			"The notes should:\n"+
+			"- Complement the visual content, not repeat it\n"+
+			"- Provide talking points and transitions\n"+
+			"- Include timing guidance (approximate minutes)",
+		pos, title, content,
+	)
+	return &slydsv1.SuggestSpeakerNotesPromptResponse{
+		Description: fmt.Sprintf("Speaker notes for slide %d of %q", pos, title),
+		Text:        text,
+	}, nil
 }
 
 // --- Helpers ---
 
 // describeDeck converts a core.Deck into a proto DeckDescription.
-func (s *SlydsServiceImpl) describeDeck(d *core.Deck) (*pb.DeckDescription, error) {
+func (s *SlydsServiceImpl) describeDeck(d *core.Deck) (*slydsv1.DeckDescription, error) {
 	desc, err := d.Describe()
 	if err != nil {
 		return nil, status.Errorf(codes.Internal, "describe: %v", err)
 	}
-	var slides []*pb.SlideDescription
+	var slides []*slydsv1.SlideDescription
 	for _, sd := range desc.Slides {
-		slides = append(slides, &pb.SlideDescription{
+		slides = append(slides, &slydsv1.SlideDescription{
 			Position: int32(sd.Position),
 			File:     sd.File,
 			SlideId:  sd.SlideID,
@@ -451,7 +653,7 @@ func (s *SlydsServiceImpl) describeDeck(d *core.Deck) (*pb.DeckDescription, erro
 	deckVer, _ := d.DeckVersion()
 	themes := core.AvailableThemeNames()
 	layouts, _ := core.ListLayouts()
-	return &pb.DeckDescription{
+	return &slydsv1.DeckDescription{
 		Title:            d.Title(),
 		Theme:            d.Theme(),
 		SlideCount:       int32(desc.SlideCount),
@@ -490,7 +692,6 @@ func (s *SlydsServiceImpl) resolvePosition(d *core.Deck, slide *string, position
 
 // --- Completer implementations ---
 
-// CompleteName returns deck names matching the partial input.
 func (s *SlydsServiceImpl) CompleteName(ctx mcpcore.PromptContext, _ mcpcore.CompletionRef, arg mcpcore.CompletionArgument) (mcpcore.CompletionResult, error) {
 	ws := workspaceFromContext(ctx)
 	if ws == nil {
@@ -514,13 +715,11 @@ func (s *SlydsServiceImpl) CompleteName(ctx mcpcore.PromptContext, _ mcpcore.Com
 	}, nil
 }
 
-// CompleteN returns slide position numbers matching the partial input.
 func (s *SlydsServiceImpl) CompleteN(ctx mcpcore.PromptContext, _ mcpcore.CompletionRef, arg mcpcore.CompletionArgument) (mcpcore.CompletionResult, error) {
 	ws := workspaceFromContext(ctx)
 	if ws == nil {
 		return mcpcore.CompletionResult{}, nil
 	}
-	// Use the first deck as default — same heuristic as hand-written completions.
 	refs, err := ws.ListDecks()
 	if err != nil || len(refs) == 0 {
 		return mcpcore.CompletionResult{}, nil

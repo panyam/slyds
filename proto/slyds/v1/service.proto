@@ -26,12 +26,16 @@ service SlydsService {
     };
   }
 
-  // Create a new presentation deck.
+  // Create a new presentation deck. Elicits theme choice when not specified.
   rpc CreateDeck(CreateDeckRequest) returns (DeckDescription) {
     option (mcp.v1.mcp_tool) = {
       name: "create_deck"
       description: "Create a new presentation deck with the given name, title, theme, and slide count."
       structured_output: true
+    };
+    option (mcp.v1.mcp_elicit) = {
+      message: "Choose a theme:"
+      schema_message: "ThemeChoice"
     };
   }
 
@@ -89,11 +93,15 @@ service SlydsService {
     };
   }
 
-  // Remove a slide by reference.
+  // Remove a slide by reference. Elicits user confirmation before proceeding.
   rpc RemoveSlide(RemoveSlideRequest) returns (RemoveSlideResponse) {
     option (mcp.v1.mcp_tool) = {
       name: "remove_slide"
       description: "Remove a slide by filename or position number. Remaining slides are renumbered. Pass expected_deck_version for optimistic concurrency."
+    };
+    option (mcp.v1.mcp_elicit) = {
+      message: "Confirm slide removal?"
+      schema_message: "RemoveSlideConfirmation"
     };
   }
 
@@ -113,6 +121,45 @@ service SlydsService {
       name: "build_deck"
       description: "Build a self-contained HTML file from the deck. Resolves all includes, inlines CSS/JS/images."
       timeout: "30s"
+    };
+  }
+
+  // Improve a slide using AI sampling. Server reads the slide, asks the
+  // client's LLM to rewrite it per the instruction, and applies the result.
+  rpc ImproveSlide(ImproveSlideRequest) returns (ImproveSlideResponse) {
+    option (mcp.v1.mcp_tool) = {
+      name: "improve_slide"
+      description: "Improve a slide's content using AI. Reads the current slide, sends it to the client's LLM with your instruction, and applies the result. Requires the client to support sampling."
+    };
+    option (mcp.v1.mcp_sampling) = {
+      system_prompt: "You are an HTML presentation slide editor for slyds. You edit raw HTML fragments. The root element must be <div class=\"slide\" data-layout=\"...\">. Do NOT use <style> blocks — use inline style= attributes. Do NOT escape quotes with backslashes. Return ONLY the HTML fragment, no explanation."
+      max_tokens: 4000
+    };
+  }
+
+  // ── Prompts ──
+
+  // Generate guidance for creating a new presentation on a topic.
+  rpc CreatePresentation(CreatePresentationPromptRequest) returns (CreatePresentationPromptResponse) {
+    option (mcp.v1.mcp_prompt) = {
+      name: "create-presentation"
+      description: "Generate guidance messages for creating a new presentation on a given topic."
+    };
+  }
+
+  // Review a deck for clarity, flow, and consistency.
+  rpc ReviewSlides(ReviewSlidesPromptRequest) returns (ReviewSlidesPromptResponse) {
+    option (mcp.v1.mcp_prompt) = {
+      name: "review-slides"
+      description: "Review a presentation deck for clarity, flow, and consistency."
+    };
+  }
+
+  // Draft speaker notes for a specific slide.
+  rpc SuggestSpeakerNotes(SuggestSpeakerNotesPromptRequest) returns (SuggestSpeakerNotesPromptResponse) {
+    option (mcp.v1.mcp_prompt) = {
+      name: "suggest-speaker-notes"
+      description: "Draft speaker notes for a specific slide in a deck."
     };
   }
 
@@ -192,4 +239,48 @@ service SlydsService {
       completable_fields: ["name"]
     };
   }
+}
+
+// ── Messages defined in service.proto for schema_message references ──
+
+// RemoveSlideConfirmation is the elicitation schema for remove_slide.
+message RemoveSlideConfirmation {
+  bool confirm = 1;
+}
+
+// ThemeChoice is the elicitation schema for create_deck when no theme is given.
+message ThemeChoice {
+  string theme = 1;
+}
+
+// ── Prompt request/response messages ──
+
+message CreatePresentationPromptRequest {
+  string topic = 1;
+  optional string slide_count = 2;
+  optional string theme = 3;
+}
+
+message CreatePresentationPromptResponse {
+  string description = 1;
+  string text = 2;
+}
+
+message ReviewSlidesPromptRequest {
+  string name = 1;
+}
+
+message ReviewSlidesPromptResponse {
+  string description = 1;
+  string text = 2;
+}
+
+message SuggestSpeakerNotesPromptRequest {
+  string name = 1;
+  string slide = 2;
+}
+
+message SuggestSpeakerNotesPromptResponse {
+  string description = 1;
+  string text = 2;
 }

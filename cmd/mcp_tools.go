@@ -2,6 +2,7 @@ package cmd
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"time"
 
@@ -26,6 +27,7 @@ func registerTools(srv *server.Server) {
 		querySlideTool(),
 		addSlideTool(),
 		removeSlideTool(),
+		improveSlideTool(),
 		checkDeckTool(),
 		buildDeckTool(),
 	)
@@ -145,7 +147,26 @@ func createDeckTool() server.Tool {
 				return mcpcore.ErrorResult(err.Error()), nil
 			}
 			if p.Theme == "" {
-				p.Theme = "default"
+				// Elicit theme choice if the client supports it.
+				themes := core.AvailableThemeNames()
+				themesJSON, _ := json.Marshal(themes)
+				schema := fmt.Sprintf(`{
+					"type": "object",
+					"properties": {"theme": {"type": "string", "enum": %s, "description": "Presentation theme"}},
+					"required": ["theme"]
+				}`, string(themesJSON))
+				elicitResult, elicitErr := ctx.Elicit(mcpcore.ElicitationRequest{
+					Message:         fmt.Sprintf("Choose a theme for %q:", p.Title),
+					RequestedSchema: json.RawMessage(schema),
+				})
+				if elicitErr == nil && elicitResult.Action == "accept" {
+					if theme, ok := elicitResult.Content["theme"].(string); ok && theme != "" {
+						p.Theme = theme
+					}
+				}
+				if p.Theme == "" {
+					p.Theme = "default"
+				}
 			}
 			if p.Slides < 1 {
 				p.Slides = 3
@@ -555,6 +576,26 @@ func removeSlideTool() server.Tool {
 			if err != nil {
 				return mcpcore.ErrorResult(err.Error()), nil
 			}
+			// Elicit confirmation before removing. If the client doesn't
+			// support elicitation, proceed silently (backward compatible).
+			elicitResult, elicitErr := ctx.Elicit(mcpcore.ElicitationRequest{
+				Message: fmt.Sprintf("Remove slide %q from deck %q? This cannot be undone.", filename, p.Deck),
+				RequestedSchema: json.RawMessage(`{
+					"type": "object",
+					"properties": {"confirm": {"type": "boolean", "description": "Confirm slide removal"}},
+					"required": ["confirm"]
+				}`),
+			})
+			if elicitErr == nil {
+				if elicitResult.Action == "decline" || elicitResult.Action == "cancel" {
+					return mcpcore.TextResult("Slide removal cancelled."), nil
+				}
+				if confirm, ok := elicitResult.Content["confirm"].(bool); ok && !confirm {
+					return mcpcore.TextResult("Slide removal declined."), nil
+				}
+			}
+			// ErrElicitationNotSupported or other errors: proceed without confirmation.
+
 			if err := d.RemoveSlide(filename); err != nil {
 				return mcpcore.ErrorResult(err.Error()), nil
 			}
@@ -562,6 +603,94 @@ func removeSlideTool() server.Tool {
 			mcpcore.NotifyResourcesChanged(ctx)
 			mcpcore.NotifyResourceUpdated(ctx, "ui://slyds/decks/"+p.Deck+"/preview")
 			return mcpcore.TextResult(fmt.Sprintf("Slide %q removed (deck_version: %q).", filename, deckVer)), nil
+		},
+	}
+}
+
+func improveSlideTool() server.Tool {
+	return server.Tool{
+		ToolDef: mcpcore.ToolDef{
+			Name:        "improve_slide",
+			Description: "Improve a slide's content using AI. Reads the current slide, sends it to the client's LLM with your instruction, and applies the result. Requires the client to support sampling.",
+			InputSchema: map[string]any{
+				"type": "object",
+				"properties": map[string]any{
+					"deck":        propString("Deck name"),
+					"slide":       propString("Slide reference: position number, slug, or filename"),
+					"instruction": propString("What to improve (e.g. 'make the bullet points more concise', 'add a code example')"),
+				},
+				"required": []string{"deck", "slide", "instruction"},
+			},
+		},
+		Handler: func(ctx mcpcore.ToolContext, req mcpcore.ToolRequest) (mcpcore.ToolResult, error) {
+			var p struct {
+				Deck        string `json:"deck"`
+				Slide       string `json:"slide"`
+				Instruction string `json:"instruction"`
+			}
+			if err := req.Bind(&p); err != nil {
+				return mcpcore.ErrorResult(err.Error()), nil
+			}
+			d, errResult := openDeckFromContext(ctx, p.Deck)
+			if errResult != nil {
+				return *errResult, nil
+			}
+			pos, err := resolveSlidePosition(d, p.Slide, 0)
+			if err != nil {
+				return mcpcore.ErrorResult(err.Error()), nil
+			}
+			content, err := d.GetSlideContent(pos)
+			if err != nil {
+				return mcpcore.ErrorResult(err.Error()), nil
+			}
+
+			// Ask the client's LLM to improve the slide.
+			sampleResult, err := ctx.Sample(mcpcore.CreateMessageRequest{
+				SystemPrompt: "You are an HTML presentation slide editor for slyds. " +
+					"You edit raw HTML fragments. The root element must be <div class=\"slide\" data-layout=\"...\">. " +
+					"Do NOT use <style> blocks — use inline style= attributes. " +
+					"Do NOT escape quotes with backslashes. " +
+					"Return ONLY the HTML fragment, no explanation.",
+				Messages: []mcpcore.SamplingMessage{
+					{Role: "user", Content: mcpcore.Content{
+						Type: "text",
+						Text: fmt.Sprintf("Current slide HTML:\n\n%s\n\nInstruction: %s", content, p.Instruction),
+					}},
+				},
+				MaxTokens: 4000,
+			})
+			if errors.Is(err, mcpcore.ErrSamplingNotSupported) {
+				return mcpcore.ErrorResult("sampling not supported by this client — use edit_slide directly with your own content"), nil
+			}
+			if err != nil {
+				return mcpcore.ErrorResult(fmt.Sprintf("sampling failed: %v", err)), nil
+			}
+
+			newContent := sampleResult.Content.Text
+
+			// Lint the LLM output.
+			if issues := core.LintSlideContent(newContent); issues.HasErrors() {
+				return mcpcore.ErrorResult(fmt.Sprintf(
+					"LLM-generated HTML failed lint: %s\n\nRaw output:\n%s",
+					issues[0].Detail, newContent,
+				)), nil
+			}
+
+			// Sanitize (strip <style> blocks etc.) before writing.
+			newContent, _ = core.SanitizeSlideContent(newContent)
+
+			if err := d.EditSlideContent(pos, newContent); err != nil {
+				return mcpcore.ErrorResult(err.Error()), nil
+			}
+
+			ver, _ := d.SlideVersion(pos)
+			deckVer, _ := d.DeckVersion()
+			mcpcore.NotifyResourceUpdated(ctx, "ui://slyds/decks/"+p.Deck+"/preview")
+			return jsonResult(slideEditResult{
+				Message:     fmt.Sprintf("Slide %d improved.", pos),
+				Version:     ver,
+				DeckVersion: deckVer,
+			})
 		},
 	}
 }

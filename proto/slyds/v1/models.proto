@@ -249,6 +249,23 @@ message AgentGuideResource {
   string content = 1;
 }
 
+// ── Improve slide (sampling) ──
+
+message ImproveSlideRequest {
+  string deck = 1;
+  // Slide reference: position number, slug, or filename.
+  string slide = 2;
+  // What to improve (e.g. "make bullet points more concise").
+  string instruction = 3;
+}
+
+// ImproveSlideResponse is the entity state after an AI-assisted slide edit.
+message ImproveSlideResponse {
+  string message = 1;
+  string version = 2;
+  string deck_version = 3;
+}
+
 // ── Status detail types ──
 // These are carried in google.rpc.Status.details (as Any) when an RPC
 // returns a gRPC error code. protogen maps them to structured MCP error

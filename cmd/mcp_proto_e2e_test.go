@@ -1,11 +1,13 @@
 package cmd
 
 import (
+	"context"
 	"encoding/json"
 	"path/filepath"
 	"strings"
 	"testing"
 
+	"github.com/panyam/mcpkit/client"
 	mcpcore "github.com/panyam/mcpkit/core"
 	"github.com/panyam/mcpkit/server"
 	"github.com/panyam/mcpkit/testutil"
@@ -16,7 +18,7 @@ import (
 // newProtoMCPClient creates a TestClient connected to a slyds MCP server
 // using the proto-generated tool and resource registration. This is the
 // proto equivalent of newSlydsMCPClient.
-func newProtoMCPClient(t *testing.T, root string) *testutil.TestClient {
+func newProtoMCPClient(t *testing.T, root string, opts ...client.ClientOption) *testutil.TestClient {
 	t.Helper()
 	ws, err := NewLocalWorkspace(root)
 	if err != nil {
@@ -30,7 +32,8 @@ func newProtoMCPClient(t *testing.T, root string) *testutil.TestClient {
 	slydsv1.RegisterSlydsServiceMCP(srv, impl)
 	slydsv1.RegisterSlydsServiceMCPResources(srv, impl)
 	slydsv1.RegisterSlydsServiceMCPCompletions(srv, impl)
-	return testutil.NewTestClient(t, srv)
+	slydsv1.RegisterSlydsServiceMCPPrompts(srv, impl)
+	return testutil.NewTestClient(t, srv, opts...)
 }
 
 // --- Proto E2E tests: verify parity with hand-written handlers ---
@@ -756,5 +759,97 @@ func TestParity_ResourceDeckConfig(t *testing.T) {
 		t.Errorf("config resource differs:\nproto: %s\nhand:  %s",
 			protoConfig[:min(100, len(protoConfig))],
 			handConfig[:min(100, len(handConfig))])
+	}
+}
+
+// --- Proto path: prompts parity ---
+
+// TestProtoE2E_PromptsList verifies the proto server registers the same
+// prompts as the hand-written server.
+func TestProtoE2E_PromptsList(t *testing.T) {
+	root := t.TempDir()
+	pc := newProtoMCPClient(t, root)
+
+	result := pc.Call("prompts/list", nil)
+	var parsed struct {
+		Prompts []mcpcore.PromptDef `json:"prompts"`
+	}
+	if err := result.Unmarshal(&parsed); err != nil {
+		t.Fatalf("unmarshal: %v", err)
+	}
+	if len(parsed.Prompts) != 3 {
+		t.Fatalf("expected 3 prompts, got %d", len(parsed.Prompts))
+	}
+}
+
+// --- Proto path: elicitation on remove_slide ---
+
+// TestProtoE2E_RemoveSlide_Declined verifies elicitation decline prevents
+// slide removal in the proto path.
+func TestProtoE2E_RemoveSlide_Declined(t *testing.T) {
+	root := t.TempDir()
+	core.CreateInDir("Proto Elicit", 3, "default", filepath.Join(root, "deck"), true)
+
+	pc := newProtoMCPClient(t, root,
+		client.WithElicitationHandler(func(_ context.Context, _ mcpcore.ElicitationRequest) (mcpcore.ElicitationResult, error) {
+			return mcpcore.ElicitationResult{Action: "decline"}, nil
+		}),
+	)
+
+	// Proto RemoveSlide returns a response even on decline (empty fields).
+	pc.ToolCall("remove_slide", map[string]any{"deck": "deck", "slide": "2"})
+
+	// Slide should NOT be removed.
+	descResult := pc.ToolCall("describe_deck", map[string]any{"deck": "deck"})
+	var desc testDeckDescription
+	json.Unmarshal([]byte(descResult), &desc)
+	if desc.SlideCount != 3 {
+		t.Errorf("expected 3 slides (unchanged), got %d", desc.SlideCount)
+	}
+}
+
+// TestProtoE2E_RemoveSlide_NoElicitation verifies backward compatibility:
+// no elicitation handler means slide is still removed.
+func TestProtoE2E_RemoveSlide_NoElicitation(t *testing.T) {
+	root := t.TempDir()
+	core.CreateInDir("Proto Compat", 3, "default", filepath.Join(root, "deck"), true)
+
+	pc := newProtoMCPClient(t, root)
+
+	pc.ToolCall("remove_slide", map[string]any{"deck": "deck", "slide": "2"})
+
+	descResult := pc.ToolCall("describe_deck", map[string]any{"deck": "deck"})
+	var desc testDeckDescription
+	json.Unmarshal([]byte(descResult), &desc)
+	if desc.SlideCount != 2 {
+		t.Errorf("expected 2 slides after removal, got %d", desc.SlideCount)
+	}
+}
+
+// --- Proto path: elicitation on create_deck ---
+
+// TestProtoE2E_CreateDeck_ElicitTheme verifies theme elicitation in proto path.
+func TestProtoE2E_CreateDeck_ElicitTheme(t *testing.T) {
+	root := t.TempDir()
+
+	pc := newProtoMCPClient(t, root,
+		client.WithElicitationHandler(func(_ context.Context, _ mcpcore.ElicitationRequest) (mcpcore.ElicitationResult, error) {
+			return mcpcore.ElicitationResult{
+				Action:  "accept",
+				Content: map[string]any{"theme": "dark"},
+			}, nil
+		}),
+	)
+
+	pc.ToolCall("create_deck", map[string]any{
+		"name":  "elicit-proto",
+		"title": "Elicited Proto",
+	})
+
+	descResult := pc.ToolCall("describe_deck", map[string]any{"deck": "elicit-proto"})
+	var desc testDeckDescription
+	json.Unmarshal([]byte(descResult), &desc)
+	if desc.Theme != "dark" {
+		t.Errorf("expected theme 'dark', got %q", desc.Theme)
 	}
 }
