@@ -1906,6 +1906,129 @@ func (x *AgentGuideResource) GetContent() string {
 	return ""
 }
 
+type ImproveSlideRequest struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	Deck  string                 `protobuf:"bytes,1,opt,name=deck,proto3" json:"deck,omitempty"`
+	// Slide reference: position number, slug, or filename.
+	Slide string `protobuf:"bytes,2,opt,name=slide,proto3" json:"slide,omitempty"`
+	// What to improve (e.g. "make bullet points more concise").
+	Instruction   string `protobuf:"bytes,3,opt,name=instruction,proto3" json:"instruction,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ImproveSlideRequest) Reset() {
+	*x = ImproveSlideRequest{}
+	mi := &file_slyds_v1_models_proto_msgTypes[30]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ImproveSlideRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ImproveSlideRequest) ProtoMessage() {}
+
+func (x *ImproveSlideRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_slyds_v1_models_proto_msgTypes[30]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ImproveSlideRequest.ProtoReflect.Descriptor instead.
+func (*ImproveSlideRequest) Descriptor() ([]byte, []int) {
+	return file_slyds_v1_models_proto_rawDescGZIP(), []int{30}
+}
+
+func (x *ImproveSlideRequest) GetDeck() string {
+	if x != nil {
+		return x.Deck
+	}
+	return ""
+}
+
+func (x *ImproveSlideRequest) GetSlide() string {
+	if x != nil {
+		return x.Slide
+	}
+	return ""
+}
+
+func (x *ImproveSlideRequest) GetInstruction() string {
+	if x != nil {
+		return x.Instruction
+	}
+	return ""
+}
+
+// ImproveSlideResponse is the entity state after an AI-assisted slide edit.
+type ImproveSlideResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Message       string                 `protobuf:"bytes,1,opt,name=message,proto3" json:"message,omitempty"`
+	Version       string                 `protobuf:"bytes,2,opt,name=version,proto3" json:"version,omitempty"`
+	DeckVersion   string                 `protobuf:"bytes,3,opt,name=deck_version,json=deckVersion,proto3" json:"deck_version,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ImproveSlideResponse) Reset() {
+	*x = ImproveSlideResponse{}
+	mi := &file_slyds_v1_models_proto_msgTypes[31]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ImproveSlideResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ImproveSlideResponse) ProtoMessage() {}
+
+func (x *ImproveSlideResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_slyds_v1_models_proto_msgTypes[31]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ImproveSlideResponse.ProtoReflect.Descriptor instead.
+func (*ImproveSlideResponse) Descriptor() ([]byte, []int) {
+	return file_slyds_v1_models_proto_rawDescGZIP(), []int{31}
+}
+
+func (x *ImproveSlideResponse) GetMessage() string {
+	if x != nil {
+		return x.Message
+	}
+	return ""
+}
+
+func (x *ImproveSlideResponse) GetVersion() string {
+	if x != nil {
+		return x.Version
+	}
+	return ""
+}
+
+func (x *ImproveSlideResponse) GetDeckVersion() string {
+	if x != nil {
+		return x.DeckVersion
+	}
+	return ""
+}
+
 // VersionConflictDetail is attached to ABORTED status when an optimistic
 // version check fails. Includes current state so the agent can recover
 // without a read_slide round-trip.
@@ -1923,7 +2046,7 @@ type VersionConflictDetail struct {
 
 func (x *VersionConflictDetail) Reset() {
 	*x = VersionConflictDetail{}
-	mi := &file_slyds_v1_models_proto_msgTypes[30]
+	mi := &file_slyds_v1_models_proto_msgTypes[32]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1935,7 +2058,7 @@ func (x *VersionConflictDetail) String() string {
 func (*VersionConflictDetail) ProtoMessage() {}
 
 func (x *VersionConflictDetail) ProtoReflect() protoreflect.Message {
-	mi := &file_slyds_v1_models_proto_msgTypes[30]
+	mi := &file_slyds_v1_models_proto_msgTypes[32]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1948,7 +2071,7 @@ func (x *VersionConflictDetail) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use VersionConflictDetail.ProtoReflect.Descriptor instead.
 func (*VersionConflictDetail) Descriptor() ([]byte, []int) {
-	return file_slyds_v1_models_proto_rawDescGZIP(), []int{30}
+	return file_slyds_v1_models_proto_rawDescGZIP(), []int{32}
 }
 
 func (x *VersionConflictDetail) GetCurrentVersion() string {
@@ -2127,7 +2250,15 @@ const file_slyds_v1_models_proto_rawDesc = "" +
 	"\x12DeckConfigResource\x12\x18\n" +
 	"\acontent\x18\x01 \x01(\tR\acontent\".\n" +
 	"\x12AgentGuideResource\x12\x18\n" +
-	"\acontent\x18\x01 \x01(\tR\acontent\"\xbb\x01\n" +
+	"\acontent\x18\x01 \x01(\tR\acontent\"a\n" +
+	"\x13ImproveSlideRequest\x12\x12\n" +
+	"\x04deck\x18\x01 \x01(\tR\x04deck\x12\x14\n" +
+	"\x05slide\x18\x02 \x01(\tR\x05slide\x12 \n" +
+	"\vinstruction\x18\x03 \x01(\tR\vinstruction\"m\n" +
+	"\x14ImproveSlideResponse\x12\x18\n" +
+	"\amessage\x18\x01 \x01(\tR\amessage\x12\x18\n" +
+	"\aversion\x18\x02 \x01(\tR\aversion\x12!\n" +
+	"\fdeck_version\x18\x03 \x01(\tR\vdeckVersion\"\xbb\x01\n" +
 	"\x15VersionConflictDetail\x12'\n" +
 	"\x0fcurrent_version\x18\x01 \x01(\tR\x0ecurrentVersion\x12,\n" +
 	"\x0fcurrent_content\x18\x02 \x01(\tH\x00R\x0ecurrentContent\x88\x01\x01\x12&\n" +
@@ -2148,7 +2279,7 @@ func file_slyds_v1_models_proto_rawDescGZIP() []byte {
 	return file_slyds_v1_models_proto_rawDescData
 }
 
-var file_slyds_v1_models_proto_msgTypes = make([]protoimpl.MessageInfo, 31)
+var file_slyds_v1_models_proto_msgTypes = make([]protoimpl.MessageInfo, 33)
 var file_slyds_v1_models_proto_goTypes = []any{
 	(*DeckRequest)(nil),                    // 0: slyds.v1.DeckRequest
 	(*ListDecksRequest)(nil),               // 1: slyds.v1.ListDecksRequest
@@ -2180,7 +2311,9 @@ var file_slyds_v1_models_proto_goTypes = []any{
 	(*SlideContentResource)(nil),           // 27: slyds.v1.SlideContentResource
 	(*DeckConfigResource)(nil),             // 28: slyds.v1.DeckConfigResource
 	(*AgentGuideResource)(nil),             // 29: slyds.v1.AgentGuideResource
-	(*VersionConflictDetail)(nil),          // 30: slyds.v1.VersionConflictDetail
+	(*ImproveSlideRequest)(nil),            // 30: slyds.v1.ImproveSlideRequest
+	(*ImproveSlideResponse)(nil),           // 31: slyds.v1.ImproveSlideResponse
+	(*VersionConflictDetail)(nil),          // 32: slyds.v1.VersionConflictDetail
 }
 var file_slyds_v1_models_proto_depIdxs = []int32{
 	3,  // 0: slyds.v1.ListDecksResponse.decks:type_name -> slyds.v1.DeckSummary
@@ -2206,14 +2339,14 @@ func file_slyds_v1_models_proto_init() {
 	file_slyds_v1_models_proto_msgTypes[14].OneofWrappers = []any{}
 	file_slyds_v1_models_proto_msgTypes[16].OneofWrappers = []any{}
 	file_slyds_v1_models_proto_msgTypes[22].OneofWrappers = []any{}
-	file_slyds_v1_models_proto_msgTypes[30].OneofWrappers = []any{}
+	file_slyds_v1_models_proto_msgTypes[32].OneofWrappers = []any{}
 	type x struct{}
 	out := protoimpl.TypeBuilder{
 		File: protoimpl.DescBuilder{
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_slyds_v1_models_proto_rawDesc), len(file_slyds_v1_models_proto_rawDesc)),
 			NumEnums:      0,
-			NumMessages:   31,
+			NumMessages:   33,
 			NumExtensions: 0,
 			NumServices:   0,
 		},

@@ -50,6 +50,7 @@
 - [x] ~~Resource template completions for deck names and slide positions (#59)~~
 - [x] ~~Optimistic versioning on MCP mutations — expected_version, expected_deck_version, version_conflict (#79)~~
 - [x] ~~Proto-based MCP server — slyds mcp-proto with proto-generated registrations, parity tests (#97)~~
+- [x] ~~MCP prompts, sampling, elicitation — 3 prompts (create-presentation, review-slides, suggest-speaker-notes), improve_slide with sampling, remove_slide/create_deck with elicitation. Proto-generated helpers via mcp_sampling/mcp_elicit annotations.~~
 - [ ] App-backed elicitation for theme/layout selection (from #93)
 - [ ] Remove hand-written mcp_tools.go / mcp_resources.go once proto path validated
 - [ ] Multi-root workspace.yaml config (#80)

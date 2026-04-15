@@ -89,7 +89,7 @@ func readSlideContent(t *testing.T, c *testutil.TestClient, args map[string]any)
 // newSlydsMCPClient creates a TestClient connected to a slyds MCP server
 // with the given deck root. Uses mcpkit/testutil for automatic httptest
 // server lifecycle, session management, and t.Fatal on errors.
-func newSlydsMCPClient(t *testing.T, root string) *testutil.TestClient {
+func newSlydsMCPClient(t *testing.T, root string, opts ...client.ClientOption) *testutil.TestClient {
 	t.Helper()
 	ws, err := NewLocalWorkspace(root)
 	if err != nil {
@@ -101,7 +101,8 @@ func newSlydsMCPClient(t *testing.T, root string) *testutil.TestClient {
 	)
 	registerResources(srv)
 	registerTools(srv)
-	return testutil.NewTestClient(t, srv)
+	registerPrompts(srv)
+	return testutil.NewTestClient(t, srv, opts...)
 }
 
 // TestE2E_FullAgentWorkflow exercises the complete MCP agent lifecycle:
@@ -232,7 +233,7 @@ func TestE2E_ResourceTemplatesList(t *testing.T) {
 	}
 }
 
-// TestE2E_ToolsList verifies that all 10 semantic tools are registered
+// TestE2E_ToolsList verifies that all 12 semantic tools are registered
 // and discoverable via tools/list.
 func TestE2E_ToolsList(t *testing.T) {
 	c := newSlydsMCPClient(t, t.TempDir())
@@ -245,7 +246,7 @@ func TestE2E_ToolsList(t *testing.T) {
 
 	expected := []string{
 		"list_decks", "create_deck", "describe_deck", "list_slides", "read_slide",
-		"edit_slide", "query_slide", "add_slide", "remove_slide",
+		"edit_slide", "query_slide", "add_slide", "remove_slide", "improve_slide",
 		"check_deck", "build_deck",
 	}
 	for _, name := range expected {
@@ -948,14 +949,15 @@ func TestE2E_StdioTransport(t *testing.T) {
 	var toolsResult struct {
 		Tools []struct{ Name string } `json:"tools"`
 	}
-	json.Unmarshal(resp.Result, &toolsResult)
+	trBytes, _ := json.Marshal(resp.Result)
+	json.Unmarshal(trBytes, &toolsResult)
 	names := make(map[string]bool)
 	for _, tool := range toolsResult.Tools {
 		names[tool.Name] = true
 	}
 	expected := []string{
 		"list_decks", "create_deck", "describe_deck", "list_slides", "read_slide",
-		"edit_slide", "query_slide", "add_slide", "remove_slide",
+		"edit_slide", "query_slide", "add_slide", "remove_slide", "improve_slide",
 		"check_deck", "build_deck",
 	}
 	for _, name := range expected {
@@ -976,7 +978,8 @@ func TestE2E_StdioTransport(t *testing.T) {
 	var toolResult struct {
 		Content []struct{ Text string } `json:"content"`
 	}
-	json.Unmarshal(resp.Result, &toolResult)
+	trBytes2, _ := json.Marshal(resp.Result)
+	json.Unmarshal(trBytes2, &toolResult)
 	if len(toolResult.Content) == 0 || !strings.Contains(toolResult.Content[0].Text, "Stdio Test") {
 		t.Error("stdio describe_deck didn't return deck title")
 	}

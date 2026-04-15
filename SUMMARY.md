@@ -15,7 +15,7 @@ slyds is a Go CLI for creating, serving, and building self-contained HTML presen
 - **`query`**: CSS selector interface for reading/writing slide HTML content (goquery); optional **`--batch`** JSON for atomic multi-slide writes
 - **`introspect`**: Machine-readable JSON listing layouts (with `data-slot` names), built-in themes, and CLI catalog — for agents and MCP clients
 - **`describe`**: Per-deck structured summary (`--json` for tools)
-- **`mcp`**: MCP server with 10 semantic tools + 7 browsable resources. Streamable HTTP (default) or SSE. See `docs/MCP.md`
+- **`mcp`**: MCP server with 14 tools + 9 resources + 3 prompts + completions + sampling + elicitation. Streamable HTTP (default) or SSE. See `docs/MCP.md`
 - **Export button**: Client-side download in built presentations — extracts slides from DOM, zips, triggers browser download (works from `file://`)
 - **`version`**: Print version (injected from git tags at build time)
 

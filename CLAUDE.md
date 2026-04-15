@@ -20,7 +20,7 @@ make audit       # govulncheck + gosec + gitleaks
 - `examples/` — demo presentations with tests.
 - `docs/` — MCP setup, agent themes, CSS contract, design docs.
 
-Key files: `core/deck.go` (Deck API), `core/osfs.go` (OS boundary), `core/version.go` (optimistic versioning), `cmd/workspace.go` (Workspace abstraction), `cmd/mcp.go` (MCP server), `cmd/mcp_tools.go` (hand-written tools), `cmd/mcp_resources.go` (hand-written resources), `cmd/mcp_apps.go` (MCP Apps previews), `cmd/mcp_proto_impl.go` (proto service impl), `cmd/mcp_proto.go` (`mcp-proto` subcommand), `cmd/ws.go` (`slyds ws` debug CLI).
+Key files: `core/deck.go` (Deck API), `core/osfs.go` (OS boundary), `core/version.go` (optimistic versioning), `cmd/workspace.go` (Workspace abstraction), `cmd/mcp.go` (MCP server), `cmd/mcp_tools.go` (hand-written tools), `cmd/mcp_resources.go` (hand-written resources), `cmd/mcp_prompts.go` (prompt templates), `cmd/mcp_completions.go` (completions), `cmd/mcp_apps.go` (MCP Apps previews), `cmd/mcp_proto_impl.go` (proto service impl), `cmd/mcp_proto.go` (`mcp-proto` subcommand), `cmd/ws.go` (`slyds ws` debug CLI).
 
 - `proto/` — Proto definitions + buf config. `proto/slyds/v1/service.proto` (tools + resources), `proto/slyds/v1/models.proto` (messages).
 - `gen/` — Generated code from protos. `gen/go/slyds/v1/service.pb.mcp.go` (MCP registrations).
@@ -48,8 +48,9 @@ All Deck I/O goes through `templar.WritableFS` (v0.1.0). No `os.*`/`filepath.*` 
 - **macOS /private symlinks**: temp dirs resolve `/var/...` vs `/private/var/...`. Don't compare paths in tests.
 - **`go:embed` paths relative to Go file** — `assets/embed.go` lives alongside the embedded files; `core/embed.go` re-exports.
 - **Theme render fallback** — `InsertSlide` uses layout system first; falls back to theme templates.
-- **MCP** — Two server paths: `slyds mcp` (hand-written) and `slyds mcp-proto` (proto-generated, experimental). Both register 13 tools + 9 resources + completions via mcpkit v0.2.15+. Typed handler contexts. MCP Apps with display modes + auto-fallback template URIs. Optimistic versioning (`expected_version` / `expected_deck_version`). `--allow-origin '*'` for tunnel/remote. See [docs/MCP.md](docs/MCP.md).
-- **Proto MCP** — `proto/slyds/v1/` defines the API as annotated proto RPCs. `protoc-gen-go-mcp` generates typed registrations. `SlydsServiceImpl` in `cmd/mcp_proto_impl.go` wraps Workspace. Entity-focused responses, gRPC status codes for errors. Parity tests validate both paths produce identical output. Dev setup: `cd proto && make setupdev && make buf`.
+- **MCP** — Two server paths: `slyds mcp` (hand-written) and `slyds mcp-proto` (proto-generated, experimental). Both register 14 tools + 9 resources + 3 prompts + completions via mcpkit v0.2.21. Typed handler contexts. MCP Apps with display modes + auto-fallback template URIs. Sampling (`improve_slide` uses server→client LLM calls). Elicitation (`remove_slide` confirms, `create_deck` elicits theme). Optimistic versioning (`expected_version` / `expected_deck_version`). `--allow-origin '*'` for tunnel/remote. See [docs/MCP.md](docs/MCP.md).
+- **Proto MCP** — `proto/slyds/v1/` defines the API as annotated proto RPCs. `protoc-gen-go-mcp` generates typed registrations, sampling helpers (`SampleForImproveSlide`), elicitation helpers (`ElicitThemeChoice`, `ElicitRemoveSlideConfirmation`), and prompt registrations. `SlydsServiceImpl` in `cmd/mcp_proto_impl.go` wraps Workspace. Typed handler contexts (`mcpcore.ToolContext`, `mcpcore.ResourceContext`, `mcpcore.PromptContext`). Entity-focused responses, gRPC status codes for errors. Parity tests validate both paths produce identical output. Dev setup: `cd proto && make setupdev && make buf`.
+- **Proto elicitation schema messages** must live in `service.proto` (same file as the RPC), not `models.proto` — `protoc-gen-go-mcp` resolves `schema_message` within `file.Messages` only.
 - **CLI-direct agent mode** — `describe --json`, `ls --json`, `check --json`, `build --json`, `ws info --json`, `ws list --json` for agents using shell commands instead of MCP. See [AGENT-SETUP.md](AGENT-SETUP.md).
 - **`SLYDS_MCP_TOKEN`** env var — fallback for `--token` flag in container/CI deployments.
 - **`SLYDS_DECK_ROOT`** env var — fallback for `--deck-root` flag on both `slyds mcp` and `slyds ws`. Precedence: explicit flag > env var > `.` (cwd).
@@ -59,9 +60,9 @@ All Deck I/O goes through `templar.WritableFS` (v0.1.0). No `os.*`/`filepath.*` 
 | Component | Version | Notes |
 |-----------|---------|-------|
 | templar | v0.1.0 | WritableFS, FSFolder, MemFS, module system |
-| mcpkit | v0.2.15 | Typed handler contexts, ToolCallFull, NotifyResourceUpdated, schema validation, streaming, completions |
-| mcpkit/ext/ui | v0.2.15 | MCP Apps — display modes, auto-fallback template URIs, RequestDisplayMode |
-| mcpkit/ext/protogen | v0.2.16 | Proto→MCP codegen, completable_fields, raw content for non-JSON resources |
+| mcpkit | v0.2.21 | Typed handler contexts, ToolCallFull, NotifyResourceUpdated, schema validation, streaming, completions, sampling, elicitation |
+| mcpkit/ext/ui | v0.2.21 | MCP Apps — display modes, auto-fallback template URIs, RequestDisplayMode |
+| mcpkit/ext/protogen | v0.2.21 | Proto→MCP codegen, completable_fields, raw content for non-JSON resources |
 
 See [Stackfile.md](Stackfile.md) for full dependency list.
 
