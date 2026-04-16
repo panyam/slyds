@@ -69,21 +69,21 @@
 				
 				<option value="file6">github.com/panyam/slyds/cmd/introspect.go (64.7%)</option>
 				
-				<option value="file7">github.com/panyam/slyds/cmd/mcp.go (19.8%)</option>
+				<option value="file7">github.com/panyam/slyds/cmd/mcp.go (20.6%)</option>
 				
-				<option value="file8">github.com/panyam/slyds/cmd/mcp_apps.go (81.1%)</option>
+				<option value="file8">github.com/panyam/slyds/cmd/mcp_apps.go (81.7%)</option>
 				
 				<option value="file9">github.com/panyam/slyds/cmd/mcp_completions.go (81.6%)</option>
 				
 				<option value="file10">github.com/panyam/slyds/cmd/mcp_prompts.go (82.0%)</option>
 				
-				<option value="file11">github.com/panyam/slyds/cmd/mcp_proto.go (15.1%)</option>
+				<option value="file11">github.com/panyam/slyds/cmd/mcp_proto.go (16.7%)</option>
 				
 				<option value="file12">github.com/panyam/slyds/cmd/mcp_proto_impl.go (45.9%)</option>
 				
 				<option value="file13">github.com/panyam/slyds/cmd/mcp_resources.go (63.4%)</option>
 				
-				<option value="file14">github.com/panyam/slyds/cmd/mcp_tools.go (83.5%)</option>
+				<option value="file14">github.com/panyam/slyds/cmd/mcp_tools.go (86.3%)</option>
 				
 				<option value="file15">github.com/panyam/slyds/cmd/preview.go (2.9%)</option>
 				
@@ -812,6 +812,7 @@ var (
         mcpUseStdio     bool
         mcpDeckRoot     string
         mcpAllowOrigins []string
+        mcpAppBridge    bool
 )
 
 func init() <span class="cov8" title="1">{
@@ -822,6 +823,7 @@ func init() <span class="cov8" title="1">{
         mcpCmd.Flags().BoolVar(&amp;mcpUseStdio, "stdio", false, "Use stdio transport (Content-Length framed JSON-RPC on stdin/stdout)")
         mcpCmd.Flags().StringVar(&amp;mcpDeckRoot, "deck-root", "", "Root directory for deck discovery (default: $SLYDS_DECK_ROOT, or current directory)")
         mcpCmd.Flags().StringSliceVar(&amp;mcpAllowOrigins, "allow-origin", nil, "Allowed Origin headers (default: localhost only). Use '*' to allow all origins (e.g. behind a tunnel)")
+        mcpCmd.Flags().BoolVar(&amp;mcpAppBridge, "app-bridge", true, "Inject MCP App Bridge into previews (host theme adaptation, interactive navigation). Disable with --app-bridge=false if the bridge breaks preview rendering in your host.")
         rootCmd.AddCommand(mcpCmd)
 }</span>
 
@@ -1095,6 +1097,7 @@ func (h *slydsMCPErrorHandler) OnKeepaliveFailure(sessionID string, consecutiveF
 import (
         "context"
         "fmt"
+        "os"
         "strconv"
         "strings"
 
@@ -1117,22 +1120,24 @@ import (
 // the postMessage `ui/notifications/size-changed` shim (GH issue #75).
 var mcpAppsEmbedStyleTag = `&lt;style id="slyds-mcp-embed"&gt;` + "\n" + assets.MCPEmbedCSS + `&lt;/style&gt;`
 
-// applyMCPAppEmbedHints adds a root class, embed CSS, and the MCP App Bridge
-// for MCP App iframes. The bridge enables host theme adaptation (dark mode,
-// CSS variables, fonts) and bidirectional tool calls (slide navigation).
+// applyMCPAppEmbedHints adds a root class and embed CSS for MCP App iframes.
+// When --app-bridge is enabled, also injects the MCP App Bridge for host
+// theme adaptation and bidirectional tool calls.
 func applyMCPAppEmbedHints(html string) string <span class="cov8" title="1">{
         html = strings.Replace(html, "&lt;html", "&lt;html class=\"slyds-mcp-embed\"", 1)
         html = strings.Replace(html, "&lt;head&gt;", "&lt;head&gt;\n"+mcpAppsEmbedStyleTag+"\n", 1)
-        // Inject MCP App Bridge for host communication (theme adaptation,
-        // bidirectional tools). Idempotent — skips if already present.
-        html = ui.InjectAppBridge(html, &amp;ui.BridgeConfig{
-                Name:    "slyds",
-                Version: Version,
-        })
-        // Inject slyds-specific app JS (navigation tools, live edit).
-        html = injectAppScript(html)
-        return html
-}</span>
+        if mcpAppBridge </span><span class="cov8" title="1">{
+                // Inject MCP App Bridge for host communication (theme adaptation,
+                // bidirectional tools). Idempotent — skips if already present.
+                html = ui.InjectAppBridge(html, &amp;ui.BridgeConfig{
+                        Name:    "slyds",
+                        Version: Version,
+                })
+                // Inject slyds-specific app JS (navigation tools, live edit).
+                html = injectAppScript(html)
+        }</span>
+        <span class="cov8" title="1">return html</span>
+}
 
 // mcpAppsAppScriptTag wraps the embedded slyds-app.js (MCP App bridge
 // handlers for slide navigation and live edit) in a &lt;script&gt; tag.
@@ -1199,7 +1204,10 @@ func buildPreviewHTML(ctx context.Context, deckName string, position int) (strin
                         return "", err
                 }</span>
         }
-        <span class="cov8" title="1">return applyMCPAppEmbedHints(html), nil</span>
+        <span class="cov8" title="1">html = applyMCPAppEmbedHints(html)
+        fmt.Fprintf(os.Stderr, "preview: deck=%s pos=%d size=%d bridge=%v\n",
+                deckName, position, len(html), mcpAppBridge)
+        return html, nil</span>
 }
 
 // previewDisplayModes is the set of display modes supported by slyds preview
@@ -1733,6 +1741,7 @@ func init() <span class="cov8" title="1">{
         mcpProtoCmd.Flags().BoolVar(&amp;mcpUseStdio, "stdio", false, "Use stdio transport")
         mcpProtoCmd.Flags().StringVar(&amp;mcpDeckRoot, "deck-root", "", "Root directory for deck discovery")
         mcpProtoCmd.Flags().StringSliceVar(&amp;mcpAllowOrigins, "allow-origin", nil, "Allowed Origin headers. Use '*' for all.")
+        mcpProtoCmd.Flags().BoolVar(&amp;mcpAppBridge, "app-bridge", true, "Inject MCP App Bridge into previews. Disable with --app-bridge=false if needed.")
         rootCmd.AddCommand(mcpProtoCmd)
 }</span>
 
@@ -2842,10 +2851,8 @@ import (
 )
 
 // registerTools registers all semantic MCP tools on the server using
-// single-struct registration (mcpkit v0.1.15). Tool handlers resolve the
-// active Workspace from request context — never from a captured path —
-// so the same factory works for localhost (single static workspace) and
-// for future hosted multi-tenant deployments (per-request workspace).
+// typed tool registration (mcpkit v0.2.26). InputSchema is auto-derived
+// from Go struct tags — no manual schema maps needed.
 func registerTools(srv *server.Server) <span class="cov8" title="1">{
         srv.Register(
                 listDecksTool(),
@@ -2863,9 +2870,10 @@ func registerTools(srv *server.Server) <span class="cov8" title="1">{
         )
 }</span>
 
-// --- Result structs ---
+// --- Tool definitions ---
 
-// deckSummary is the per-deck entry returned by list_decks.
+type listDecksInput struct{}
+
 type deckSummary struct {
         Name   string `json:"name"`
         Title  string `json:"title"`
@@ -2873,52 +2881,11 @@ type deckSummary struct {
         Slides int    `json:"slides"`
 }
 
-// buildWarningResult is returned by build_deck when the build succeeds
-// but produces warnings (e.g. missing assets, unresolved references).
-type buildWarningResult struct {
-        HTML     string   `json:"html"`
-        Warnings []string `json:"warnings"`
-}
-
-// slideReadResult is the structured response from read_slide, including
-// the content version for optimistic concurrency.
-type slideReadResult struct {
-        Content     string `json:"content"`
-        Version     string `json:"version"`
-        DeckVersion string `json:"deck_version"`
-}
-
-// slideEditResult is the structured response from edit_slide after a
-// successful write, including the new content version.
-type slideEditResult struct {
-        Message     string `json:"message"`
-        Version     string `json:"version"`
-        DeckVersion string `json:"deck_version"`
-}
-
-// versionConflict is returned as an error result when expected_version
-// doesn't match the current content. Includes the current state so the
-// agent can recover without an extra round-trip.
-type versionConflict struct {
-        Error          string `json:"error"`
-        CurrentVersion string `json:"current_version"`
-        CurrentContent string `json:"current_content,omitempty"`
-        DeckVersion    string `json:"deck_version,omitempty"`
-}
-
-// --- Tool definitions and handlers ---
-
-func listDecksTool() server.Tool <span class="cov8" title="1">{
-        return server.Tool{
-                ToolDef: mcpcore.ToolDef{
-                        Name:        "list_decks",
-                        Description: "List all presentation decks visible to the current workspace with name, title, theme, and slide count.",
-                        InputSchema: map[string]any{
-                                "type":       "object",
-                                "properties": map[string]any{},
-                        },
-                },
-                Handler: func(ctx mcpcore.ToolContext, req mcpcore.ToolRequest) (mcpcore.ToolResult, error) </span><span class="cov8" title="1">{
+func listDecksTool() mcpcore.TypedToolResult <span class="cov8" title="1">{
+        return mcpcore.TypedTool[listDecksInput, mcpcore.ToolResult](
+                "list_decks",
+                "List all presentation decks visible to the current workspace with name, title, theme, and slide count.",
+                func(ctx mcpcore.ToolContext, _ listDecksInput) (mcpcore.ToolResult, error) </span><span class="cov8" title="1">{
                         ws, errResult := requireWorkspace(ctx)
                         if errResult != nil </span><span class="cov8" title="1">{
                                 return *errResult, nil
@@ -2943,41 +2910,26 @@ func listDecksTool() server.Tool <span class="cov8" title="1">{
                         }
                         <span class="cov8" title="1">return jsonResult(map[string]any{"decks": decks})</span>
                 },
-        }
+        )
 }
 
-func createDeckTool() server.Tool <span class="cov8" title="1">{
-        return server.Tool{
-                ToolDef: mcpcore.ToolDef{
-                        Name:        "create_deck",
-                        Description: "Create a new presentation deck with the given name, title, theme, and slide count.",
-                        InputSchema: map[string]any{
-                                "type": "object",
-                                "properties": map[string]any{
-                                        "name":   propString("Deck name (becomes the deck identifier in the workspace)"),
-                                        "title":  propString("Presentation title"),
-                                        "theme":  propString("Theme: default, dark, minimal, corporate, hacker"),
-                                        "slides": propInt("Number of slides to scaffold (default: 3)"),
-                                },
-                                "required": []string{"name", "title"},
-                        },
-                },
-                Handler: func(ctx mcpcore.ToolContext, req mcpcore.ToolRequest) (mcpcore.ToolResult, error) </span><span class="cov8" title="1">{
+type createDeckInput struct {
+        Name   string `json:"name"   jsonschema:"required,description=Deck name (becomes the deck identifier in the workspace)"`
+        Title  string `json:"title"  jsonschema:"required,description=Presentation title"`
+        Theme  string `json:"theme,omitempty"  jsonschema:"description=Theme (optional — omit to let the user choose interactively)"`
+        Slides int    `json:"slides,omitempty" jsonschema:"description=Number of slides to scaffold (default: 3)"`
+}
+
+func createDeckTool() mcpcore.TypedToolResult <span class="cov8" title="1">{
+        return mcpcore.TypedTool[createDeckInput, mcpcore.ToolResult](
+                "create_deck",
+                "Create a new presentation deck with the given name, title, and slide count. Omit theme to let the user choose interactively via the host UI.",
+                func(ctx mcpcore.ToolContext, p createDeckInput) (mcpcore.ToolResult, error) </span><span class="cov8" title="1">{
                         ws, errResult := requireWorkspace(ctx)
                         if errResult != nil </span><span class="cov8" title="1">{
                                 return *errResult, nil
                         }</span>
-                        <span class="cov8" title="1">var p struct {
-                                Name   string `json:"name"`
-                                Title  string `json:"title"`
-                                Theme  string `json:"theme"`
-                                Slides int    `json:"slides"`
-                        }
-                        if err := req.Bind(&amp;p); err != nil </span><span class="cov0" title="0">{
-                                return mcpcore.ErrorResult(err.Error()), nil
-                        }</span>
                         <span class="cov8" title="1">if p.Theme == "" </span><span class="cov8" title="1">{
-                                // Elicit theme choice if the client supports it.
                                 themes := core.AvailableThemeNames()
                                 themesJSON, _ := json.Marshal(themes)
                                 schema := fmt.Sprintf(`{
@@ -3013,22 +2965,20 @@ func createDeckTool() server.Tool <span class="cov8" title="1">{
                         }</span>
                         <span class="cov8" title="1">return jsonResult(desc)</span>
                 },
-        }
+        )
 }
 
-func describeDeckTool() server.Tool <span class="cov8" title="1">{
-        return server.Tool{
-                ToolDef: mcpcore.ToolDef{
-                        Name:        "describe_deck",
-                        Description: "Get structured metadata for a deck: title, theme, slide list with layouts, word counts, and notes status.",
-                        InputSchema: deckOnlySchema(),
-                },
-                Handler: func(ctx mcpcore.ToolContext, req mcpcore.ToolRequest) (mcpcore.ToolResult, error) </span><span class="cov8" title="1">{
-                        p, err := bindDeckParam(req)
-                        if err != nil </span><span class="cov0" title="0">{
-                                return mcpcore.ErrorResult(err.Error()), nil
-                        }</span>
-                        <span class="cov8" title="1">d, errResult := openDeckFromContext(ctx, p.Deck)
+// deckInput is shared by describe_deck, list_slides, check_deck, build_deck.
+type deckInput struct {
+        Deck string `json:"deck" jsonschema:"required,description=Deck name (workspace-scoped identifier or '.' for root deck)"`
+}
+
+func describeDeckTool() mcpcore.TypedToolResult <span class="cov8" title="1">{
+        return mcpcore.TypedTool[deckInput, mcpcore.ToolResult](
+                "describe_deck",
+                "Get structured metadata for a deck: title, theme, slide list with layouts, word counts, and notes status.",
+                func(ctx mcpcore.ToolContext, p deckInput) (mcpcore.ToolResult, error) </span><span class="cov8" title="1">{
+                        d, errResult := openDeckFromContext(ctx, p.Deck)
                         if errResult != nil </span><span class="cov8" title="1">{
                                 return *errResult, nil
                         }</span>
@@ -3038,22 +2988,15 @@ func describeDeckTool() server.Tool <span class="cov8" title="1">{
                         }</span>
                         <span class="cov8" title="1">return jsonResult(desc)</span>
                 },
-        }
+        )
 }
 
-func listSlidesTool() server.Tool <span class="cov8" title="1">{
-        return server.Tool{
-                ToolDef: mcpcore.ToolDef{
-                        Name:        "list_slides",
-                        Description: "List all slides in a deck with filenames, layouts, titles, and word counts.",
-                        InputSchema: deckOnlySchema(),
-                },
-                Handler: func(ctx mcpcore.ToolContext, req mcpcore.ToolRequest) (mcpcore.ToolResult, error) </span><span class="cov8" title="1">{
-                        p, err := bindDeckParam(req)
-                        if err != nil </span><span class="cov0" title="0">{
-                                return mcpcore.ErrorResult(err.Error()), nil
-                        }</span>
-                        <span class="cov8" title="1">d, errResult := openDeckFromContext(ctx, p.Deck)
+func listSlidesTool() mcpcore.TypedToolResult <span class="cov8" title="1">{
+        return mcpcore.TypedTool[deckInput, mcpcore.ToolResult](
+                "list_slides",
+                "List all slides in a deck with filenames, layouts, titles, and word counts.",
+                func(ctx mcpcore.ToolContext, p deckInput) (mcpcore.ToolResult, error) </span><span class="cov8" title="1">{
+                        d, errResult := openDeckFromContext(ctx, p.Deck)
                         if errResult != nil </span><span class="cov8" title="1">{
                                 return *errResult, nil
                         }</span>
@@ -3063,34 +3006,27 @@ func listSlidesTool() server.Tool <span class="cov8" title="1">{
                         }</span>
                         <span class="cov8" title="1">return jsonResult(map[string]any{"slides": desc.Slides})</span>
                 },
-        }
+        )
 }
 
-func readSlideTool() server.Tool <span class="cov8" title="1">{
-        return server.Tool{
-                ToolDef: mcpcore.ToolDef{
-                        Name:        "read_slide",
-                        Description: "Read the raw HTML content of a slide. Supply either 'slide' (preferred: slug, filename, or position as string) or 'position' (legacy: 1-based integer).",
-                        InputSchema: map[string]any{
-                                "type": "object",
-                                "properties": map[string]any{
-                                        "deck":     propString("Deck name (workspace-scoped identifier)"),
-                                        "slide":    propString("Slide reference: slug (e.g. 'metrics'), filename (e.g. '02-metrics.html'), or position number as string"),
-                                        "position": propInt("Slide position (1-based). Legacy — prefer 'slide' for stability across inserts."),
-                                },
-                                "required": []string{"deck"},
-                        },
-                },
-                Handler: func(ctx mcpcore.ToolContext, req mcpcore.ToolRequest) (mcpcore.ToolResult, error) </span><span class="cov8" title="1">{
-                        var p struct {
-                                Deck     string `json:"deck"`
-                                Slide    string `json:"slide"`
-                                Position int    `json:"position"`
-                        }
-                        if err := req.Bind(&amp;p); err != nil </span><span class="cov0" title="0">{
-                                return mcpcore.ErrorResult(err.Error()), nil
-                        }</span>
-                        <span class="cov8" title="1">d, errResult := openDeckFromContext(ctx, p.Deck)
+type slideReadResult struct {
+        Content     string `json:"content"`
+        Version     string `json:"version"`
+        DeckVersion string `json:"deck_version"`
+}
+
+type readSlideInput struct {
+        Deck     string `json:"deck"               jsonschema:"required,description=Deck name"`
+        Slide    string `json:"slide,omitempty"     jsonschema:"description=Slide reference: slug (e.g. 'metrics')\\, filename\\, or position as string"`
+        Position int    `json:"position,omitempty"  jsonschema:"description=Slide position (1-based). Legacy — prefer 'slide'"`
+}
+
+func readSlideTool() mcpcore.TypedToolResult <span class="cov8" title="1">{
+        return mcpcore.TypedTool[readSlideInput, mcpcore.ToolResult](
+                "read_slide",
+                "Read the raw HTML content of a slide. Supply either 'slide' (preferred: slug, filename, or position as string) or 'position' (legacy: 1-based integer).",
+                func(ctx mcpcore.ToolContext, p readSlideInput) (mcpcore.ToolResult, error) </span><span class="cov8" title="1">{
+                        d, errResult := openDeckFromContext(ctx, p.Deck)
                         if errResult != nil </span><span class="cov8" title="1">{
                                 return *errResult, nil
                         }</span>
@@ -3110,38 +3046,38 @@ func readSlideTool() server.Tool <span class="cov8" title="1">{
                                 DeckVersion: deckVer,
                         })</span>
                 },
-        }
+        )
 }
 
-func editSlideTool() server.Tool <span class="cov8" title="1">{
-        return server.Tool{
-                ToolDef: mcpcore.ToolDef{
-                        Name:        "edit_slide",
-                        Description: "Replace the HTML content of a slide. Content MUST be a raw HTML fragment (not JSON-escaped) whose root element is &lt;div class=\"slide\" data-layout=\"...\"&gt;. Do NOT use class=\"slide-content\" or other variants — the engine requires exactly class=\"slide\" for pagination. Do NOT escape quotes with backslashes. Do NOT include &lt;style&gt; blocks — they pollute global CSS and break navigation; use inline style= attributes instead. Supply either 'slide' (preferred: slug, filename, or position as string) or 'position' (legacy: 1-based integer). Pass expected_version (from read_slide or describe_deck) for optimistic concurrency; omit or pass 'latest' for last-write-wins.",
-                        InputSchema: map[string]any{
-                                "type": "object",
-                                "properties": map[string]any{
-                                        "deck":             propString("Deck name"),
-                                        "slide":            propString("Slide reference: slug (e.g. 'metrics'), filename (e.g. '02-metrics.html'), or position number as string"),
-                                        "position":         propInt("Slide position (1-based). Legacy — prefer 'slide' for stability across inserts."),
-                                        "content":          propString("New HTML content for the slide"),
-                                        "expected_version": propString("Expected slide version from read_slide. Omit or pass 'latest' to skip the check."),
-                                },
-                                "required": []string{"deck", "content"},
-                        },
-                },
-                Handler: func(ctx mcpcore.ToolContext, req mcpcore.ToolRequest) (mcpcore.ToolResult, error) </span><span class="cov8" title="1">{
-                        var p struct {
-                                Deck            string `json:"deck"`
-                                Slide           string `json:"slide"`
-                                Position        int    `json:"position"`
-                                Content         string `json:"content"`
-                                ExpectedVersion string `json:"expected_version"`
-                        }
-                        if err := req.Bind(&amp;p); err != nil </span><span class="cov0" title="0">{
-                                return mcpcore.ErrorResult(err.Error()), nil
-                        }</span>
-                        <span class="cov8" title="1">d, errResult := openDeckFromContext(ctx, p.Deck)
+// slideEditResult is shared by edit_slide and improve_slide.
+type slideEditResult struct {
+        Message     string `json:"message"`
+        Version     string `json:"version"`
+        DeckVersion string `json:"deck_version"`
+}
+
+// versionConflict is shared by edit_slide, add_slide, and remove_slide.
+type versionConflict struct {
+        Error          string `json:"error"`
+        CurrentVersion string `json:"current_version"`
+        CurrentContent string `json:"current_content,omitempty"`
+        DeckVersion    string `json:"deck_version,omitempty"`
+}
+
+type editSlideInput struct {
+        Deck            string `json:"deck"                       jsonschema:"required,description=Deck name"`
+        Slide           string `json:"slide,omitempty"            jsonschema:"description=Slide reference: slug\\, filename\\, or position as string"`
+        Position        int    `json:"position,omitempty"         jsonschema:"description=Slide position (1-based). Legacy — prefer 'slide'"`
+        Content         string `json:"content"                    jsonschema:"required,description=New HTML content for the slide"`
+        ExpectedVersion string `json:"expected_version,omitempty" jsonschema:"description=Expected slide version from read_slide. Omit or pass 'latest' to skip."`
+}
+
+func editSlideTool() mcpcore.TypedToolResult <span class="cov8" title="1">{
+        return mcpcore.TypedTool[editSlideInput, mcpcore.ToolResult](
+                "edit_slide",
+                "Replace the HTML content of a slide. Content MUST be a raw HTML fragment (not JSON-escaped) whose root element is &lt;div class=\"slide\" data-layout=\"...\"&gt;. Do NOT use class=\"slide-content\" or other variants — the engine requires exactly class=\"slide\" for pagination. Do NOT escape quotes with backslashes. Do NOT include &lt;style&gt; blocks — they pollute global CSS and break navigation; use inline style= attributes instead. Supply either 'slide' (preferred: slug, filename, or position as string) or 'position' (legacy: 1-based integer). Pass expected_version (from read_slide or describe_deck) for optimistic concurrency; omit or pass 'latest' for last-write-wins.",
+                func(ctx mcpcore.ToolContext, p editSlideInput) (mcpcore.ToolResult, error) </span><span class="cov8" title="1">{
+                        d, errResult := openDeckFromContext(ctx, p.Deck)
                         if errResult != nil </span><span class="cov8" title="1">{
                                 return *errResult, nil
                         }</span>
@@ -3149,7 +3085,6 @@ func editSlideTool() server.Tool <span class="cov8" title="1">{
                         if err != nil </span><span class="cov8" title="1">{
                                 return mcpcore.ErrorResult(err.Error()), nil
                         }</span>
-                        // Optimistic version check
                         <span class="cov8" title="1">if p.ExpectedVersion != "" &amp;&amp; p.ExpectedVersion != "latest" </span><span class="cov8" title="1">{
                                 currentVer, err := d.SlideVersion(pos)
                                 if err != nil </span><span class="cov0" title="0">{
@@ -3188,15 +3123,11 @@ func editSlideTool() server.Tool <span class="cov8" title="1">{
                                 DeckVersion: deckVer,
                         })</span>
                 },
-        }
+        )
 }
 
 // resolveSlidePosition turns the (slide, position) parameter pair from
-// read_slide / edit_slide into a concrete 1-based position. The `slide`
-// string takes precedence over `position` if both are provided; this
-// lets agents migrate from position-based refs to slug-based refs on
-// their own schedule. Returns a descriptive error if neither is set or
-// the slide string cannot be resolved.
+// read_slide / edit_slide into a concrete 1-based position.
 func resolveSlidePosition(d *core.Deck, slide string, position int) (int, error) <span class="cov8" title="1">{
         if slide != "" </span><span class="cov8" title="1">{
                 filename, err := d.ResolveSlide(slide)
@@ -3220,49 +3151,27 @@ func resolveSlidePosition(d *core.Deck, slide string, position int) (int, error)
         <span class="cov8" title="1">return 0, fmt.Errorf("either 'slide' or 'position' is required")</span>
 }
 
-func querySlideTool() server.Tool <span class="cov8" title="1">{
-        return server.Tool{
-                ToolDef: mcpcore.ToolDef{
-                        Name:        "query_slide",
-                        Description: "Query or modify slide HTML using CSS selectors (goquery). Read text, attributes, inner HTML, or mutate content.",
-                        InputSchema: map[string]any{
-                                "type": "object",
-                                "properties": map[string]any{
-                                        "deck":     propString("Deck name"),
-                                        "slide":    propString("Slide reference: position number (e.g. '1') or filename substring"),
-                                        "selector": propString("CSS selector (e.g. 'h1', '.slide-body', 'img')"),
-                                        "html":     propBool("Return inner HTML instead of text"),
-                                        "attr":     propString("Return the value of this attribute"),
-                                        "count":    propBool("Return match count instead of content"),
-                                        "set":      propString("Set inner text of matched elements"),
-                                        "set_html": propString("Set inner HTML of matched elements"),
-                                        "set_attr": propString("Set attribute (NAME=VALUE format)"),
-                                        "append":   propString("Append child HTML to matched elements"),
-                                        "remove":   propBool("Remove matched elements"),
-                                        "all":      propBool("Apply to all matches (default: first only)"),
-                                },
-                                "required": []string{"deck", "slide", "selector"},
-                        },
-                },
-                Handler: func(ctx mcpcore.ToolContext, req mcpcore.ToolRequest) (mcpcore.ToolResult, error) </span><span class="cov8" title="1">{
-                        var p struct {
-                                Deck     string  `json:"deck"`
-                                Slide    string  `json:"slide"`
-                                Selector string  `json:"selector"`
-                                HTML     bool    `json:"html"`
-                                Attr     string  `json:"attr"`
-                                Count    bool    `json:"count"`
-                                Set      *string `json:"set"`
-                                SetHTML  *string `json:"set_html"`
-                                SetAttr  *string `json:"set_attr"`
-                                Append   *string `json:"append"`
-                                Remove   bool    `json:"remove"`
-                                All      bool    `json:"all"`
-                        }
-                        if err := req.Bind(&amp;p); err != nil </span><span class="cov0" title="0">{
-                                return mcpcore.ErrorResult(err.Error()), nil
-                        }</span>
-                        <span class="cov8" title="1">d, errResult := openDeckFromContext(ctx, p.Deck)
+type querySlideInput struct {
+        Deck     string  `json:"deck"               jsonschema:"required,description=Deck name"`
+        Slide    string  `json:"slide"              jsonschema:"required,description=Slide reference: position number or filename substring"`
+        Selector string  `json:"selector"           jsonschema:"required,description=CSS selector (e.g. 'h1'\\, '.slide-body'\\, 'img')"`
+        HTML     bool    `json:"html,omitempty"      jsonschema:"description=Return inner HTML instead of text"`
+        Attr     string  `json:"attr,omitempty"      jsonschema:"description=Return the value of this attribute"`
+        Count    bool    `json:"count,omitempty"     jsonschema:"description=Return match count instead of content"`
+        Set      *string `json:"set,omitempty"       jsonschema:"description=Set inner text of matched elements"`
+        SetHTML  *string `json:"set_html,omitempty"  jsonschema:"description=Set inner HTML of matched elements"`
+        SetAttr  *string `json:"set_attr,omitempty"  jsonschema:"description=Set attribute (NAME=VALUE format)"`
+        Append   *string `json:"append,omitempty"    jsonschema:"description=Append child HTML to matched elements"`
+        Remove   bool    `json:"remove,omitempty"    jsonschema:"description=Remove matched elements"`
+        All      bool    `json:"all,omitempty"       jsonschema:"description=Apply to all matches (default: first only)"`
+}
+
+func querySlideTool() mcpcore.TypedToolResult <span class="cov8" title="1">{
+        return mcpcore.TypedTool[querySlideInput, mcpcore.ToolResult](
+                "query_slide",
+                "Query or modify slide HTML using CSS selectors (goquery). Read text, attributes, inner HTML, or mutate content.",
+                func(ctx mcpcore.ToolContext, p querySlideInput) (mcpcore.ToolResult, error) </span><span class="cov8" title="1">{
+                        d, errResult := openDeckFromContext(ctx, p.Deck)
                         if errResult != nil </span><span class="cov8" title="1">{
                                 return *errResult, nil
                         }</span>
@@ -3283,47 +3192,30 @@ func querySlideTool() server.Tool <span class="cov8" title="1">{
                         }</span>
                         <span class="cov8" title="1">return jsonResult(map[string]any{"results": results})</span>
                 },
-        }
+        )
 }
 
-func addSlideTool() server.Tool <span class="cov8" title="1">{
-        return server.Tool{
-                ToolDef: mcpcore.ToolDef{
-                        Name:        "add_slide",
-                        Description: "Insert a new slide at the given position using a layout template. Pass expected_deck_version (from describe_deck or read_slide) for optimistic concurrency; omit or pass 'latest' for last-write-wins.",
-                        InputSchema: map[string]any{
-                                "type": "object",
-                                "properties": map[string]any{
-                                        "deck":                  propString("Deck name"),
-                                        "position":              propInt("Position to insert at (1-based)"),
-                                        "name":                  propString("Slide filename (without .html extension or number prefix)"),
-                                        "layout":                propString("Layout template: title, content, two-col, section, blank, closing"),
-                                        "title":                 propString("Slide title (used in template rendering)"),
-                                        "expected_deck_version": propString("Expected deck version from describe_deck or read_slide. Omit or pass 'latest' to skip."),
-                                },
-                                "required": []string{"deck", "position", "name"},
-                        },
-                },
-                Handler: func(ctx mcpcore.ToolContext, req mcpcore.ToolRequest) (mcpcore.ToolResult, error) </span><span class="cov8" title="1">{
-                        var p struct {
-                                Deck                string `json:"deck"`
-                                Position            int    `json:"position"`
-                                Name                string `json:"name"`
-                                Layout              string `json:"layout"`
-                                Title               string `json:"title"`
-                                ExpectedDeckVersion string `json:"expected_deck_version"`
-                        }
-                        if err := req.Bind(&amp;p); err != nil </span><span class="cov0" title="0">{
-                                return mcpcore.ErrorResult(err.Error()), nil
-                        }</span>
-                        <span class="cov8" title="1">if p.Layout == "" </span><span class="cov8" title="1">{
+type addSlideInput struct {
+        Deck                string `json:"deck"                             jsonschema:"required,description=Deck name"`
+        Position            int    `json:"position"                         jsonschema:"required,description=Position to insert at (1-based)"`
+        Name                string `json:"name"                             jsonschema:"required,description=Slide filename (without .html extension or number prefix)"`
+        Layout              string `json:"layout,omitempty"                 jsonschema:"description=Layout template: title\\, content\\, two-col\\, section\\, blank\\, closing"`
+        Title               string `json:"title,omitempty"                  jsonschema:"description=Slide title (used in template rendering)"`
+        ExpectedDeckVersion string `json:"expected_deck_version,omitempty"  jsonschema:"description=Expected deck version. Omit or pass 'latest' to skip."`
+}
+
+func addSlideTool() mcpcore.TypedToolResult <span class="cov8" title="1">{
+        return mcpcore.TypedTool[addSlideInput, mcpcore.ToolResult](
+                "add_slide",
+                "Insert a new slide at the given position using a layout template. Pass expected_deck_version (from describe_deck or read_slide) for optimistic concurrency; omit or pass 'latest' for last-write-wins.",
+                func(ctx mcpcore.ToolContext, p addSlideInput) (mcpcore.ToolResult, error) </span><span class="cov8" title="1">{
+                        if p.Layout == "" </span><span class="cov8" title="1">{
                                 p.Layout = "content"
                         }</span>
                         <span class="cov8" title="1">d, errResult := openDeckFromContext(ctx, p.Deck)
                         if errResult != nil </span><span class="cov8" title="1">{
                                 return *errResult, nil
                         }</span>
-                        // Optimistic deck version check
                         <span class="cov8" title="1">if p.ExpectedDeckVersion != "" &amp;&amp; p.ExpectedDeckVersion != "latest" </span><span class="cov8" title="1">{
                                 currentDeckVer, err := d.DeckVersion()
                                 if err != nil </span><span class="cov0" title="0">{
@@ -3356,38 +3248,24 @@ func addSlideTool() server.Tool <span class="cov8" title="1">{
                                 p.Name, p.Position, slideID, deckVer,
                         )), nil</span>
                 },
-        }
+        )
 }
 
-func removeSlideTool() server.Tool <span class="cov8" title="1">{
-        return server.Tool{
-                ToolDef: mcpcore.ToolDef{
-                        Name:        "remove_slide",
-                        Description: "Remove a slide by filename or position number. Remaining slides are renumbered. Pass expected_deck_version for optimistic concurrency; omit or pass 'latest' for last-write-wins.",
-                        InputSchema: map[string]any{
-                                "type": "object",
-                                "properties": map[string]any{
-                                        "deck":                  propString("Deck name"),
-                                        "slide":                 propString("Slide reference: slug (e.g. 'metrics'), filename (e.g. '02-metrics.html'), or position number as string"),
-                                        "expected_deck_version": propString("Expected deck version. Omit or pass 'latest' to skip."),
-                                },
-                                "required": []string{"deck", "slide"},
-                        },
-                },
-                Handler: func(ctx mcpcore.ToolContext, req mcpcore.ToolRequest) (mcpcore.ToolResult, error) </span><span class="cov8" title="1">{
-                        var p struct {
-                                Deck                string `json:"deck"`
-                                Slide               string `json:"slide"`
-                                ExpectedDeckVersion string `json:"expected_deck_version"`
-                        }
-                        if err := req.Bind(&amp;p); err != nil </span><span class="cov0" title="0">{
-                                return mcpcore.ErrorResult(err.Error()), nil
-                        }</span>
-                        <span class="cov8" title="1">d, errResult := openDeckFromContext(ctx, p.Deck)
+type removeSlideInput struct {
+        Deck                string `json:"deck"                             jsonschema:"required,description=Deck name"`
+        Slide               string `json:"slide"                            jsonschema:"required,description=Slide reference: slug\\, filename\\, or position number as string"`
+        ExpectedDeckVersion string `json:"expected_deck_version,omitempty"  jsonschema:"description=Expected deck version. Omit or pass 'latest' to skip."`
+}
+
+func removeSlideTool() mcpcore.TypedToolResult <span class="cov8" title="1">{
+        return mcpcore.TypedTool[removeSlideInput, mcpcore.ToolResult](
+                "remove_slide",
+                "Remove a slide by filename or position number. Remaining slides are renumbered. Pass expected_deck_version for optimistic concurrency; omit or pass 'latest' for last-write-wins.",
+                func(ctx mcpcore.ToolContext, p removeSlideInput) (mcpcore.ToolResult, error) </span><span class="cov8" title="1">{
+                        d, errResult := openDeckFromContext(ctx, p.Deck)
                         if errResult != nil </span><span class="cov8" title="1">{
                                 return *errResult, nil
                         }</span>
-                        // Optimistic deck version check
                         <span class="cov8" title="1">if p.ExpectedDeckVersion != "" &amp;&amp; p.ExpectedDeckVersion != "latest" </span><span class="cov8" title="1">{
                                 currentDeckVer, err := d.DeckVersion()
                                 if err != nil </span><span class="cov0" title="0">{
@@ -3406,8 +3284,6 @@ func removeSlideTool() server.Tool <span class="cov8" title="1">{
                         if err != nil </span><span class="cov0" title="0">{
                                 return mcpcore.ErrorResult(err.Error()), nil
                         }</span>
-                        // Elicit confirmation before removing. If the client doesn't
-                        // support elicitation, proceed silently (backward compatible).
                         <span class="cov8" title="1">elicitResult, elicitErr := ctx.Elicit(mcpcore.ElicitationRequest{
                                 Message: fmt.Sprintf("Remove slide %q from deck %q? This cannot be undone.", filename, p.Deck),
                                 RequestedSchema: json.RawMessage(`{
@@ -3424,8 +3300,6 @@ func removeSlideTool() server.Tool <span class="cov8" title="1">{
                                         return mcpcore.TextResult("Slide removal declined."), nil
                                 }</span>
                         }
-                        // ErrElicitationNotSupported or other errors: proceed without confirmation.
-
                         <span class="cov8" title="1">if err := d.RemoveSlide(filename); err != nil </span><span class="cov0" title="0">{
                                 return mcpcore.ErrorResult(err.Error()), nil
                         }</span>
@@ -3434,34 +3308,21 @@ func removeSlideTool() server.Tool <span class="cov8" title="1">{
                         mcpcore.NotifyResourceUpdated(ctx, "ui://slyds/decks/"+p.Deck+"/preview")
                         return mcpcore.TextResult(fmt.Sprintf("Slide %q removed (deck_version: %q).", filename, deckVer)), nil</span>
                 },
-        }
+        )
 }
 
-func improveSlideTool() server.Tool <span class="cov8" title="1">{
-        return server.Tool{
-                ToolDef: mcpcore.ToolDef{
-                        Name:        "improve_slide",
-                        Description: "Improve a slide's content using AI. Reads the current slide, sends it to the client's LLM with your instruction, and applies the result. Requires the client to support sampling.",
-                        InputSchema: map[string]any{
-                                "type": "object",
-                                "properties": map[string]any{
-                                        "deck":        propString("Deck name"),
-                                        "slide":       propString("Slide reference: position number, slug, or filename"),
-                                        "instruction": propString("What to improve (e.g. 'make the bullet points more concise', 'add a code example')"),
-                                },
-                                "required": []string{"deck", "slide", "instruction"},
-                        },
-                },
-                Handler: func(ctx mcpcore.ToolContext, req mcpcore.ToolRequest) (mcpcore.ToolResult, error) </span><span class="cov8" title="1">{
-                        var p struct {
-                                Deck        string `json:"deck"`
-                                Slide       string `json:"slide"`
-                                Instruction string `json:"instruction"`
-                        }
-                        if err := req.Bind(&amp;p); err != nil </span><span class="cov0" title="0">{
-                                return mcpcore.ErrorResult(err.Error()), nil
-                        }</span>
-                        <span class="cov8" title="1">d, errResult := openDeckFromContext(ctx, p.Deck)
+type improveSlideInput struct {
+        Deck        string `json:"deck"        jsonschema:"required,description=Deck name"`
+        Slide       string `json:"slide"       jsonschema:"required,description=Slide reference: position number\\, slug\\, or filename"`
+        Instruction string `json:"instruction" jsonschema:"required,description=What to improve (e.g. 'make the bullet points more concise')"`
+}
+
+func improveSlideTool() mcpcore.TypedToolResult <span class="cov8" title="1">{
+        return mcpcore.TypedTool[improveSlideInput, mcpcore.ToolResult](
+                "improve_slide",
+                "Improve a slide's content using AI. Reads the current slide, sends it to the client's LLM with your instruction, and applies the result. Requires the client to support sampling.",
+                func(ctx mcpcore.ToolContext, p improveSlideInput) (mcpcore.ToolResult, error) </span><span class="cov8" title="1">{
+                        d, errResult := openDeckFromContext(ctx, p.Deck)
                         if errResult != nil </span><span class="cov0" title="0">{
                                 return *errResult, nil
                         }</span>
@@ -3473,8 +3334,6 @@ func improveSlideTool() server.Tool <span class="cov8" title="1">{
                         if err != nil </span><span class="cov0" title="0">{
                                 return mcpcore.ErrorResult(err.Error()), nil
                         }</span>
-
-                        // Ask the client's LLM to improve the slide.
                         <span class="cov8" title="1">sampleResult, err := ctx.Sample(mcpcore.CreateMessageRequest{
                                 SystemPrompt: "You are an HTML presentation slide editor for slyds. " +
                                         "You edit raw HTML fragments. The root element must be &lt;div class=\"slide\" data-layout=\"...\"&gt;. " +
@@ -3495,24 +3354,17 @@ func improveSlideTool() server.Tool <span class="cov8" title="1">{
                         <span class="cov8" title="1">if err != nil </span><span class="cov0" title="0">{
                                 return mcpcore.ErrorResult(fmt.Sprintf("sampling failed: %v", err)), nil
                         }</span>
-
                         <span class="cov8" title="1">newContent := sampleResult.Content.Text
-
-                        // Lint the LLM output.
                         if issues := core.LintSlideContent(newContent); issues.HasErrors() </span><span class="cov8" title="1">{
                                 return mcpcore.ErrorResult(fmt.Sprintf(
                                         "LLM-generated HTML failed lint: %s\n\nRaw output:\n%s",
                                         issues[0].Detail, newContent,
                                 )), nil
                         }</span>
-
-                        // Sanitize (strip &lt;style&gt; blocks etc.) before writing.
                         <span class="cov8" title="1">newContent, _ = core.SanitizeSlideContent(newContent)
-
                         if err := d.EditSlideContent(pos, newContent); err != nil </span><span class="cov0" title="0">{
                                 return mcpcore.ErrorResult(err.Error()), nil
                         }</span>
-
                         <span class="cov8" title="1">ver, _ := d.SlideVersion(pos)
                         deckVer, _ := d.DeckVersion()
                         mcpcore.NotifyResourceUpdated(ctx, "ui://slyds/decks/"+p.Deck+"/preview")
@@ -3522,27 +3374,19 @@ func improveSlideTool() server.Tool <span class="cov8" title="1">{
                                 DeckVersion: deckVer,
                         })</span>
                 },
-        }
+        )
 }
 
-func checkDeckTool() server.Tool <span class="cov8" title="1">{
-        return server.Tool{
-                ToolDef: mcpcore.ToolDef{
-                        Name:        "check_deck",
-                        Description: "Validate a deck: check for missing files, broken includes, missing speaker notes, and other issues.",
-                        InputSchema: deckOnlySchema(),
-                        Timeout:     10 * time.Second,
-                },
-                Handler: func(ctx mcpcore.ToolContext, req mcpcore.ToolRequest) (mcpcore.ToolResult, error) </span><span class="cov8" title="1">{
-                        p, err := bindDeckParam(req)
-                        if err != nil </span><span class="cov0" title="0">{
-                                return mcpcore.ErrorResult(err.Error()), nil
-                        }</span>
-                        <span class="cov8" title="1">d, errResult := openDeckFromContext(ctx, p.Deck)
+func checkDeckTool() mcpcore.TypedToolResult <span class="cov8" title="1">{
+        return mcpcore.TypedTool[deckInput, mcpcore.ToolResult](
+                "check_deck",
+                "Validate a deck: check for missing files, broken includes, missing speaker notes, and other issues.",
+                func(ctx mcpcore.ToolContext, p deckInput) (mcpcore.ToolResult, error) </span><span class="cov8" title="1">{
+                        d, errResult := openDeckFromContext(ctx, p.Deck)
                         if errResult != nil </span><span class="cov8" title="1">{
                                 return *errResult, nil
                         }</span>
-                        <span class="cov8" title="1">mcpcore.EmitContent(ctx, req.RequestID, mcpcore.Content{
+                        <span class="cov8" title="1">ctx.EmitContent(nil, mcpcore.Content{
                                 Type: "text", Text: fmt.Sprintf("Validating deck %q...", p.Deck),
                         })
                         issues, err := d.Check()
@@ -3551,27 +3395,25 @@ func checkDeckTool() server.Tool <span class="cov8" title="1">{
                         }</span>
                         <span class="cov8" title="1">return jsonResult(issues)</span>
                 },
-        }
+                mcpcore.WithTypedToolTimeout(10*time.Second),
+        )
 }
 
-func buildDeckTool() server.Tool <span class="cov8" title="1">{
-        return server.Tool{
-                ToolDef: mcpcore.ToolDef{
-                        Name:        "build_deck",
-                        Description: "Build a self-contained HTML file from the deck. Resolves all includes, inlines CSS/JS/images.",
-                        InputSchema: deckOnlySchema(),
-                        Timeout:     30 * time.Second,
-                },
-                Handler: func(ctx mcpcore.ToolContext, req mcpcore.ToolRequest) (mcpcore.ToolResult, error) </span><span class="cov8" title="1">{
-                        p, err := bindDeckParam(req)
-                        if err != nil </span><span class="cov0" title="0">{
-                                return mcpcore.ErrorResult(err.Error()), nil
-                        }</span>
-                        <span class="cov8" title="1">d, errResult := openDeckFromContext(ctx, p.Deck)
+type buildWarningResult struct {
+        HTML     string   `json:"html"`
+        Warnings []string `json:"warnings"`
+}
+
+func buildDeckTool() mcpcore.TypedToolResult <span class="cov8" title="1">{
+        return mcpcore.TypedTool[deckInput, mcpcore.ToolResult](
+                "build_deck",
+                "Build a self-contained HTML file from the deck. Resolves all includes, inlines CSS/JS/images.",
+                func(ctx mcpcore.ToolContext, p deckInput) (mcpcore.ToolResult, error) </span><span class="cov8" title="1">{
+                        d, errResult := openDeckFromContext(ctx, p.Deck)
                         if errResult != nil </span><span class="cov8" title="1">{
                                 return *errResult, nil
                         }</span>
-                        <span class="cov8" title="1">mcpcore.EmitContent(ctx, req.RequestID, mcpcore.Content{
+                        <span class="cov8" title="1">ctx.EmitContent(nil, mcpcore.Content{
                                 Type: "text", Text: fmt.Sprintf("Building deck %q...", p.Deck),
                         })
                         result, err := d.Build()
@@ -3583,48 +3425,15 @@ func buildDeckTool() server.Tool <span class="cov8" title="1">{
                                 Warnings: result.Warnings,
                         })</span>
                 },
-        }
+                mcpcore.WithTypedToolTimeout(30*time.Second),
+        )
 }
 
 // --- Helpers ---
 
-// deckOnlySchema returns a JSON Schema for tools that only need a deck name.
-func deckOnlySchema() map[string]any <span class="cov8" title="1">{
-        return map[string]any{
-                "type": "object",
-                "properties": map[string]any{
-                        "deck": propString("Deck name (workspace-scoped identifier, or '.' for a deck at the workspace root)"),
-                },
-                "required": []string{"deck"},
-        }
-}</span>
-
-type deckParam struct {
-        Deck string `json:"deck"`
-}
-
-func bindDeckParam(req mcpcore.ToolRequest) (deckParam, error) <span class="cov8" title="1">{
-        var p deckParam
-        if err := req.Bind(&amp;p); err != nil </span><span class="cov0" title="0">{
-                return p, err
-        }</span>
-        <span class="cov8" title="1">if p.Deck == "" </span><span class="cov0" title="0">{
-                return p, fmt.Errorf("deck is required")
-        }</span>
-        <span class="cov8" title="1">return p, nil</span>
-}
-
-// jsonResult marshals v to indented JSON and returns it as a StructuredResult.
-// The text content contains the formatted JSON for backward-compatible clients,
-// while structuredContent carries the raw Go value for ToolCallTyped consumers.
-func jsonResult(v any) (mcpcore.ToolResult, error) <span class="cov8" title="1">{
-        data, err := json.MarshalIndent(v, "", "  ")
-        if err != nil </span><span class="cov0" title="0">{
-                return mcpcore.ErrorResult(err.Error()), nil
-        }</span>
-        <span class="cov8" title="1">return mcpcore.StructuredResult(string(data), v), nil</span>
-}
-
+// propString/propInt are JSON Schema property helpers used by mcp_apps.go
+// (app tools still use map[string]any schemas since RegisterAppTool doesn't
+// support TypedAppTool for template handlers yet).
 func propString(desc string) map[string]any <span class="cov8" title="1">{
         return map[string]any{"type": "string", "description": desc}
 }</span>
@@ -3633,9 +3442,14 @@ func propInt(desc string) map[string]any <span class="cov8" title="1">{
         return map[string]any{"type": "integer", "description": desc}
 }</span>
 
-func propBool(desc string) map[string]any <span class="cov8" title="1">{
-        return map[string]any{"type": "boolean", "description": desc}
-}</span>
+// jsonResult marshals v to indented JSON and returns it as a StructuredResult.
+func jsonResult(v any) (mcpcore.ToolResult, error) <span class="cov8" title="1">{
+        data, err := json.MarshalIndent(v, "", "  ")
+        if err != nil </span><span class="cov0" title="0">{
+                return mcpcore.ErrorResult(err.Error()), nil
+        }</span>
+        <span class="cov8" title="1">return mcpcore.StructuredResult(string(data), v), nil</span>
+}
 </pre>
 		
 		<pre class="file" id="file15" style="display: none">package cmd
@@ -9188,7 +9002,7 @@ type CreateDeckRequest struct {
         Name string `protobuf:"bytes,1,opt,name=name,proto3" json:"name,omitempty"`
         // Presentation title.
         Title string `protobuf:"bytes,2,opt,name=title,proto3" json:"title,omitempty"`
-        // Theme: default, dark, minimal, corporate, hacker.
+        // Theme (optional — omit to let the user choose interactively).
         Theme *string `protobuf:"bytes,3,opt,name=theme,proto3,oneof" json:"theme,omitempty"`
         // Number of slides to scaffold (default: 3).
         Slides        *int32 `protobuf:"varint,4,opt,name=slides,proto3,oneof" json:"slides,omitempty"`
@@ -11782,14 +11596,14 @@ const file_slyds_v1_service_proto_rawDesc = "" +
         "\x05slide\x18\x02 \x01(\tR\x05slide\"Y\n" +
         "!SuggestSpeakerNotesPromptResponse\x12 \n" +
         "\vdescription\x18\x01 \x01(\tR\vdescription\x12\x12\n" +
-        "\x04text\x18\x02 \x01(\tR\x04text2\xd0)\n" +
+        "\x04text\x18\x02 \x01(\tR\x04text2\x8c*\n" +
         "\fSlydsService\x12\xbe\x01\n" +
         "\tListDecks\x12\x1a.slyds.v1.ListDecksRequest\x1a\x1b.slyds.v1.ListDecksResponse\"x\xca\xf3\x18t\n" +
         "\n" +
-        "list_decks\x12fList all presentation decks visible to the current workspace with name, title, theme, and slide count.\x12\xd0\x01\n" +
+        "list_decks\x12fList all presentation decks visible to the current workspace with name, title, theme, and slide count.\x12\x8c\x02\n" +
         "\n" +
-        "CreateDeck\x12\x1b.slyds.v1.CreateDeckRequest\x1a\x19.slyds.v1.DeckDescription\"\x89\x01\xca\xf3\x18c\n" +
-        "\vcreate_deck\x12RCreate a new presentation deck with the given name, title, theme, and slide count. \x01\xe2\xf3\x18\x1e\n" +
+        "CreateDeck\x12\x1b.slyds.v1.CreateDeckRequest\x1a\x19.slyds.v1.DeckDescription\"\xc5\x01\xca\xf3\x18\x9e\x01\n" +
+        "\vcreate_deck\x12\x8c\x01Create a new presentation deck with the given name, title, and slide count. Omit theme to let the user choose interactively via the host UI. \x01\xe2\xf3\x18\x1e\n" +
         "\x0fChoose a theme:\x12\vThemeChoice\x12\xc3\x01\n" +
         "\fDescribeDeck\x12\x15.slyds.v1.DeckRequest\x1a\x19.slyds.v1.DeckDescription\"\x80\x01\xca\xf3\x18|\n" +
         "\rdescribe_deck\x12iGet structured metadata for a deck: title, theme, slide list with layouts, word counts, and notes status. \x01\x12\xa3\x01\n" +
@@ -12045,7 +11859,7 @@ func RegisterSlydsServiceMCP(srv *server.Server, impl SlydsServiceMCPServer) <sp
                 server.Tool{
                         ToolDef: mcpcore.ToolDef{
                                 Name:        "create_deck",
-                                Description: "Create a new presentation deck with the given name, title, theme, and slide count.",
+                                Description: "Create a new presentation deck with the given name, title, and slide count. Omit theme to let the user choose interactively via the host UI.",
                                 InputSchema: json.RawMessage(`{"properties":{"name":{"type":"string"},"slides":{"type":"integer"},"theme":{"type":"string"},"title":{"type":"string"}},"required":["name","title"],"type":"object"}`),
                         },
                         Handler: func(ctx mcpcore.ToolContext, req mcpcore.ToolRequest) (mcpcore.ToolResult, error) <span class="cov0" title="0">{
