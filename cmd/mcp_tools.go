@@ -31,7 +31,9 @@ func registerTools(srv *server.Server) {
 	)
 }
 
-// --- Output structs ---
+// --- Tool definitions ---
+
+type listDecksInput struct{}
 
 type deckSummary struct {
 	Name   string `json:"name"`
@@ -39,34 +41,6 @@ type deckSummary struct {
 	Theme  string `json:"theme"`
 	Slides int    `json:"slides"`
 }
-
-type buildWarningResult struct {
-	HTML     string   `json:"html"`
-	Warnings []string `json:"warnings"`
-}
-
-type slideReadResult struct {
-	Content     string `json:"content"`
-	Version     string `json:"version"`
-	DeckVersion string `json:"deck_version"`
-}
-
-type slideEditResult struct {
-	Message     string `json:"message"`
-	Version     string `json:"version"`
-	DeckVersion string `json:"deck_version"`
-}
-
-type versionConflict struct {
-	Error          string `json:"error"`
-	CurrentVersion string `json:"current_version"`
-	CurrentContent string `json:"current_content,omitempty"`
-	DeckVersion    string `json:"deck_version,omitempty"`
-}
-
-// --- Tool definitions ---
-
-type listDecksInput struct{}
 
 func listDecksTool() mcpcore.TypedToolResult {
 	return mcpcore.TypedTool[listDecksInput, mcpcore.ToolResult](
@@ -196,6 +170,12 @@ func listSlidesTool() mcpcore.TypedToolResult {
 	)
 }
 
+type slideReadResult struct {
+	Content     string `json:"content"`
+	Version     string `json:"version"`
+	DeckVersion string `json:"deck_version"`
+}
+
 type readSlideInput struct {
 	Deck     string `json:"deck"               jsonschema:"required,description=Deck name"`
 	Slide    string `json:"slide,omitempty"     jsonschema:"description=Slide reference: slug (e.g. 'metrics')\\, filename\\, or position as string"`
@@ -228,6 +208,21 @@ func readSlideTool() mcpcore.TypedToolResult {
 			})
 		},
 	)
+}
+
+// slideEditResult is shared by edit_slide and improve_slide.
+type slideEditResult struct {
+	Message     string `json:"message"`
+	Version     string `json:"version"`
+	DeckVersion string `json:"deck_version"`
+}
+
+// versionConflict is shared by edit_slide, add_slide, and remove_slide.
+type versionConflict struct {
+	Error          string `json:"error"`
+	CurrentVersion string `json:"current_version"`
+	CurrentContent string `json:"current_content,omitempty"`
+	DeckVersion    string `json:"deck_version,omitempty"`
 }
 
 type editSlideInput struct {
@@ -563,6 +558,11 @@ func checkDeckTool() mcpcore.TypedToolResult {
 		},
 		mcpcore.WithTypedToolTimeout(10*time.Second),
 	)
+}
+
+type buildWarningResult struct {
+	HTML     string   `json:"html"`
+	Warnings []string `json:"warnings"`
 }
 
 func buildDeckTool() mcpcore.TypedToolResult {
