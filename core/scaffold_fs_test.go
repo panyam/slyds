@@ -1,6 +1,7 @@
 package core
 
 import (
+	"errors"
 	"strings"
 	"testing"
 
@@ -118,5 +119,69 @@ func TestScaffoldDeckDescribe(t *testing.T) {
 	}
 	if desc.Title != "Desc Test" {
 		t.Errorf("describe title = %q", desc.Title)
+	}
+}
+
+// TestUpdateDeck_UnknownTheme verifies that UpdateDeck refreshes engine files
+// even when the theme is not built-in, returning an UnknownThemeWarning
+// instead of a hard error.
+func TestUpdateDeck_UnknownTheme(t *testing.T) {
+	mfs := templar.NewMemFS()
+	// First scaffold a valid deck
+	ScaffoldDeck(mfs, ScaffoldOpts{Title: "Custom Theme", SlideCount: 2, ThemeName: "default"})
+
+	// Now update with an unknown theme
+	err := UpdateDeck(mfs, "acme-dark", "Custom Theme")
+
+	// Should return a warning, not a hard error
+	if err == nil {
+		t.Fatal("expected UnknownThemeWarning, got nil")
+	}
+	var warn *UnknownThemeWarning
+	if !errors.As(err, &warn) {
+		t.Fatalf("expected UnknownThemeWarning, got %T: %v", err, err)
+	}
+	if warn.Theme != "acme-dark" {
+		t.Errorf("warning theme = %q, want acme-dark", warn.Theme)
+	}
+
+	// Engine files should still be refreshed
+	if !mfs.HasFile("slyds.js") {
+		t.Error("slyds.js not refreshed")
+	}
+	if !mfs.HasFile("slyds.css") {
+		t.Error("slyds.css not refreshed")
+	}
+	if !mfs.HasFile("slyds-export.js") {
+		t.Error("slyds-export.js not refreshed")
+	}
+	// Manifest should be updated
+	if !mfs.HasFile(".slyds.yaml") {
+		t.Error("manifest not written")
+	}
+}
+
+// TestUpdateDeck_BuiltinTheme verifies that UpdateDeck succeeds without
+// warning for built-in themes and refreshes all files.
+func TestUpdateDeck_BuiltinTheme(t *testing.T) {
+	mfs := templar.NewMemFS()
+	ScaffoldDeck(mfs, ScaffoldOpts{Title: "Normal", SlideCount: 2, ThemeName: "default"})
+
+	err := UpdateDeck(mfs, "dark", "Normal Updated")
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	// Engine files refreshed
+	if !mfs.HasFile("slyds.js") {
+		t.Error("slyds.js not refreshed")
+	}
+	// Theme CSS re-rendered
+	if !mfs.HasFile("theme.css") {
+		t.Error("theme.css not rendered")
+	}
+	// Index re-rendered
+	if !mfs.HasFile("index.html") {
+		t.Error("index.html not rendered")
 	}
 }
