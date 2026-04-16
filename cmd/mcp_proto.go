@@ -42,6 +42,7 @@ func init() {
 	mcpProtoCmd.Flags().StringVar(&mcpDeckRoot, "deck-root", "", "Root directory for deck discovery")
 	mcpProtoCmd.Flags().StringSliceVar(&mcpAllowOrigins, "allow-origin", nil, "Allowed Origin headers. Use '*' for all.")
 	mcpProtoCmd.Flags().BoolVar(&mcpAppBridge, "app-bridge", true, "Inject MCP App Bridge into previews. Disable with --app-bridge=false if needed.")
+	mcpAuth.AddFlags(mcpProtoCmd)
 	rootCmd.AddCommand(mcpProtoCmd)
 }
 
@@ -58,9 +59,7 @@ func runMCPProtoServer() error {
 	serverOpts = append(serverOpts, server.WithExtension(ui.UIExtension{}))
 	serverOpts = append(serverOpts, server.WithErrorHandler(&slydsMCPErrorHandler{}))
 	serverOpts = append(serverOpts, server.WithMiddleware(workspaceMiddleware(ws)))
-	if mcpToken != "" {
-		serverOpts = append(serverOpts, server.WithBearerToken(mcpToken))
-	}
+	serverOpts = append(serverOpts, AuthServerOptions(&mcpAuth)...)
 
 	srv := server.NewServer(
 		mcpcore.ServerInfo{
@@ -117,19 +116,15 @@ func runMCPProtoServer() error {
 	}
 
 	mcpHandler := srv.Handler(transportOpts...)
-	handler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		mcpHandler.ServeHTTP(w, r)
-	})
+	mux := BuildMCPMux(mcpHandler, &mcpAuth)
 
 	fmt.Fprintf(os.Stderr, "MCP proto server (%s) on %s — deck root: %s\n", transport, mcpListen, root)
-	if mcpToken != "" {
-		fmt.Fprintf(os.Stderr, "  Auth: bearer token (%s)\n", maskToken(mcpToken))
-	}
+	PrintAuthInfo(&mcpAuth)
 	fmt.Fprintf(os.Stderr, "  http://%s/\n", mcpListen)
 
 	httpSrv := &http.Server{
 		Addr:         mcpListen,
-		Handler:      handler,
+		Handler:      mux,
 		WriteTimeout: 0,
 	}
 	return listenAndServeGraceful(httpSrv)
