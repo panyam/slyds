@@ -78,7 +78,7 @@ func TestE2E_ScopeCheck_WriteToolAllowed(t *testing.T) {
 
 	claims := &mcpcore.Claims{
 		Subject: "user-1",
-		Scopes:  []string{"slyds:read", "slyds:write"},
+		Scopes:  []string{"slyds-read", "slyds-write"},
 	}
 	c := newAuthMCPClient(t, root, claims)
 
@@ -102,7 +102,7 @@ func TestE2E_ScopeCheck_WriteToolBlocked(t *testing.T) {
 
 	claims := &mcpcore.Claims{
 		Subject: "user-2",
-		Scopes:  []string{"slyds:read"}, // no slyds:write
+		Scopes:  []string{"slyds-read"}, // no slyds:write
 	}
 	c := newAuthMCPClient(t, root, claims)
 
@@ -127,7 +127,7 @@ func TestE2E_ScopeCheck_ReadToolAllowed(t *testing.T) {
 
 	claims := &mcpcore.Claims{
 		Subject: "user-3",
-		Scopes:  []string{"slyds:read"}, // no slyds:write
+		Scopes:  []string{"slyds-read"}, // no slyds:write
 	}
 	c := newAuthMCPClient(t, root, claims)
 
@@ -151,7 +151,7 @@ func TestE2E_ScopeCheck_QueryReadAllowed(t *testing.T) {
 
 	claims := &mcpcore.Claims{
 		Subject: "user-4",
-		Scopes:  []string{"slyds:read"},
+		Scopes:  []string{"slyds-read"},
 	}
 	c := newAuthMCPClient(t, root, claims)
 
@@ -191,12 +191,12 @@ func TestE2E_MCPAuthConfig_Disabled(t *testing.T) {
 
 // TestE2E_MCPAuthConfig_ScopeList verifies scope parsing.
 func TestE2E_MCPAuthConfig_ScopeList(t *testing.T) {
-	cfg := MCPAuthConfig{Scopes: "slyds:read, slyds:write, admin"}
+	cfg := MCPAuthConfig{Scopes: "slyds-read, slyds-write, admin"}
 	scopes := cfg.ScopeList()
 	if len(scopes) != 3 {
 		t.Fatalf("expected 3 scopes, got %d: %v", len(scopes), scopes)
 	}
-	if scopes[0] != "slyds:read" || scopes[1] != "slyds:write" || scopes[2] != "admin" {
+	if scopes[0] != "slyds-read" || scopes[1] != "slyds-write" || scopes[2] != "admin" {
 		t.Errorf("unexpected scopes: %v", scopes)
 	}
 }

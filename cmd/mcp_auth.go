@@ -103,13 +103,17 @@ func (c *MCPAuthConfig) PrintInfo() {
 	}
 }
 
-// RequireWriteScope checks that the request has slyds:write scope.
+// WriteScope is the scope required for mutation tools. Matches the
+// scope name in Keycloak realm config (tests/keycloak/realm.json).
+const WriteScope = "slyds-write"
+
+// RequireWriteScope checks that the request has the slyds-write scope.
 // Returns nil if auth is not configured (backward compatible).
 func RequireWriteScope(ctx mcpcore.ToolContext) error {
 	if mcpcore.AuthClaims(ctx) == nil {
 		return nil
 	}
-	return auth.RequireScope(ctx, "slyds:write")
+	return auth.RequireScope(ctx, WriteScope)
 }
 
 // BuildMCPMux creates an http.ServeMux with the MCP handler at / and
