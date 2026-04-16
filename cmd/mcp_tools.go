@@ -31,71 +31,6 @@ func registerTools(srv *server.Server) {
 	)
 }
 
-// --- Input structs (drive InputSchema via jsonschema tags) ---
-
-type listDecksInput struct{}
-
-type createDeckInput struct {
-	Name   string `json:"name"   jsonschema:"required,description=Deck name (becomes the deck identifier in the workspace)"`
-	Title  string `json:"title"  jsonschema:"required,description=Presentation title"`
-	Theme  string `json:"theme,omitempty"  jsonschema:"description=Theme (optional — omit to let the user choose interactively)"`
-	Slides int    `json:"slides,omitempty" jsonschema:"description=Number of slides to scaffold (default: 3)"`
-}
-
-type deckInput struct {
-	Deck string `json:"deck" jsonschema:"required,description=Deck name (workspace-scoped identifier or '.' for root deck)"`
-}
-
-type readSlideInput struct {
-	Deck     string `json:"deck"               jsonschema:"required,description=Deck name"`
-	Slide    string `json:"slide,omitempty"     jsonschema:"description=Slide reference: slug (e.g. 'metrics')\\, filename\\, or position as string"`
-	Position int    `json:"position,omitempty"  jsonschema:"description=Slide position (1-based). Legacy — prefer 'slide'"`
-}
-
-type editSlideInput struct {
-	Deck            string `json:"deck"                       jsonschema:"required,description=Deck name"`
-	Slide           string `json:"slide,omitempty"            jsonschema:"description=Slide reference: slug\\, filename\\, or position as string"`
-	Position        int    `json:"position,omitempty"         jsonschema:"description=Slide position (1-based). Legacy — prefer 'slide'"`
-	Content         string `json:"content"                    jsonschema:"required,description=New HTML content for the slide"`
-	ExpectedVersion string `json:"expected_version,omitempty" jsonschema:"description=Expected slide version from read_slide. Omit or pass 'latest' to skip."`
-}
-
-type querySlideInput struct {
-	Deck     string  `json:"deck"               jsonschema:"required,description=Deck name"`
-	Slide    string  `json:"slide"              jsonschema:"required,description=Slide reference: position number or filename substring"`
-	Selector string  `json:"selector"           jsonschema:"required,description=CSS selector (e.g. 'h1'\\, '.slide-body'\\, 'img')"`
-	HTML     bool    `json:"html,omitempty"      jsonschema:"description=Return inner HTML instead of text"`
-	Attr     string  `json:"attr,omitempty"      jsonschema:"description=Return the value of this attribute"`
-	Count    bool    `json:"count,omitempty"     jsonschema:"description=Return match count instead of content"`
-	Set      *string `json:"set,omitempty"       jsonschema:"description=Set inner text of matched elements"`
-	SetHTML  *string `json:"set_html,omitempty"  jsonschema:"description=Set inner HTML of matched elements"`
-	SetAttr  *string `json:"set_attr,omitempty"  jsonschema:"description=Set attribute (NAME=VALUE format)"`
-	Append   *string `json:"append,omitempty"    jsonschema:"description=Append child HTML to matched elements"`
-	Remove   bool    `json:"remove,omitempty"    jsonschema:"description=Remove matched elements"`
-	All      bool    `json:"all,omitempty"       jsonschema:"description=Apply to all matches (default: first only)"`
-}
-
-type addSlideInput struct {
-	Deck                string `json:"deck"                             jsonschema:"required,description=Deck name"`
-	Position            int    `json:"position"                         jsonschema:"required,description=Position to insert at (1-based)"`
-	Name                string `json:"name"                             jsonschema:"required,description=Slide filename (without .html extension or number prefix)"`
-	Layout              string `json:"layout,omitempty"                 jsonschema:"description=Layout template: title\\, content\\, two-col\\, section\\, blank\\, closing"`
-	Title               string `json:"title,omitempty"                  jsonschema:"description=Slide title (used in template rendering)"`
-	ExpectedDeckVersion string `json:"expected_deck_version,omitempty"  jsonschema:"description=Expected deck version. Omit or pass 'latest' to skip."`
-}
-
-type removeSlideInput struct {
-	Deck                string `json:"deck"                             jsonschema:"required,description=Deck name"`
-	Slide               string `json:"slide"                            jsonschema:"required,description=Slide reference: slug\\, filename\\, or position number as string"`
-	ExpectedDeckVersion string `json:"expected_deck_version,omitempty"  jsonschema:"description=Expected deck version. Omit or pass 'latest' to skip."`
-}
-
-type improveSlideInput struct {
-	Deck        string `json:"deck"        jsonschema:"required,description=Deck name"`
-	Slide       string `json:"slide"       jsonschema:"required,description=Slide reference: position number\\, slug\\, or filename"`
-	Instruction string `json:"instruction" jsonschema:"required,description=What to improve (e.g. 'make the bullet points more concise')"`
-}
-
 // --- Output structs ---
 
 type deckSummary struct {
@@ -131,6 +66,8 @@ type versionConflict struct {
 
 // --- Tool definitions ---
 
+type listDecksInput struct{}
+
 func listDecksTool() mcpcore.TypedToolResult {
 	return mcpcore.TypedTool[listDecksInput, mcpcore.ToolResult](
 		"list_decks",
@@ -161,6 +98,13 @@ func listDecksTool() mcpcore.TypedToolResult {
 			return jsonResult(map[string]any{"decks": decks})
 		},
 	)
+}
+
+type createDeckInput struct {
+	Name   string `json:"name"   jsonschema:"required,description=Deck name (becomes the deck identifier in the workspace)"`
+	Title  string `json:"title"  jsonschema:"required,description=Presentation title"`
+	Theme  string `json:"theme,omitempty"  jsonschema:"description=Theme (optional — omit to let the user choose interactively)"`
+	Slides int    `json:"slides,omitempty" jsonschema:"description=Number of slides to scaffold (default: 3)"`
 }
 
 func createDeckTool() mcpcore.TypedToolResult {
@@ -211,6 +155,11 @@ func createDeckTool() mcpcore.TypedToolResult {
 	)
 }
 
+// deckInput is shared by describe_deck, list_slides, check_deck, build_deck.
+type deckInput struct {
+	Deck string `json:"deck" jsonschema:"required,description=Deck name (workspace-scoped identifier or '.' for root deck)"`
+}
+
 func describeDeckTool() mcpcore.TypedToolResult {
 	return mcpcore.TypedTool[deckInput, mcpcore.ToolResult](
 		"describe_deck",
@@ -247,6 +196,12 @@ func listSlidesTool() mcpcore.TypedToolResult {
 	)
 }
 
+type readSlideInput struct {
+	Deck     string `json:"deck"               jsonschema:"required,description=Deck name"`
+	Slide    string `json:"slide,omitempty"     jsonschema:"description=Slide reference: slug (e.g. 'metrics')\\, filename\\, or position as string"`
+	Position int    `json:"position,omitempty"  jsonschema:"description=Slide position (1-based). Legacy — prefer 'slide'"`
+}
+
 func readSlideTool() mcpcore.TypedToolResult {
 	return mcpcore.TypedTool[readSlideInput, mcpcore.ToolResult](
 		"read_slide",
@@ -273,6 +228,14 @@ func readSlideTool() mcpcore.TypedToolResult {
 			})
 		},
 	)
+}
+
+type editSlideInput struct {
+	Deck            string `json:"deck"                       jsonschema:"required,description=Deck name"`
+	Slide           string `json:"slide,omitempty"            jsonschema:"description=Slide reference: slug\\, filename\\, or position as string"`
+	Position        int    `json:"position,omitempty"         jsonschema:"description=Slide position (1-based). Legacy — prefer 'slide'"`
+	Content         string `json:"content"                    jsonschema:"required,description=New HTML content for the slide"`
+	ExpectedVersion string `json:"expected_version,omitempty" jsonschema:"description=Expected slide version from read_slide. Omit or pass 'latest' to skip."`
 }
 
 func editSlideTool() mcpcore.TypedToolResult {
@@ -354,6 +317,21 @@ func resolveSlidePosition(d *core.Deck, slide string, position int) (int, error)
 	return 0, fmt.Errorf("either 'slide' or 'position' is required")
 }
 
+type querySlideInput struct {
+	Deck     string  `json:"deck"               jsonschema:"required,description=Deck name"`
+	Slide    string  `json:"slide"              jsonschema:"required,description=Slide reference: position number or filename substring"`
+	Selector string  `json:"selector"           jsonschema:"required,description=CSS selector (e.g. 'h1'\\, '.slide-body'\\, 'img')"`
+	HTML     bool    `json:"html,omitempty"      jsonschema:"description=Return inner HTML instead of text"`
+	Attr     string  `json:"attr,omitempty"      jsonschema:"description=Return the value of this attribute"`
+	Count    bool    `json:"count,omitempty"     jsonschema:"description=Return match count instead of content"`
+	Set      *string `json:"set,omitempty"       jsonschema:"description=Set inner text of matched elements"`
+	SetHTML  *string `json:"set_html,omitempty"  jsonschema:"description=Set inner HTML of matched elements"`
+	SetAttr  *string `json:"set_attr,omitempty"  jsonschema:"description=Set attribute (NAME=VALUE format)"`
+	Append   *string `json:"append,omitempty"    jsonschema:"description=Append child HTML to matched elements"`
+	Remove   bool    `json:"remove,omitempty"    jsonschema:"description=Remove matched elements"`
+	All      bool    `json:"all,omitempty"       jsonschema:"description=Apply to all matches (default: first only)"`
+}
+
 func querySlideTool() mcpcore.TypedToolResult {
 	return mcpcore.TypedTool[querySlideInput, mcpcore.ToolResult](
 		"query_slide",
@@ -381,6 +359,15 @@ func querySlideTool() mcpcore.TypedToolResult {
 			return jsonResult(map[string]any{"results": results})
 		},
 	)
+}
+
+type addSlideInput struct {
+	Deck                string `json:"deck"                             jsonschema:"required,description=Deck name"`
+	Position            int    `json:"position"                         jsonschema:"required,description=Position to insert at (1-based)"`
+	Name                string `json:"name"                             jsonschema:"required,description=Slide filename (without .html extension or number prefix)"`
+	Layout              string `json:"layout,omitempty"                 jsonschema:"description=Layout template: title\\, content\\, two-col\\, section\\, blank\\, closing"`
+	Title               string `json:"title,omitempty"                  jsonschema:"description=Slide title (used in template rendering)"`
+	ExpectedDeckVersion string `json:"expected_deck_version,omitempty"  jsonschema:"description=Expected deck version. Omit or pass 'latest' to skip."`
 }
 
 func addSlideTool() mcpcore.TypedToolResult {
@@ -428,6 +415,12 @@ func addSlideTool() mcpcore.TypedToolResult {
 			)), nil
 		},
 	)
+}
+
+type removeSlideInput struct {
+	Deck                string `json:"deck"                             jsonschema:"required,description=Deck name"`
+	Slide               string `json:"slide"                            jsonschema:"required,description=Slide reference: slug\\, filename\\, or position number as string"`
+	ExpectedDeckVersion string `json:"expected_deck_version,omitempty"  jsonschema:"description=Expected deck version. Omit or pass 'latest' to skip."`
 }
 
 func removeSlideTool() mcpcore.TypedToolResult {
@@ -482,6 +475,12 @@ func removeSlideTool() mcpcore.TypedToolResult {
 			return mcpcore.TextResult(fmt.Sprintf("Slide %q removed (deck_version: %q).", filename, deckVer)), nil
 		},
 	)
+}
+
+type improveSlideInput struct {
+	Deck        string `json:"deck"        jsonschema:"required,description=Deck name"`
+	Slide       string `json:"slide"       jsonschema:"required,description=Slide reference: position number\\, slug\\, or filename"`
+	Instruction string `json:"instruction" jsonschema:"required,description=What to improve (e.g. 'make the bullet points more concise')"`
 }
 
 func improveSlideTool() mcpcore.TypedToolResult {
