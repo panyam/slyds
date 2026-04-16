@@ -18,8 +18,32 @@ setup-tools:
 install:
 	go build -ldflags="$(LDFLAGS)" -o ${GOBIN}/slyds .
 
-# Run all tests + E2E + coverage report
-testall: test e2e cover-html
+# run_stage runs a make target as a testall stage with logging and pass/fail tracking.
+define run_stage
+	echo "--- [$(1)/$(2)] $(3) ---" | tee -a $(REPORT_DIR)/run.log; \
+	if $(MAKE) -s $(4) >> $(REPORT_DIR)/run.log 2>&1; then \
+		echo "  PASS: $(3)" | tee -a $(REPORT_DIR)/run.log; PASS=$$((PASS+1)); STAGES="$$STAGES $(3):PASS"; \
+	else \
+		echo "  FAIL: $(3)" | tee -a $(REPORT_DIR)/run.log; FAIL=$$((FAIL+1)); STAGES="$$STAGES $(3):FAIL"; \
+	fi;
+endef
+
+# Run ALL tests (unit + e2e + coverage + keycloak) with pass/fail tracking
+testall:
+	@mkdir -p $(REPORT_DIR)
+	@echo "=== slyds Comprehensive Test Suite ===" | tee $(REPORT_DIR)/run.log
+	@echo "Started: $$(date)" | tee -a $(REPORT_DIR)/run.log
+	@PASS=0; FAIL=0; STAGES=""; \
+	echo "" | tee -a $(REPORT_DIR)/run.log; \
+	$(call run_stage,1,4,unit,test) \
+	$(call run_stage,2,4,e2e,e2e) \
+	$(call run_stage,3,4,coverage,cover-html) \
+	$(call run_stage,4,4,keycloak,testkcl-auto) \
+	echo "" | tee -a $(REPORT_DIR)/run.log; \
+	echo "=== Results: $$PASS passed, $$FAIL failed ===" | tee -a $(REPORT_DIR)/run.log; \
+	echo "Finished: $$(date)" | tee -a $(REPORT_DIR)/run.log; \
+	echo "Full log: $(REPORT_DIR)/run.log"; \
+	[ $$FAIL -eq 0 ]
 
 # Run tests
 test:
@@ -232,7 +256,23 @@ kcllogs: ## View Keycloak container logs
 testkcl: ## Run Keycloak auth interop tests (requires Docker, run upkcl first)
 	go test ./cmd/ -run 'TestKC_' -count=1 -timeout 120s -v
 
-.PHONY: upkcl downkcl kcllogs testkcl
+testkcl-auto: ## Start Keycloak if needed, run interop tests, stop after
+	@if ! curl -sf http://localhost:$(KC_PORT)/realms/$(KC_REALM) > /dev/null 2>&1; then \
+		echo "Starting Keycloak for interop tests..."; \
+		$(MAKE) upkcl; \
+		echo "Waiting for Keycloak realm..."; \
+		for i in $$(seq 1 60); do \
+			curl -sf http://localhost:$(KC_PORT)/realms/$(KC_REALM) > /dev/null 2>&1 && break; \
+			sleep 2; \
+		done; \
+		KC_STARTED=1; \
+	fi; \
+	go test ./cmd/ -run 'TestKC_' -count=1 -timeout 120s -v; \
+	EXIT=$$?; \
+	if [ "$${KC_STARTED:-}" = "1" ]; then $(MAKE) downkcl; fi; \
+	exit $$EXIT
+
+.PHONY: upkcl downkcl kcllogs testkcl testkcl-auto testall
 
 # =============================================================================
 # Security audit
