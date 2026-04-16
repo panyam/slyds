@@ -65,7 +65,7 @@
 				
 				<option value="file4">github.com/panyam/slyds/cmd/init.go (28.0%)</option>
 				
-				<option value="file5">github.com/panyam/slyds/cmd/install.go (3.0%)</option>
+				<option value="file5">github.com/panyam/slyds/cmd/install.go (3.2%)</option>
 				
 				<option value="file6">github.com/panyam/slyds/cmd/introspect.go (64.7%)</option>
 				
@@ -95,7 +95,7 @@
 				
 				<option value="file19">github.com/panyam/slyds/cmd/slides.go (13.7%)</option>
 				
-				<option value="file20">github.com/panyam/slyds/cmd/update.go (2.1%)</option>
+				<option value="file20">github.com/panyam/slyds/cmd/update.go (3.3%)</option>
 				
 				<option value="file21">github.com/panyam/slyds/cmd/workspace.go (93.4%)</option>
 				
@@ -127,9 +127,9 @@
 				
 				<option value="file35">github.com/panyam/slyds/core/query.go (69.9%)</option>
 				
-				<option value="file36">github.com/panyam/slyds/core/scaffold.go (41.8%)</option>
+				<option value="file36">github.com/panyam/slyds/core/scaffold.go (41.5%)</option>
 				
-				<option value="file37">github.com/panyam/slyds/core/scaffold_fs.go (77.1%)</option>
+				<option value="file37">github.com/panyam/slyds/core/scaffold_fs.go (77.9%)</option>
 				
 				<option value="file38">github.com/panyam/slyds/core/scaffold_skills_fs.go (78.6%)</option>
 				
@@ -573,13 +573,10 @@ Examples:
                         return fmt.Errorf("failed to update .slyds.yaml: %w", err)
                 }</span>
 
-                // Fetch the new source
-                <span class="cov0" title="0">fmt.Printf("Fetching %s...\n", url)
-                if err := core.FetchAll(templar.NewLocalFS(root), manifest); err != nil </span><span class="cov0" title="0">{
-                        return fmt.Errorf("fetch failed: %w", err)
-                }</span>
+                // Fetch the new source (with timeout)
+                <span class="cov0" title="0">fetchModules(root, manifest)
 
-                <span class="cov0" title="0">fmt.Printf("Installed %q as %q\n", url, name)
+                fmt.Printf("Installed %q as %q\n", url, name)
                 return nil</span>
         },
 }
@@ -4243,15 +4240,19 @@ func readSlotsFile(path string) (map[string]string, error) <span class="cov0" ti
 
 import (
         "bufio"
+        "errors"
         "fmt"
         "os"
         "path/filepath"
         "strings"
+        "time"
 
         "github.com/panyam/slyds/core"
         "github.com/panyam/templar"
         "github.com/spf13/cobra"
 )
+
+var updateSkipFetch bool
 
 var updateCmd = &amp;cobra.Command{
         Use:   "update [dir]",
@@ -4262,7 +4263,13 @@ preserving your slide content and ordering.
 
 The theme and title are read from .slyds.yaml in the presentation directory.
 If this file is missing (e.g., for presentations created before this feature),
-you will be prompted to enter the theme and title.`,
+you will be prompted to enter the theme and title.
+
+If the theme is not a built-in theme (custom/external), engine files are
+still refreshed but theme-specific rendering is skipped with a warning.
+
+Use --skip-fetch to skip module dependency fetching (useful offline or
+when the module URL is unreachable).`,
         Args: cobra.MaximumNArgs(1),
         RunE: func(cmd *cobra.Command, args []string) error <span class="cov0" title="0">{
                 dir := "."
@@ -4291,8 +4298,13 @@ you will be prompted to enter the theme and title.`,
                 // Refresh engine files from go:embed
                 <span class="cov0" title="0">fmt.Printf("Refreshing engine files from built-in assets...\n")
                 if err := core.Update(root, manifest.Theme, manifest.Title); err != nil </span><span class="cov0" title="0">{
-                        return fmt.Errorf("update failed: %w", err)
-                }</span>
+                        var warn *core.UnknownThemeWarning
+                        if errors.As(err, &amp;warn) </span><span class="cov0" title="0">{
+                                fmt.Fprintf(os.Stderr, "Warning: %s\n", warn)
+                        }</span> else<span class="cov0" title="0"> {
+                                return fmt.Errorf("update failed: %w", err)
+                        }</span>
+                }
 
                 // Add default core source if no sources configured yet
                 <span class="cov0" title="0">if !manifest.HasSources() </span><span class="cov0" title="0">{
@@ -4308,18 +4320,39 @@ you will be prompted to enter the theme and title.`,
                         }</span>
                 }
 
-                // Fetch module dependencies
-                <span class="cov0" title="0">fmt.Printf("Fetching module dependencies...\n")
-                if err := core.FetchAll(templar.NewLocalFS(root), manifest); err != nil </span><span class="cov0" title="0">{
-                        fmt.Fprintf(os.Stderr, "Warning: module fetch failed: %v\n", err)
-                        fmt.Fprintf(os.Stderr, "Engine files updated from built-in assets. Run 'slyds update' again when network is available.\n")
-                }</span> else<span class="cov0" title="0"> {
-                        fmt.Printf("Modules fetched into %s/\n", core.DefaultModulesDir)
+                // Fetch module dependencies (with timeout)
+                <span class="cov0" title="0">if !updateSkipFetch &amp;&amp; manifest.HasSources() </span><span class="cov0" title="0">{
+                        fetchModules(root, manifest)
+                }</span> else<span class="cov0" title="0"> if updateSkipFetch </span><span class="cov0" title="0">{
+                        fmt.Printf("Skipping module fetch (--skip-fetch).\n")
                 }</span>
 
                 <span class="cov0" title="0">fmt.Printf("Updated %q (theme: %s).\n", dir, manifest.Theme)
                 return nil</span>
         },
+}
+
+const fetchTimeout = 15 * time.Second
+
+// fetchModules runs FetchAll with a timeout to prevent hanging on
+// unreachable module URLs. Prints a warning on failure or timeout.
+func fetchModules(root string, manifest *core.Manifest) <span class="cov0" title="0">{
+        fmt.Printf("Fetching module dependencies (%s timeout)...\n", fetchTimeout)
+        done := make(chan error, 1)
+        go func() </span><span class="cov0" title="0">{
+                done &lt;- core.FetchAll(templar.NewLocalFS(root), manifest)
+        }</span>()
+        <span class="cov0" title="0">select </span>{
+        case err := &lt;-done:<span class="cov0" title="0">
+                if err != nil </span><span class="cov0" title="0">{
+                        fmt.Fprintf(os.Stderr, "Warning: module fetch failed: %v\n", err)
+                        fmt.Fprintf(os.Stderr, "Engine files updated. Run 'slyds update' again when network is available.\n")
+                }</span> else<span class="cov0" title="0"> {
+                        fmt.Printf("Modules fetched into %s/\n", core.DefaultModulesDir)
+                }</span>
+        case &lt;-time.After(fetchTimeout):<span class="cov0" title="0">
+                fmt.Fprintf(os.Stderr, "Warning: module fetch timed out after %s. Use --skip-fetch to skip.\n", fetchTimeout)</span>
+        }
 }
 
 func promptForManifest() (*core.Manifest, error) <span class="cov0" title="0">{
@@ -4348,6 +4381,7 @@ func promptForManifest() (*core.Manifest, error) <span class="cov0" title="0">{
 }
 
 func init() <span class="cov8" title="1">{
+        updateCmd.Flags().BoolVar(&amp;updateSkipFetch, "skip-fetch", false, "Skip fetching module dependencies (useful offline)")
         rootCmd.AddCommand(updateCmd)
 }</span>
 </pre>
@@ -7080,6 +7114,19 @@ import (
         "github.com/panyam/templar"
 )
 
+// UnknownThemeWarning is returned by UpdateDeck when the theme isn't built-in.
+// Engine files are still refreshed; only theme-specific rendering is skipped.
+// Callers can check with errors.As to distinguish from hard errors.
+type UnknownThemeWarning struct {
+        Theme     string
+        Available []string
+}
+
+func (w *UnknownThemeWarning) Error() string <span class="cov0" title="0">{
+        return fmt.Sprintf("theme %q is not built-in (available: %s) — engine files updated, theme rendering skipped",
+                w.Theme, strings.Join(w.Available, ", "))
+}</span>
+
 // ScaffoldFromThemeDir creates a presentation on the given WritableFS using a theme
 // loaded from an external fs.FS (e.g., a disk-based theme directory).
 // Used by preview for community/external themes.
@@ -7279,21 +7326,29 @@ func Update(dir, theme, title string) error <span class="cov0" title="0">{
 // UpdateDeck refreshes engine and theme files on the given FS
 // without touching slides/. Preserves existing manifest sources.
 func UpdateDeck(fsys templar.WritableFS, theme, title string) error <span class="cov8" title="1">{
-        if !ThemeExists(theme) </span><span class="cov8" title="1">{
-                available, _ := ListThemes()
-                return fmt.Errorf("theme %q not found (available: %s)", theme, strings.Join(available, ", "))
-        }</span>
-
-        // Overwrite engine files
-        <span class="cov8" title="1">fsys.WriteFile("slyds.css", []byte(SlydsCSS), 0644)
+        // Always refresh engine files — these are theme-independent.
+        fsys.WriteFile("slyds.css", []byte(SlydsCSS), 0644)
         fsys.WriteFile("slyds.js", []byte(SlydsJS), 0644)
         fsys.WriteFile("slyds-export.js", []byte(SlydsExportJS), 0644)
-
-        // Update theme CSS files
         writeThemeFilesFS(fsys)
 
+        // Write/update manifest — preserve existing sources
+        manifest := Manifest{Theme: theme, Title: title}
+        if existing, _ := readFullManifestFS(fsys); existing != nil </span><span class="cov8" title="1">{
+                manifest.Sources = existing.Sources
+                manifest.ModulesDir = existing.ModulesDir
+                manifest.AgentIncludeMCP = existing.AgentIncludeMCP
+        }</span>
+        <span class="cov8" title="1">writeManifestFS(fsys, manifest)
+        writeAgentMDFS(fsys, manifest)
+
+        if !ThemeExists(theme) </span><span class="cov8" title="1">{
+                available, _ := ListThemes()
+                return &amp;UnknownThemeWarning{Theme: theme, Available: available}
+        }</span>
+
         // Re-render theme.css
-        themeData := map[string]any{"Title": title}
+        <span class="cov8" title="1">themeData := map[string]any{"Title": title}
         renderEmbeddedTemplateFS(fsys, theme, "theme.css.tmpl", themeData, "theme.css")
 
         // Parse existing includes from index.html
@@ -7314,16 +7369,6 @@ func UpdateDeck(fsys templar.WritableFS, theme, title string) error <span class=
 
         // Re-copy theme static assets
         copyEmbeddedAssetsFS(fsys, theme)
-
-        // Write/update manifest — preserve existing sources
-        manifest := Manifest{Theme: theme, Title: title}
-        if existing, _ := readFullManifestFS(fsys); existing != nil </span><span class="cov8" title="1">{
-                manifest.Sources = existing.Sources
-                manifest.ModulesDir = existing.ModulesDir
-                manifest.AgentIncludeMCP = existing.AgentIncludeMCP
-        }</span>
-        <span class="cov8" title="1">writeManifestFS(fsys, manifest)
-        writeAgentMDFS(fsys, manifest)
 
         return nil</span>
 }
@@ -7634,7 +7679,7 @@ func writeManifestFS(fsys templar.WritableFS, m Manifest) error <span class="cov
 // readFullManifestFS reads the full Manifest (including Sources) from FS.
 func readFullManifestFS(fsys templar.WritableFS) (*Manifest, error) <span class="cov8" title="1">{
         data, err := fsys.ReadFile(".slyds.yaml")
-        if err != nil </span><span class="cov0" title="0">{
+        if err != nil </span><span class="cov8" title="1">{
                 return nil, err
         }</span>
         <span class="cov8" title="1">var m Manifest

@@ -58,11 +58,8 @@ Examples:
 			return fmt.Errorf("failed to update .slyds.yaml: %w", err)
 		}
 
-		// Fetch the new source
-		fmt.Printf("Fetching %s...\n", url)
-		if err := core.FetchAll(templar.NewLocalFS(root), manifest); err != nil {
-			return fmt.Errorf("fetch failed: %w", err)
-		}
+		// Fetch the new source (with timeout)
+		fetchModules(root, manifest)
 
 		fmt.Printf("Installed %q as %q\n", url, name)
 		return nil

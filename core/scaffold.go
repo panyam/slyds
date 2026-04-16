@@ -10,6 +10,19 @@ import (
 	"github.com/panyam/templar"
 )
 
+// UnknownThemeWarning is returned by UpdateDeck when the theme isn't built-in.
+// Engine files are still refreshed; only theme-specific rendering is skipped.
+// Callers can check with errors.As to distinguish from hard errors.
+type UnknownThemeWarning struct {
+	Theme     string
+	Available []string
+}
+
+func (w *UnknownThemeWarning) Error() string {
+	return fmt.Sprintf("theme %q is not built-in (available: %s) — engine files updated, theme rendering skipped",
+		w.Theme, strings.Join(w.Available, ", "))
+}
+
 // ScaffoldFromThemeDir creates a presentation on the given WritableFS using a theme
 // loaded from an external fs.FS (e.g., a disk-based theme directory).
 // Used by preview for community/external themes.
@@ -209,18 +222,26 @@ func Update(dir, theme, title string) error {
 // UpdateDeck refreshes engine and theme files on the given FS
 // without touching slides/. Preserves existing manifest sources.
 func UpdateDeck(fsys templar.WritableFS, theme, title string) error {
-	if !ThemeExists(theme) {
-		available, _ := ListThemes()
-		return fmt.Errorf("theme %q not found (available: %s)", theme, strings.Join(available, ", "))
-	}
-
-	// Overwrite engine files
+	// Always refresh engine files — these are theme-independent.
 	fsys.WriteFile("slyds.css", []byte(SlydsCSS), 0644)
 	fsys.WriteFile("slyds.js", []byte(SlydsJS), 0644)
 	fsys.WriteFile("slyds-export.js", []byte(SlydsExportJS), 0644)
-
-	// Update theme CSS files
 	writeThemeFilesFS(fsys)
+
+	// Write/update manifest — preserve existing sources
+	manifest := Manifest{Theme: theme, Title: title}
+	if existing, _ := readFullManifestFS(fsys); existing != nil {
+		manifest.Sources = existing.Sources
+		manifest.ModulesDir = existing.ModulesDir
+		manifest.AgentIncludeMCP = existing.AgentIncludeMCP
+	}
+	writeManifestFS(fsys, manifest)
+	writeAgentMDFS(fsys, manifest)
+
+	if !ThemeExists(theme) {
+		available, _ := ListThemes()
+		return &UnknownThemeWarning{Theme: theme, Available: available}
+	}
 
 	// Re-render theme.css
 	themeData := map[string]any{"Title": title}
@@ -244,16 +265,6 @@ func UpdateDeck(fsys templar.WritableFS, theme, title string) error {
 
 	// Re-copy theme static assets
 	copyEmbeddedAssetsFS(fsys, theme)
-
-	// Write/update manifest — preserve existing sources
-	manifest := Manifest{Theme: theme, Title: title}
-	if existing, _ := readFullManifestFS(fsys); existing != nil {
-		manifest.Sources = existing.Sources
-		manifest.ModulesDir = existing.ModulesDir
-		manifest.AgentIncludeMCP = existing.AgentIncludeMCP
-	}
-	writeManifestFS(fsys, manifest)
-	writeAgentMDFS(fsys, manifest)
 
 	return nil
 }
