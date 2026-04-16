@@ -226,8 +226,14 @@
             }));
         }
 
-        slides.forEach(function (slide) { slide.classList.remove('active'); });
+        var notesPanelOpen = false;
+        var notesPanel = document.getElementById('slyds-notes-panel');
+        if (notesPanel && notesPanel.style.display !== 'none') notesPanelOpen = true;
+
+        slides.forEach(function (slide) { slide.classList.remove('active'); slide.style.display = ''; });
         slides[currentSlide - 1].classList.add('active');
+        // If notes panel is open, keep the slide hidden (tab-style)
+        if (notesPanelOpen) slides[currentSlide - 1].style.display = 'none';
 
         // Dispatch slideEnter on incoming slide (now .active, has dimensions)
         slides[currentSlide - 1].dispatchEvent(new CustomEvent('slideEnter', {
@@ -310,6 +316,9 @@
         if (!panel) return;
         var visible = panel.style.display !== 'none';
         panel.style.display = visible ? 'none' : 'flex';
+        // Hide/show the active slide — tab-style toggle
+        var activeSlide = document.querySelector('.slide.active');
+        if (activeSlide) activeSlide.style.display = visible ? '' : 'none';
         if (!visible) updateNotesPanel();
     }
 
@@ -528,7 +537,7 @@
     window.changeSlide = changeSlide;
     window.showSlide = showSlide;
     window.openSpeakerNotes = openSpeakerNotes;
-    window.openNotesWindow = openNotesWindow; // legacy — use openSpeakerNotes
+    window.openNotesWindow = openSpeakerNotes; // legacy alias — routes through sandbox detection
     window.toggleNotesPanel = toggleNotesPanel;
     window.toggleTimer = toggleTimer;
     window.cycleTheme = cycleTheme;

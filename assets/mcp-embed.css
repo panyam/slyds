@@ -63,11 +63,12 @@ html.slyds-mcp-embed .slide-nav {
  * Shown in sandboxed iframes (MCP Apps) where window.open() is blocked.
  * Sits between the slide area and the nav bar in the flex column.
  */
+/* When notes are open, the panel replaces the slide area (full height).
+ * Nav bar stays visible for prev/next navigation. Tab-style toggle. */
 .slyds-notes-panel {
-  flex-shrink: 0;
-  max-height: 30%;
-  overflow-y: auto;
-  border-top: 1px solid #ddd;
+  flex: 1 1 0;
+  min-height: 0;
+  overflow: hidden;
   background: #f8f8f8;
   font-family: system-ui, -apple-system, sans-serif;
   font-size: 14px;
