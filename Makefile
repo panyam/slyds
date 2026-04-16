@@ -199,6 +199,42 @@ tunnel:
 	@bash scripts/tunnel.sh
 
 # =============================================================================
+# Keycloak auth tests
+# =============================================================================
+
+KC_PORT := 8180
+KC_CONTAINER := slyds-keycloak
+KC_REALM := slyds-test
+KC_IMAGE := quay.io/keycloak/keycloak:26.0
+
+upkcl: ## Start Keycloak container for auth interop tests
+	@if curl -sf http://localhost:$(KC_PORT)/realms/$(KC_REALM) > /dev/null 2>&1; then \
+		echo "Keycloak already running on port $(KC_PORT) — skipping start"; \
+	else \
+		docker rm -f $(KC_CONTAINER) 2>/dev/null || true; \
+		docker run -d --name $(KC_CONTAINER) \
+			-p $(KC_PORT):8080 \
+			-e KC_BOOTSTRAP_ADMIN_USERNAME=admin \
+			-e KC_BOOTSTRAP_ADMIN_PASSWORD=admin \
+			-v $(PWD)/tests/keycloak/realm.json:/opt/keycloak/data/import/realm.json \
+			$(KC_IMAGE) start-dev --import-realm \
+			--log-level=INFO,org.keycloak.events:DEBUG; \
+		echo "Keycloak starting on port $(KC_PORT)... (realm import takes ~30s)"; \
+		echo "Run 'make kcllogs' to watch startup, 'make testkcl' when ready"; \
+	fi
+
+downkcl: ## Stop Keycloak container
+	docker rm -f $(KC_CONTAINER) 2>/dev/null || true
+
+kcllogs: ## View Keycloak container logs
+	docker logs -f $(KC_CONTAINER)
+
+testkcl: ## Run Keycloak auth interop tests (requires Docker, run upkcl first)
+	go test ./cmd/ -run 'TestKC_' -count=1 -timeout 120s -v
+
+.PHONY: upkcl downkcl kcllogs testkcl
+
+# =============================================================================
 # Security audit
 # =============================================================================
 
