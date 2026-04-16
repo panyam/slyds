@@ -48,7 +48,7 @@ All Deck I/O goes through `templar.WritableFS` (v0.1.0). No `os.*`/`filepath.*` 
 - **macOS /private symlinks**: temp dirs resolve `/var/...` vs `/private/var/...`. Don't compare paths in tests.
 - **`go:embed` paths relative to Go file** — `assets/embed.go` lives alongside the embedded files; `core/embed.go` re-exports.
 - **Theme render fallback** — `InsertSlide` uses layout system first; falls back to theme templates.
-- **MCP** — Two server paths: `slyds mcp` (hand-written) and `slyds mcp-proto` (proto-generated, experimental). Both register 14 tools + 9 resources + 3 prompts + completions via mcpkit v0.2.25. Default port: `8274`. Typed handler contexts. MCP Apps with bridge (`--app-bridge`, default on) for host theme adaptation and interactive navigation. Sampling (`improve_slide` uses server→client LLM calls). Elicitation (`remove_slide` confirms, `create_deck` elicits theme — description hints LLM to omit theme for interactive selection). Optimistic versioning (`expected_version` / `expected_deck_version`). `--allow-origin '*'` for tunnel/remote. See [docs/MCP.md](docs/MCP.md). Demo walkthrough: [docs/DEMO-MCP-FEATURES.md](docs/DEMO-MCP-FEATURES.md).
+- **MCP** — Two server paths: `slyds mcp` (hand-written) and `slyds mcp-proto` (proto-generated, experimental). Both register 14 tools + 9 resources + 3 prompts + completions via mcpkit v0.2.26. Default port: `8274`. Typed handler contexts. MCP Apps with bridge (`--app-bridge`, default on) for host theme adaptation and interactive navigation. Sampling (`improve_slide` uses server→client LLM calls). Elicitation (`remove_slide` confirms, `create_deck` elicits theme — description hints LLM to omit theme for interactive selection). Optimistic versioning (`expected_version` / `expected_deck_version`). `--allow-origin '*'` for tunnel/remote. See [docs/MCP.md](docs/MCP.md). Demo walkthrough: [docs/DEMO-MCP-FEATURES.md](docs/DEMO-MCP-FEATURES.md).
 - **Proto MCP** — `proto/slyds/v1/` defines the API as annotated proto RPCs. `protoc-gen-go-mcp` generates typed registrations, sampling helpers (`SampleForImproveSlide`), elicitation helpers (`ElicitThemeChoice`, `ElicitRemoveSlideConfirmation`), and prompt registrations. `SlydsServiceImpl` in `cmd/mcp_proto_impl.go` wraps Workspace. Typed handler contexts (`mcpcore.ToolContext`, `mcpcore.ResourceContext`, `mcpcore.PromptContext`). Entity-focused responses, gRPC status codes for errors. Parity tests validate both paths produce identical output. Dev setup: `cd proto && make setupdev && make buf`.
 - **Proto elicitation schema messages** must live in `service.proto` (same file as the RPC), not `models.proto` — `protoc-gen-go-mcp` resolves `schema_message` within `file.Messages` only.
 - **CLI-direct agent mode** — `describe --json`, `ls --json`, `check --json`, `build --json`, `ws info --json`, `ws list --json` for agents using shell commands instead of MCP. See [AGENT-SETUP.md](AGENT-SETUP.md).
@@ -64,9 +64,9 @@ All Deck I/O goes through `templar.WritableFS` (v0.1.0). No `os.*`/`filepath.*` 
 | Component | Version | Notes |
 |-----------|---------|-------|
 | templar | v0.1.0 | WritableFS, FSFolder, MemFS, module system |
-| mcpkit | v0.2.25 | Typed handler contexts, ToolCallFull, NotifyResourceUpdated, schema validation, streaming, completions, sampling, elicitation |
-| mcpkit/ext/ui | v0.2.25 | MCP Apps — display modes, auto-fallback template URIs, RequestDisplayMode, App Bridge (postMessage transport, theme adaptation, bidirectional tools) |
-| mcpkit/ext/protogen | v0.2.25 | Proto→MCP codegen, completable_fields, raw content for non-JSON resources |
+| mcpkit | v0.2.26 | Typed handler contexts, ToolCallFull, NotifyResourceUpdated, schema validation, streaming, completions, sampling, elicitation |
+| mcpkit/ext/ui | v0.2.26 | MCP Apps — display modes, auto-fallback template URIs, RequestDisplayMode, App Bridge (postMessage transport, theme adaptation, bidirectional tools) |
+| mcpkit/ext/protogen | v0.2.26 | Proto→MCP codegen, completable_fields, raw content for non-JSON resources |
 
 See [Stackfile.md](Stackfile.md) for full dependency list.
 
