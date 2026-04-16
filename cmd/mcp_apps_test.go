@@ -500,6 +500,43 @@ func TestE2E_PreviewSlideContainsBridge(t *testing.T) {
 	}
 }
 
+// TestE2E_PreviewContainsNotesPanel verifies that the inline speaker notes
+// panel code is present in preview HTML (for sandboxed iframe contexts).
+func TestE2E_PreviewContainsNotesPanel(t *testing.T) {
+	root := t.TempDir()
+	core.CreateInDir("Notes Panel", 2, "default", filepath.Join(root, "deck"), true)
+	c := newSlydsMCPClientWithUI(t, root)
+	c.ToolCall("preview_deck", map[string]any{"deck": "deck"})
+	html := c.ReadResource("ui://slyds/decks/deck/preview")
+
+	checks := map[string]string{
+		"slyds-notes-panel":  "inline notes panel element",
+		"toggleNotesPanel":   "panel toggle function",
+		"createNotesPanel":   "panel creation function",
+		"openSpeakerNotes":   "unified speaker notes API",
+		"updateNotesContent": "shared content update helper",
+	}
+	for marker, desc := range checks {
+		if !strings.Contains(html, marker) {
+			t.Errorf("preview missing %s (marker: %q)", desc, marker)
+		}
+	}
+}
+
+// TestE2E_PreviewContainsSandboxDetection verifies that the preview HTML
+// includes iframe sandbox detection for choosing inline vs popup notes.
+func TestE2E_PreviewContainsSandboxDetection(t *testing.T) {
+	root := t.TempDir()
+	core.CreateInDir("Sandbox", 2, "default", filepath.Join(root, "deck"), true)
+	c := newSlydsMCPClientWithUI(t, root)
+	c.ToolCall("preview_deck", map[string]any{"deck": "deck"})
+	html := c.ReadResource("ui://slyds/decks/deck/preview")
+
+	if !strings.Contains(html, "window.parent !== window") {
+		t.Error("preview missing sandbox detection")
+	}
+}
+
 // --- Helpers to extract tool defs for unit testing ---
 
 func previewDeckToolDef(root string) server.Tool {
