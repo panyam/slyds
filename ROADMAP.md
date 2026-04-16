@@ -81,6 +81,9 @@ Proto definition (`proto/slyds/v1/`) with all 12 tools, 7 resources, and 3 promp
 ## Phase 9n — MCP Prompts, Sampling, Elicitation (done)
 Full MCP spec coverage. Three prompt templates (`create-presentation`, `review-slides`, `suggest-speaker-notes`). `improve_slide` tool uses server→client LLM sampling to rewrite slides per instruction. `remove_slide` elicits user confirmation before deletion; `create_deck` elicits theme choice when not specified. Both MCP paths (hand-written and proto-generated) implement all three features with graceful fallback when clients don't support sampling/elicitation. Proto annotations `mcp_sampling` and `mcp_elicit` drive codegen of typed helpers. mcpkit upgraded to v0.2.21.
 
+## Phase 9o — MCP Apps Bridge + Inline Notes (done)
+Injected mcpkit MCP App Bridge into preview iframes via `ui.InjectAppBridge` (`--app-bridge` flag, default on). Host theme adaptation: bridge auto-applies `data-theme`, CSS variables, and fonts; dark mode CSS adapts preview chrome while slide content keeps its deck theme. Interactive navigation: app-side tools (`next_slide`, `prev_slide`, `goto_slide`, `get_current_slide`) via `oncalltool`/`onlisttools` — no server round-trip. Live edit refresh via `toolresult` events. Inline speaker notes panel for sandboxed iframes where `window.open()` is blocked — tab-style toggle replaces popup in editing context. `openSpeakerNotes(asWindow)` replaces `openNotesWindow` as the public API with sandbox auto-detection. Shared `updateNotesContent()` for both popup and inline paths. Default port changed from 6274 to 8274 (avoids MCPJam conflict). Demo cheatsheet at `docs/DEMO-MCP-FEATURES.md`. mcpkit v0.2.24.
+
 ## Phase 10 — Slide Folders
 Support `slides/03-name/slide.html` with co-located assets (images, per-slide CSS). Auto-detect folder vs file slides.
 

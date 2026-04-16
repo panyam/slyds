@@ -51,6 +51,9 @@
 - [x] ~~Optimistic versioning on MCP mutations — expected_version, expected_deck_version, version_conflict (#79)~~
 - [x] ~~Proto-based MCP server — slyds mcp-proto with proto-generated registrations, parity tests (#97)~~
 - [x] ~~MCP prompts, sampling, elicitation — 3 prompts (create-presentation, review-slides, suggest-speaker-notes), improve_slide with sampling, remove_slide/create_deck with elicitation. Proto-generated helpers via mcp_sampling/mcp_elicit annotations.~~
+- [x] ~~MCP Apps bridge — host theme adaptation, interactive slide navigation via bidirectional tools, inline speaker notes for sandboxed iframes (#100, #101, #105)~~
+- [ ] MCP Apps: CSP config for external scripts in preview iframes (#104)
+- [ ] MCP Apps: cancellable slide generation with AbortSignal (#102)
 - [ ] App-backed elicitation for theme/layout selection (from #93)
 - [ ] Remove hand-written mcp_tools.go / mcp_resources.go once proto path validated
 - [ ] Multi-root workspace.yaml config (#80)
