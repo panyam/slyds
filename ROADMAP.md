@@ -84,6 +84,15 @@ Full MCP spec coverage. Three prompt templates (`create-presentation`, `review-s
 ## Phase 9o — MCP Apps Bridge + Inline Notes (done)
 Injected mcpkit MCP App Bridge into preview iframes via `ui.InjectAppBridge` (`--app-bridge` flag, default on). Host theme adaptation: bridge auto-applies `data-theme`, CSS variables, and fonts; dark mode CSS adapts preview chrome while slide content keeps its deck theme. Interactive navigation: app-side tools (`next_slide`, `prev_slide`, `goto_slide`, `get_current_slide`) via `oncalltool`/`onlisttools` — no server round-trip. Live edit refresh via `toolresult` events. Inline speaker notes panel for sandboxed iframes where `window.open()` is blocked — tab-style toggle replaces popup in editing context. `openSpeakerNotes(asWindow)` replaces `openNotesWindow` as the public API with sandbox auto-detection. Shared `updateNotesContent()` for both popup and inline paths. Default port changed from 6274 to 8274 (avoids MCPJam conflict). Demo cheatsheet at `docs/DEMO-MCP-FEATURES.md`. mcpkit v0.2.24.
 
+## Phase 9p — TypedTool Migration (done)
+All 12 hand-written MCP tools migrated from `map[string]any` InputSchema to `mcpcore.TypedTool[In, Out]` with auto-derived schemas from Go struct tags (`json` + `jsonschema`). Input/output structs colocated with their tool functions. Net -178 lines. mcpkit v0.2.26 with `invopop/jsonschema`.
+
+## Phase 9q — slyds update fix (done)
+`UpdateDeck` tolerates unknown themes — engine files always refreshed, theme rendering skipped with `UnknownThemeWarning`. `FetchAll` wrapped in 15s timeout goroutine. `--skip-fetch` flag on `slyds update` and `slyds install`.
+
+## Phase 9r — MCP Auth (done)
+Full MCP auth spec compliance (2025-11-25). `MCPAuthConfig` encapsulates JWT validation (`--jwks-url`, `--issuer`, `--audience`), PRM endpoint (RFC 9728), RFC 8414 AS metadata proxy (bridges OIDC-only providers like Keycloak), and scoped access (`slyds-write` on mutations). VS Code browser OAuth via PKCE works end-to-end with Keycloak. `--verbose` flag for request logging. Shared `AuthServerOptions()` / `BuildMCPMux()` / `PrintAuthInfo()` for both `slyds mcp` and `slyds mcp-proto`. `bump-mcpkit` Makefile target for lock-step dependency updates. Keycloak interop tests (6 tests) with `testall` integration. Auth testing guide at `docs/AUTH-TESTING.md`. mcpkit v0.2.38, oneauth v0.0.75.
+
 ## Phase 10 — Slide Folders
 Support `slides/03-name/slide.html` with co-located assets (images, per-slide CSS). Auto-detect folder vs file slides.
 

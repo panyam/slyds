@@ -86,6 +86,9 @@ func createDeckTool() mcpcore.TypedToolResult {
 		"create_deck",
 		"Create a new presentation deck with the given name, title, and slide count. Omit theme to let the user choose interactively via the host UI.",
 		func(ctx mcpcore.ToolContext, p createDeckInput) (mcpcore.ToolResult, error) {
+			if err := RequireWriteScope(ctx); err != nil {
+				return mcpcore.ErrorResult(err.Error()), nil
+			}
 			ws, errResult := requireWorkspace(ctx)
 			if errResult != nil {
 				return *errResult, nil
@@ -238,6 +241,9 @@ func editSlideTool() mcpcore.TypedToolResult {
 		"edit_slide",
 		"Replace the HTML content of a slide. Content MUST be a raw HTML fragment (not JSON-escaped) whose root element is <div class=\"slide\" data-layout=\"...\">. Do NOT use class=\"slide-content\" or other variants — the engine requires exactly class=\"slide\" for pagination. Do NOT escape quotes with backslashes. Do NOT include <style> blocks — they pollute global CSS and break navigation; use inline style= attributes instead. Supply either 'slide' (preferred: slug, filename, or position as string) or 'position' (legacy: 1-based integer). Pass expected_version (from read_slide or describe_deck) for optimistic concurrency; omit or pass 'latest' for last-write-wins.",
 		func(ctx mcpcore.ToolContext, p editSlideInput) (mcpcore.ToolResult, error) {
+			if err := RequireWriteScope(ctx); err != nil {
+				return mcpcore.ErrorResult(err.Error()), nil
+			}
 			d, errResult := openDeckFromContext(ctx, p.Deck)
 			if errResult != nil {
 				return *errResult, nil
@@ -332,6 +338,13 @@ func querySlideTool() mcpcore.TypedToolResult {
 		"query_slide",
 		"Query or modify slide HTML using CSS selectors (goquery). Read text, attributes, inner HTML, or mutate content.",
 		func(ctx mcpcore.ToolContext, p querySlideInput) (mcpcore.ToolResult, error) {
+			// Require write scope only for mutation operations.
+			isMutation := p.Set != nil || p.SetHTML != nil || p.SetAttr != nil || p.Append != nil || p.Remove
+			if isMutation {
+				if err := RequireWriteScope(ctx); err != nil {
+					return mcpcore.ErrorResult(err.Error()), nil
+				}
+			}
 			d, errResult := openDeckFromContext(ctx, p.Deck)
 			if errResult != nil {
 				return *errResult, nil
@@ -370,6 +383,9 @@ func addSlideTool() mcpcore.TypedToolResult {
 		"add_slide",
 		"Insert a new slide at the given position using a layout template. Pass expected_deck_version (from describe_deck or read_slide) for optimistic concurrency; omit or pass 'latest' for last-write-wins.",
 		func(ctx mcpcore.ToolContext, p addSlideInput) (mcpcore.ToolResult, error) {
+			if err := RequireWriteScope(ctx); err != nil {
+				return mcpcore.ErrorResult(err.Error()), nil
+			}
 			if p.Layout == "" {
 				p.Layout = "content"
 			}
@@ -423,6 +439,9 @@ func removeSlideTool() mcpcore.TypedToolResult {
 		"remove_slide",
 		"Remove a slide by filename or position number. Remaining slides are renumbered. Pass expected_deck_version for optimistic concurrency; omit or pass 'latest' for last-write-wins.",
 		func(ctx mcpcore.ToolContext, p removeSlideInput) (mcpcore.ToolResult, error) {
+			if err := RequireWriteScope(ctx); err != nil {
+				return mcpcore.ErrorResult(err.Error()), nil
+			}
 			d, errResult := openDeckFromContext(ctx, p.Deck)
 			if errResult != nil {
 				return *errResult, nil
@@ -483,6 +502,9 @@ func improveSlideTool() mcpcore.TypedToolResult {
 		"improve_slide",
 		"Improve a slide's content using AI. Reads the current slide, sends it to the client's LLM with your instruction, and applies the result. Requires the client to support sampling.",
 		func(ctx mcpcore.ToolContext, p improveSlideInput) (mcpcore.ToolResult, error) {
+			if err := RequireWriteScope(ctx); err != nil {
+				return mcpcore.ErrorResult(err.Error()), nil
+			}
 			d, errResult := openDeckFromContext(ctx, p.Deck)
 			if errResult != nil {
 				return *errResult, nil

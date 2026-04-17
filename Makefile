@@ -18,8 +18,32 @@ setup-tools:
 install:
 	go build -ldflags="$(LDFLAGS)" -o ${GOBIN}/slyds .
 
-# Run all tests + E2E + coverage report
-testall: test e2e cover-html
+# run_stage runs a make target as a testall stage with logging and pass/fail tracking.
+define run_stage
+	echo "--- [$(1)/$(2)] $(3) ---" | tee -a $(REPORT_DIR)/run.log; \
+	if $(MAKE) -s $(4) >> $(REPORT_DIR)/run.log 2>&1; then \
+		echo "  PASS: $(3)" | tee -a $(REPORT_DIR)/run.log; PASS=$$((PASS+1)); STAGES="$$STAGES $(3):PASS"; \
+	else \
+		echo "  FAIL: $(3)" | tee -a $(REPORT_DIR)/run.log; FAIL=$$((FAIL+1)); STAGES="$$STAGES $(3):FAIL"; \
+	fi;
+endef
+
+# Run ALL tests (unit + e2e + coverage + keycloak) with pass/fail tracking
+testall:
+	@mkdir -p $(REPORT_DIR)
+	@echo "=== slyds Comprehensive Test Suite ===" | tee $(REPORT_DIR)/run.log
+	@echo "Started: $$(date)" | tee -a $(REPORT_DIR)/run.log
+	@PASS=0; FAIL=0; STAGES=""; \
+	echo "" | tee -a $(REPORT_DIR)/run.log; \
+	$(call run_stage,1,4,unit,test) \
+	$(call run_stage,2,4,e2e,e2e) \
+	$(call run_stage,3,4,coverage,cover-html) \
+	$(call run_stage,4,4,keycloak,testkcl-auto) \
+	echo "" | tee -a $(REPORT_DIR)/run.log; \
+	echo "=== Results: $$PASS passed, $$FAIL failed ===" | tee -a $(REPORT_DIR)/run.log; \
+	echo "Finished: $$(date)" | tee -a $(REPORT_DIR)/run.log; \
+	echo "Full log: $(REPORT_DIR)/run.log"; \
+	[ $$FAIL -eq 0 ]
 
 # Run tests
 test:
@@ -197,6 +221,74 @@ dev-sse-auth: demo
 # Start a localhost tunnel (requires ngrok or cloudflared)
 tunnel:
 	@bash scripts/tunnel.sh
+
+# =============================================================================
+# Keycloak auth tests
+# =============================================================================
+
+KC_PORT := 8180
+KC_CONTAINER := slyds-keycloak
+KC_REALM := slyds-test
+KC_IMAGE := quay.io/keycloak/keycloak:26.0
+
+upkcl: ## Start Keycloak container for auth interop tests
+	@if curl -sf http://localhost:$(KC_PORT)/realms/$(KC_REALM) > /dev/null 2>&1; then \
+		echo "Keycloak already running on port $(KC_PORT) — skipping start"; \
+	else \
+		docker rm -f $(KC_CONTAINER) 2>/dev/null || true; \
+		docker run -d --name $(KC_CONTAINER) \
+			-p $(KC_PORT):8080 \
+			-e KC_BOOTSTRAP_ADMIN_USERNAME=admin \
+			-e KC_BOOTSTRAP_ADMIN_PASSWORD=admin \
+			-v $(PWD)/tests/keycloak/realm.json:/opt/keycloak/data/import/realm.json \
+			$(KC_IMAGE) start-dev --import-realm \
+			--log-level=INFO,org.keycloak.events:DEBUG; \
+		echo "Keycloak starting on port $(KC_PORT)... (realm import takes ~30s)"; \
+		echo "Run 'make kcllogs' to watch startup, 'make testkcl' when ready"; \
+	fi
+
+downkcl: ## Stop Keycloak container
+	docker rm -f $(KC_CONTAINER) 2>/dev/null || true
+
+kcllogs: ## View Keycloak container logs
+	docker logs -f $(KC_CONTAINER)
+
+testkcl: ## Run Keycloak auth interop tests (requires Docker, run upkcl first)
+	go test ./cmd/ -run 'TestKC_' -count=1 -timeout 120s -v
+
+testkcl-auto: ## Start Keycloak if needed, run interop tests, stop after
+	@if ! curl -sf http://localhost:$(KC_PORT)/realms/$(KC_REALM) > /dev/null 2>&1; then \
+		echo "Starting Keycloak for interop tests..."; \
+		$(MAKE) upkcl; \
+		echo "Waiting for Keycloak realm..."; \
+		for i in $$(seq 1 60); do \
+			curl -sf http://localhost:$(KC_PORT)/realms/$(KC_REALM) > /dev/null 2>&1 && break; \
+			sleep 2; \
+		done; \
+		KC_STARTED=1; \
+	fi; \
+	go test ./cmd/ -run 'TestKC_' -count=1 -timeout 120s -v; \
+	EXIT=$$?; \
+	if [ "$${KC_STARTED:-}" = "1" ]; then $(MAKE) downkcl; fi; \
+	exit $$EXIT
+
+.PHONY: upkcl downkcl kcllogs testkcl testkcl-auto testall
+
+# =============================================================================
+# Dependency management
+# =============================================================================
+
+MCPKIT_MODS := github.com/panyam/mcpkit github.com/panyam/mcpkit/ext/auth github.com/panyam/mcpkit/ext/ui github.com/panyam/mcpkit/ext/protogen
+
+bump-mcpkit: ## Bump all mcpkit modules to the same version. Usage: make bump-mcpkit V=v0.2.38
+	@if [ -z "$(V)" ]; then echo "Usage: make bump-mcpkit V=v0.2.38"; exit 1; fi
+	@echo "Bumping mcpkit modules to $(V)..."
+	GONOSUMDB=github.com/panyam/* GONOSUMCHECK=github.com/panyam/* GOPROXY=direct \
+		go get $(foreach mod,$(MCPKIT_MODS),$(mod)@$(V))
+	go mod tidy
+	@echo "Done. Verify with: grep mcpkit go.mod"
+
+.PHONY: bump-mcpkit
 
 # =============================================================================
 # Security audit

@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"html/template"
+	"log"
 	"io/fs"
 	"net/http"
 	"os"
@@ -44,6 +45,8 @@ var (
 	mcpDeckRoot     string
 	mcpAllowOrigins []string
 	mcpAppBridge    bool
+	mcpVerbose      bool
+	mcpAuth         MCPAuthConfig
 )
 
 func init() {
@@ -55,6 +58,8 @@ func init() {
 	mcpCmd.Flags().StringVar(&mcpDeckRoot, "deck-root", "", "Root directory for deck discovery (default: $SLYDS_DECK_ROOT, or current directory)")
 	mcpCmd.Flags().StringSliceVar(&mcpAllowOrigins, "allow-origin", nil, "Allowed Origin headers (default: localhost only). Use '*' to allow all origins (e.g. behind a tunnel)")
 	mcpCmd.Flags().BoolVar(&mcpAppBridge, "app-bridge", true, "Inject MCP App Bridge into previews (host theme adaptation, interactive navigation). Disable with --app-bridge=false if the bridge breaks preview rendering in your host.")
+	mcpCmd.Flags().BoolVar(&mcpVerbose, "verbose", false, "Log HTTP requests and auth events to stderr")
+	mcpAuth.AddFlags(mcpCmd)
 	rootCmd.AddCommand(mcpCmd)
 }
 
@@ -78,8 +83,9 @@ func runMCPServer() error {
 	serverOpts = append(serverOpts, server.WithExtension(ui.UIExtension{}))
 	serverOpts = append(serverOpts, server.WithErrorHandler(&slydsMCPErrorHandler{}))
 	serverOpts = append(serverOpts, server.WithMiddleware(workspaceMiddleware(ws)))
-	if mcpToken != "" {
-		serverOpts = append(serverOpts, server.WithBearerToken(mcpToken))
+	serverOpts = append(serverOpts, AuthServerOptions(&mcpAuth)...)
+	if mcpVerbose {
+		serverOpts = append(serverOpts, server.WithRequestLogging(log.New(os.Stderr, "[mcp] ", log.LstdFlags)))
 	}
 
 	srv := server.NewServer(
@@ -135,26 +141,25 @@ func runMCPServer() error {
 		transport = "Streamable HTTP"
 	}
 
-	// Build MCP handler and wrap with landing page at /. The landing page
-	// needs deck names up front; we call ws.ListDecks() once at startup.
+	// Build MCP handler and wrap with landing page + PRM endpoint.
 	mcpHandler := srv.Handler(transportOpts...)
 	deckRefs, _ := ws.ListDecks()
 	deckNames := make([]string, 0, len(deckRefs))
 	for _, r := range deckRefs {
 		deckNames = append(deckNames, r.Name)
 	}
-	handler := mcpWithLanding(mcpHandler, transport, mcpListen, deckNames, mcpToken != "")
+	authEnabled := mcpAuth.IsEnabled() || mcpToken != ""
+	landing := mcpWithLanding(mcpHandler, transport, mcpListen, deckNames, authEnabled)
+	mux := BuildMCPMux(landing, &mcpAuth)
 
 	fmt.Fprintf(os.Stderr, "MCP server (%s) on %s — deck root: %s\n", transport, mcpListen, root)
-	if mcpToken != "" {
-		fmt.Fprintf(os.Stderr, "  Auth: bearer token (%s)\n", maskToken(mcpToken))
-	}
+	PrintAuthInfo(&mcpAuth)
 	fmt.Fprintf(os.Stderr, "  http://%s/\n", mcpListen)
 	printHTTPConfig(mcpListen, mcpToken)
 
 	httpSrv := &http.Server{
 		Addr:         mcpListen,
-		Handler:      handler,
+		Handler:      mux,
 		WriteTimeout: 0, // SSE requires no write timeout
 	}
 	return listenAndServeGraceful(httpSrv)
