@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"html/template"
+	"log"
 	"io/fs"
 	"net/http"
 	"os"
@@ -44,6 +45,7 @@ var (
 	mcpDeckRoot     string
 	mcpAllowOrigins []string
 	mcpAppBridge    bool
+	mcpVerbose      bool
 	mcpAuth         MCPAuthConfig
 )
 
@@ -56,6 +58,7 @@ func init() {
 	mcpCmd.Flags().StringVar(&mcpDeckRoot, "deck-root", "", "Root directory for deck discovery (default: $SLYDS_DECK_ROOT, or current directory)")
 	mcpCmd.Flags().StringSliceVar(&mcpAllowOrigins, "allow-origin", nil, "Allowed Origin headers (default: localhost only). Use '*' to allow all origins (e.g. behind a tunnel)")
 	mcpCmd.Flags().BoolVar(&mcpAppBridge, "app-bridge", true, "Inject MCP App Bridge into previews (host theme adaptation, interactive navigation). Disable with --app-bridge=false if the bridge breaks preview rendering in your host.")
+	mcpCmd.Flags().BoolVar(&mcpVerbose, "verbose", false, "Log HTTP requests and auth events to stderr")
 	mcpAuth.AddFlags(mcpCmd)
 	rootCmd.AddCommand(mcpCmd)
 }
@@ -81,6 +84,9 @@ func runMCPServer() error {
 	serverOpts = append(serverOpts, server.WithErrorHandler(&slydsMCPErrorHandler{}))
 	serverOpts = append(serverOpts, server.WithMiddleware(workspaceMiddleware(ws)))
 	serverOpts = append(serverOpts, AuthServerOptions(&mcpAuth)...)
+	if mcpVerbose {
+		serverOpts = append(serverOpts, server.WithRequestLogging(log.New(os.Stderr, "[mcp] ", log.LstdFlags)))
+	}
 
 	srv := server.NewServer(
 		mcpcore.ServerInfo{
