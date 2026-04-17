@@ -51,7 +51,7 @@
       "directAccessGrantsEnabled": false,
       "protocol": "openid-connect",
       "defaultClientScopes": ["openid"],
-      "optionalClientScopes": ["slyds-read", "slyds-write"],
+      "optionalClientScopes": ["slyds-read", "slyds-write", "offline_access"],
       "attributes": {
         "pkce.code.challenge.method": "S256"
       },
