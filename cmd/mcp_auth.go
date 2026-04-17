@@ -71,10 +71,17 @@ func (c *MCPAuthConfig) ServerOptions() []server.Option {
 }
 
 // MountPRM registers the OAuth Protected Resource Metadata endpoint (RFC 9728)
-// on the given mux. No-op if auth is not enabled.
+// on the given mux. Also sets ResourceMetadataURL on the validator so 401
+// responses include it in WWW-Authenticate — this is how clients discover
+// the PRM endpoint and find the authorization server. No-op if auth is not enabled.
 func (c *MCPAuthConfig) MountPRM(mux *http.ServeMux, resourceURI, mcpPath string) {
 	if !c.IsEnabled() {
 		return
+	}
+	// Wire the PRM URL into the validator so 401 WWW-Authenticate headers
+	// include resource_metadata="..." for client discovery.
+	if c.validator != nil {
+		c.validator.ResourceMetadataURL = resourceURI + "/.well-known/oauth-protected-resource" + mcpPath
 	}
 	authServers := []string{}
 	if c.Issuer != "" {
