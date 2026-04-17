@@ -1,17 +1,7 @@
 package cmd
 
 import (
-	"context"
-	"fmt"
-	"net/http"
-	"os"
-	"os/signal"
-	"time"
-
-	mcpcore "github.com/panyam/mcpkit/core"
-	"github.com/panyam/mcpkit/ext/ui"
 	"github.com/panyam/mcpkit/server"
-	gohttp "github.com/panyam/servicekit/http"
 	"github.com/spf13/cobra"
 
 	slydsv1 "github.com/panyam/slyds/gen/go/slyds/v1"
@@ -33,99 +23,34 @@ registration path differs.`,
 }
 
 func init() {
-	// Reuse the same flags as mcp command
-	mcpProtoCmd.Flags().StringVar(&mcpListen, "listen", "127.0.0.1:8274", "Listen address")
-	mcpProtoCmd.Flags().StringVar(&mcpToken, "token", "", "Bearer token for authentication")
-	mcpProtoCmd.Flags().StringVar(&mcpPublicURL, "public-url", "", "Public URL for reverse proxy")
-	mcpProtoCmd.Flags().BoolVar(&mcpUseSSE, "sse", false, "Use legacy HTTP+SSE transport")
-	mcpProtoCmd.Flags().BoolVar(&mcpUseStdio, "stdio", false, "Use stdio transport")
-	mcpProtoCmd.Flags().StringVar(&mcpDeckRoot, "deck-root", "", "Root directory for deck discovery")
-	mcpProtoCmd.Flags().StringSliceVar(&mcpAllowOrigins, "allow-origin", nil, "Allowed Origin headers. Use '*' for all.")
-	mcpProtoCmd.Flags().BoolVar(&mcpAppBridge, "app-bridge", true, "Inject MCP App Bridge into previews. Disable with --app-bridge=false if needed.")
-	mcpAuth.AddFlags(mcpProtoCmd)
+	addCommonFlags(mcpProtoCmd)
 	rootCmd.AddCommand(mcpProtoCmd)
 }
 
-func runMCPProtoServer() error {
-	ws, err := NewLocalWorkspace(resolveDeckRoot(mcpDeckRoot))
-	if err != nil {
-		return fmt.Errorf("invalid deck-root: %w", err)
-	}
-	root := ws.Root()
-	mcpToken = resolveMCPToken(mcpToken)
-
-	var serverOpts []server.Option
-	serverOpts = append(serverOpts, server.WithListen(mcpListen))
-	serverOpts = append(serverOpts, server.WithExtension(ui.UIExtension{}))
-	serverOpts = append(serverOpts, server.WithErrorHandler(&slydsMCPErrorHandler{}))
-	serverOpts = append(serverOpts, server.WithMiddleware(workspaceMiddleware(ws)))
-	serverOpts = append(serverOpts, AuthServerOptions(&mcpAuth)...)
-
-	srv := server.NewServer(
-		mcpcore.ServerInfo{
-			Name:    "slyds-proto",
-			Version: Version,
-		},
-		serverOpts...,
-	)
-
-	// Proto-generated registration — this is the only difference from runMCPServer.
+// registerProtoTools registers proto-generated tools, resources, prompts,
+// and completions on the server. Also registers hand-written app tools
+// (outside proto scope).
+func registerProtoTools(srv *server.Server) {
 	impl := &SlydsServiceImpl{}
 	slydsv1.RegisterSlydsServiceMCP(srv, impl)
 	slydsv1.RegisterSlydsServiceMCPResources(srv, impl)
-
-	// MCP Apps stays hand-written (outside proto scope).
-	registerAppTools(srv)
-
-	// Completions: proto-generated from completable_fields annotations.
 	slydsv1.RegisterSlydsServiceMCPCompletions(srv, impl)
-
-	// Proto-generated prompts.
 	slydsv1.RegisterSlydsServiceMCPPrompts(srv, impl)
+	registerAppTools(srv) // MCP Apps stays hand-written
+}
+
+func runMCPProtoServer() error {
+	ws, err := initWorkspace()
+	if err != nil {
+		return err
+	}
+
+	cfg := &mcpServerConfig{ServerName: "slyds-proto", Workspace: ws}
+	srv := cfg.buildServer()
+	registerProtoTools(srv)
 
 	if mcpUseStdio {
-		fmt.Fprintf(os.Stderr, "MCP proto server (stdio) — deck root: %s\n", root)
-		ctx, cancel := signal.NotifyContext(context.Background(), os.Interrupt)
-		defer cancel()
-		return srv.RunStdio(ctx)
+		return cfg.runStdio(srv)
 	}
-
-	var transportOpts []server.TransportOption
-	if mcpPublicURL != "" {
-		transportOpts = append(transportOpts, server.WithPublicURL(mcpPublicURL))
-	}
-	if len(mcpAllowOrigins) > 0 {
-		transportOpts = append(transportOpts, server.WithAllowedOrigins(mcpAllowOrigins...))
-	}
-
-	var transport string
-	if mcpUseSSE {
-		transportOpts = append(transportOpts,
-			server.WithSSE(true),
-			server.WithStreamableHTTP(false),
-			server.WithSSEGracePeriod(30*time.Second),
-		)
-		transport = "SSE"
-	} else {
-		transportOpts = append(transportOpts,
-			server.WithStreamableHTTP(true),
-			server.WithSSE(false),
-			server.WithEventStore(gohttp.NewMemoryEventStore(1000)),
-		)
-		transport = "Streamable HTTP"
-	}
-
-	mcpHandler := srv.Handler(transportOpts...)
-	mux := BuildMCPMux(mcpHandler, &mcpAuth)
-
-	fmt.Fprintf(os.Stderr, "MCP proto server (%s) on %s — deck root: %s\n", transport, mcpListen, root)
-	PrintAuthInfo(&mcpAuth)
-	fmt.Fprintf(os.Stderr, "  http://%s/\n", mcpListen)
-
-	httpSrv := &http.Server{
-		Addr:         mcpListen,
-		Handler:      mux,
-		WriteTimeout: 0,
-	}
-	return listenAndServeGraceful(httpSrv)
+	return cfg.runHTTP(srv, nil) // no landing page for proto
 }

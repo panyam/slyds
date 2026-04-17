@@ -72,6 +72,9 @@ func (s *SlydsServiceImpl) ListDecks(ctx mcpcore.ToolContext, req *slydsv1.ListD
 }
 
 func (s *SlydsServiceImpl) CreateDeck(ctx mcpcore.ToolContext, req *slydsv1.CreateDeckRequest) (*slydsv1.DeckDescription, error) {
+	if err := RequireWriteScope(ctx); err != nil {
+		return nil, status.Errorf(codes.PermissionDenied, "%v", err)
+	}
 	ws, err := s.workspace(ctx)
 	if err != nil {
 		return nil, err
@@ -144,6 +147,9 @@ func (s *SlydsServiceImpl) ReadSlide(ctx mcpcore.ToolContext, req *slydsv1.ReadS
 }
 
 func (s *SlydsServiceImpl) EditSlide(ctx mcpcore.ToolContext, req *slydsv1.EditSlideRequest) (*slydsv1.SlideEditResult, error) {
+	if err := RequireWriteScope(ctx); err != nil {
+		return nil, status.Errorf(codes.PermissionDenied, "%v", err)
+	}
 	d, err := s.deck(ctx, req.Deck)
 	if err != nil {
 		return nil, err
@@ -187,6 +193,13 @@ func (s *SlydsServiceImpl) EditSlide(ctx mcpcore.ToolContext, req *slydsv1.EditS
 }
 
 func (s *SlydsServiceImpl) QuerySlide(ctx mcpcore.ToolContext, req *slydsv1.QuerySlideRequest) (*slydsv1.QuerySlideResponse, error) {
+	// Require write scope only for mutation operations.
+	isMutation := req.Set != nil || req.SetHtml != nil || req.SetAttr != nil || req.Append != nil || (req.Remove != nil && *req.Remove)
+	if isMutation {
+		if err := RequireWriteScope(ctx); err != nil {
+			return nil, status.Errorf(codes.PermissionDenied, "%v", err)
+		}
+	}
 	d, err := s.deck(ctx, req.Deck)
 	if err != nil {
 		return nil, err
@@ -230,6 +243,9 @@ func (s *SlydsServiceImpl) QuerySlide(ctx mcpcore.ToolContext, req *slydsv1.Quer
 }
 
 func (s *SlydsServiceImpl) AddSlide(ctx mcpcore.ToolContext, req *slydsv1.AddSlideRequest) (*slydsv1.AddSlideResponse, error) {
+	if err := RequireWriteScope(ctx); err != nil {
+		return nil, status.Errorf(codes.PermissionDenied, "%v", err)
+	}
 	d, err := s.deck(ctx, req.Deck)
 	if err != nil {
 		return nil, err
@@ -271,6 +287,9 @@ func (s *SlydsServiceImpl) AddSlide(ctx mcpcore.ToolContext, req *slydsv1.AddSli
 }
 
 func (s *SlydsServiceImpl) RemoveSlide(ctx mcpcore.ToolContext, req *slydsv1.RemoveSlideRequest) (*slydsv1.RemoveSlideResponse, error) {
+	if err := RequireWriteScope(ctx); err != nil {
+		return nil, status.Errorf(codes.PermissionDenied, "%v", err)
+	}
 	d, err := s.deck(ctx, req.Deck)
 	if err != nil {
 		return nil, err
@@ -320,6 +339,9 @@ func (s *SlydsServiceImpl) RemoveSlide(ctx mcpcore.ToolContext, req *slydsv1.Rem
 }
 
 func (s *SlydsServiceImpl) ImproveSlide(ctx mcpcore.ToolContext, req *slydsv1.ImproveSlideRequest) (*slydsv1.ImproveSlideResponse, error) {
+	if err := RequireWriteScope(ctx); err != nil {
+		return nil, status.Errorf(codes.PermissionDenied, "%v", err)
+	}
 	d, err := s.deck(ctx, req.Deck)
 	if err != nil {
 		return nil, err

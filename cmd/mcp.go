@@ -5,18 +5,13 @@ import (
 	"encoding/json"
 	"fmt"
 	"html/template"
-	"log"
 	"io/fs"
 	"net/http"
 	"os"
 	"os/signal"
 	"strings"
-	"time"
 
-	mcpcore "github.com/panyam/mcpkit/core"
-	"github.com/panyam/mcpkit/ext/ui"
 	"github.com/panyam/mcpkit/server"
-	gohttp "github.com/panyam/servicekit/http"
 	"github.com/panyam/slyds/assets"
 	"github.com/spf13/cobra"
 )
@@ -50,120 +45,47 @@ var (
 )
 
 func init() {
-	mcpCmd.Flags().StringVar(&mcpListen, "listen", "127.0.0.1:8274", "Listen address")
-	mcpCmd.Flags().StringVar(&mcpToken, "token", "", "Bearer token for authentication")
-	mcpCmd.Flags().StringVar(&mcpPublicURL, "public-url", "", "Public URL for reverse proxy")
-	mcpCmd.Flags().BoolVar(&mcpUseSSE, "sse", false, "Use legacy HTTP+SSE transport")
-	mcpCmd.Flags().BoolVar(&mcpUseStdio, "stdio", false, "Use stdio transport (Content-Length framed JSON-RPC on stdin/stdout)")
-	mcpCmd.Flags().StringVar(&mcpDeckRoot, "deck-root", "", "Root directory for deck discovery (default: $SLYDS_DECK_ROOT, or current directory)")
-	mcpCmd.Flags().StringSliceVar(&mcpAllowOrigins, "allow-origin", nil, "Allowed Origin headers (default: localhost only). Use '*' to allow all origins (e.g. behind a tunnel)")
-	mcpCmd.Flags().BoolVar(&mcpAppBridge, "app-bridge", true, "Inject MCP App Bridge into previews (host theme adaptation, interactive navigation). Disable with --app-bridge=false if the bridge breaks preview rendering in your host.")
-	mcpCmd.Flags().BoolVar(&mcpVerbose, "verbose", false, "Log HTTP requests and auth events to stderr")
-	mcpAuth.AddFlags(mcpCmd)
+	addCommonFlags(mcpCmd)
 	rootCmd.AddCommand(mcpCmd)
 }
 
-func runMCPServer() error {
-	// Build a LocalWorkspace rooted at --deck-root (falling back to
-	// SLYDS_DECK_ROOT env var, then "."). In a future hosted deployment,
-	// the workspace is built per request from auth; here it's a single
-	// constant installed via middleware below.
-	ws, err := NewLocalWorkspace(resolveDeckRoot(mcpDeckRoot))
-	if err != nil {
-		return fmt.Errorf("invalid deck-root: %w", err)
-	}
-	root := ws.Root()
-
-	// Token from env if flag not set
-	mcpToken = resolveMCPToken(mcpToken)
-
-	// Build server
-	var serverOpts []server.Option
-	serverOpts = append(serverOpts, server.WithListen(mcpListen))
-	serverOpts = append(serverOpts, server.WithExtension(ui.UIExtension{}))
-	serverOpts = append(serverOpts, server.WithErrorHandler(&slydsMCPErrorHandler{}))
-	serverOpts = append(serverOpts, server.WithMiddleware(workspaceMiddleware(ws)))
-	serverOpts = append(serverOpts, AuthServerOptions(&mcpAuth)...)
-	if mcpVerbose {
-		serverOpts = append(serverOpts, server.WithRequestLogging(log.New(os.Stderr, "[mcp] ", log.LstdFlags)))
-	}
-
-	srv := server.NewServer(
-		mcpcore.ServerInfo{
-			Name:    "slyds",
-			Version: Version,
-		},
-		serverOpts...,
-	)
-
-	// Register resources, tools, and app previews. None of these capture
-	// the workspace directly — handlers resolve it from request context.
+// registerHandwrittenTools registers all hand-written tools, resources,
+// prompts, completions, and app previews on the server.
+func registerHandwrittenTools(srv *server.Server) {
 	registerResources(srv)
 	registerTools(srv)
 	registerAppTools(srv)
 	registerCompletions(srv)
 	registerPrompts(srv)
-
-	// Transport selection
-	if mcpUseStdio {
-		fmt.Fprintf(os.Stderr, "MCP server (stdio) — deck root: %s\n", root)
-		if mcpToken != "" {
-			fmt.Fprintf(os.Stderr, "  Auth: bearer token (%s)\n", maskToken(mcpToken))
-		}
-		printStdioConfig(root, mcpToken)
-		ctx, cancel := signal.NotifyContext(context.Background(), os.Interrupt)
-		defer cancel()
-		return srv.RunStdio(ctx)
-	}
-
-	var transportOpts []server.TransportOption
-	if mcpPublicURL != "" {
-		transportOpts = append(transportOpts, server.WithPublicURL(mcpPublicURL))
-	}
-	if len(mcpAllowOrigins) > 0 {
-		transportOpts = append(transportOpts, server.WithAllowedOrigins(mcpAllowOrigins...))
-	}
-
-	var transport string
-	if mcpUseSSE {
-		transportOpts = append(transportOpts,
-			server.WithSSE(true),
-			server.WithStreamableHTTP(false),
-			server.WithSSEGracePeriod(30*time.Second),
-		)
-		transport = "SSE"
-	} else {
-		transportOpts = append(transportOpts,
-			server.WithStreamableHTTP(true),
-			server.WithSSE(false),
-			server.WithEventStore(gohttp.NewMemoryEventStore(1000)),
-		)
-		transport = "Streamable HTTP"
-	}
-
-	// Build MCP handler and wrap with landing page + PRM endpoint.
-	mcpHandler := srv.Handler(transportOpts...)
-	deckRefs, _ := ws.ListDecks()
-	deckNames := make([]string, 0, len(deckRefs))
-	for _, r := range deckRefs {
-		deckNames = append(deckNames, r.Name)
-	}
-	authEnabled := mcpAuth.IsEnabled() || mcpToken != ""
-	landing := mcpWithLanding(mcpHandler, transport, mcpListen, deckNames, authEnabled)
-	mux := BuildMCPMux(landing, &mcpAuth)
-
-	fmt.Fprintf(os.Stderr, "MCP server (%s) on %s — deck root: %s\n", transport, mcpListen, root)
-	PrintAuthInfo(&mcpAuth)
-	fmt.Fprintf(os.Stderr, "  http://%s/\n", mcpListen)
-	printHTTPConfig(mcpListen, mcpToken)
-
-	httpSrv := &http.Server{
-		Addr:         mcpListen,
-		Handler:      mux,
-		WriteTimeout: 0, // SSE requires no write timeout
-	}
-	return listenAndServeGraceful(httpSrv)
 }
+
+func runMCPServer() error {
+	ws, err := initWorkspace()
+	if err != nil {
+		return err
+	}
+
+	cfg := &mcpServerConfig{ServerName: "slyds", Workspace: ws}
+	srv := cfg.buildServer()
+	registerHandwrittenTools(srv)
+
+	if mcpUseStdio {
+		return cfg.runStdio(srv)
+	}
+
+	// Wrap MCP handler with landing page
+	return cfg.runHTTP(srv, func(mcpHandler http.Handler) http.Handler {
+		deckRefs, _ := ws.ListDecks()
+		deckNames := make([]string, 0, len(deckRefs))
+		for _, r := range deckRefs {
+			deckNames = append(deckNames, r.Name)
+		}
+		authEnabled := mcpAuth.IsEnabled() || mcpToken != ""
+		return mcpWithLanding(mcpHandler, "", mcpListen, deckNames, authEnabled)
+	})
+}
+
+// --- Landing page + config printing (mcp-specific, not shared) ---
 
 // resolveMCPToken returns the token from the flag value, falling back to the
 // SLYDS_MCP_TOKEN environment variable if the flag is empty.
@@ -174,10 +96,6 @@ func resolveMCPToken(flagValue string) string {
 	return os.Getenv("SLYDS_MCP_TOKEN")
 }
 
-// resolveDeckRoot returns the workspace root in precedence order:
-// explicit --deck-root flag → SLYDS_DECK_ROOT environment variable →
-// current working directory ("."). Shared by `slyds mcp` and `slyds ws`
-// so the fallback behavior is identical across commands.
 func resolveDeckRoot(flagValue string) string {
 	if flagValue != "" {
 		return flagValue
@@ -188,8 +106,8 @@ func resolveDeckRoot(flagValue string) string {
 	return "."
 }
 
-// maskToken returns a redacted version of a token, showing only the first 2
-// and last 2 characters with asterisks in between. Short tokens are fully masked.
+
+// maskToken returns a redacted version of a token.
 func maskToken(token string) string {
 	if len(token) <= 4 {
 		return "****"
@@ -206,14 +124,11 @@ type landingData struct {
 	ConfigJSON  string
 }
 
-// landingTmpl is parsed once from the embedded template.
 var landingTmpl = func() *template.Template {
 	tmplFS, _ := fs.Sub(assets.TemplatesFS, "templates")
 	return template.Must(template.ParseFS(tmplFS, "mcp-landing.html.tmpl"))
 }()
 
-// mcpWithLanding wraps an MCP handler with a landing page at GET /.
-// Non-root requests and non-GET requests pass through to the MCP handler.
 func mcpWithLanding(mcpHandler http.Handler, transport, listen string, decks []string, authEnabled bool) http.Handler {
 	info := map[string]any{
 		"server":    "slyds MCP",
@@ -240,24 +155,6 @@ func mcpWithLanding(mcpHandler http.Handler, transport, listen string, decks []s
 		}
 		mcpHandler.ServeHTTP(w, r)
 	})
-}
-
-// listenAndServeGraceful starts the HTTP server with signal-based graceful shutdown.
-func listenAndServeGraceful(srv *http.Server) error {
-	ctx, cancel := signal.NotifyContext(context.Background(), os.Interrupt)
-	defer cancel()
-
-	errCh := make(chan error, 1)
-	go func() {
-		errCh <- srv.ListenAndServe()
-	}()
-
-	select {
-	case err := <-errCh:
-		return err
-	case <-ctx.Done():
-		return srv.Close()
-	}
 }
 
 // printHTTPConfig prints a ready-to-paste MCP config snippet for HTTP transports.
@@ -313,7 +210,6 @@ func printStdioConfig(root, token string) {
 }
 
 // slydsMCPErrorHandler logs MCP session lifecycle events to stderr.
-// Embeds server.BaseErrorHandler for default no-op on unimplemented methods.
 type slydsMCPErrorHandler struct {
 	server.BaseErrorHandler
 }
@@ -326,3 +222,20 @@ func (h *slydsMCPErrorHandler) OnKeepaliveFailure(sessionID string, consecutiveF
 	fmt.Fprintf(os.Stderr, "MCP keepalive failure: session=%s failures=%d\n", sessionID, consecutiveFailures)
 }
 
+// listenAndServeGraceful starts the HTTP server with signal-based graceful shutdown.
+func listenAndServeGraceful(srv *http.Server) error {
+	ctx, cancel := signal.NotifyContext(context.Background(), os.Interrupt)
+	defer cancel()
+
+	errCh := make(chan error, 1)
+	go func() {
+		errCh <- srv.ListenAndServe()
+	}()
+
+	select {
+	case err := <-errCh:
+		return err
+	case <-ctx.Done():
+		return srv.Close()
+	}
+}
