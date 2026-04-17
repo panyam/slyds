@@ -8,8 +8,9 @@
 | Component | Module | Version | Updated |
 |-----------|--------|---------|---------|
 | templar | github.com/panyam/templar | v0.1.0 | 2026-04-04 |
-| mcpkit | github.com/panyam/mcpkit | v0.2.26 | 2026-04-15 |
-| mcpkit/ext/protogen | github.com/panyam/mcpkit/ext/protogen | v0.2.26 | 2026-04-15 |
+| mcpkit | github.com/panyam/mcpkit | v0.2.38 | 2026-04-16 |
+| mcpkit/ext/auth | github.com/panyam/mcpkit/ext/auth | v0.2.38 | 2026-04-16 |
+| mcpkit/ext/protogen | github.com/panyam/mcpkit/ext/protogen | v0.2.38 | 2026-04-16 |
 | goutils | github.com/panyam/goutils | v0.1.13 | 2026-04-01 |
 
 ## Third-Party Dependencies

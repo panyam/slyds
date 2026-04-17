@@ -52,6 +52,9 @@
 - [x] ~~Proto-based MCP server — slyds mcp-proto with proto-generated registrations, parity tests (#97)~~
 - [x] ~~MCP prompts, sampling, elicitation — 3 prompts (create-presentation, review-slides, suggest-speaker-notes), improve_slide with sampling, remove_slide/create_deck with elicitation. Proto-generated helpers via mcp_sampling/mcp_elicit annotations.~~
 - [x] ~~MCP Apps bridge — host theme adaptation, interactive slide navigation via bidirectional tools, inline speaker notes for sandboxed iframes (#100, #101, #105)~~
+- [x] ~~MCP Auth — JWT/Keycloak, PRM, RFC 8414 proxy, scoped access (slyds-write), VS Code browser OAuth PKCE, Keycloak interop tests (#63, #60, #61)~~
+- [x] ~~TypedTool migration — auto-derived InputSchema from Go struct tags (mcpkit v0.2.26)~~
+- [x] ~~Fix slyds update for custom themes + fetch timeout (#48)~~
 - [ ] MCP Apps: CSP config for external scripts in preview iframes (#104)
 - [ ] MCP Apps: cancellable slide generation with AbortSignal (#102)
 - [ ] App-backed elicitation for theme/layout selection (from #93)

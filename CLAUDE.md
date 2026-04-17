@@ -56,7 +56,7 @@ All Deck I/O goes through `templar.WritableFS` (v0.1.0). No `os.*`/`filepath.*` 
 - **`slyds update` hangs** — `core.FetchAll()` tries to download module dependencies over the network. If the module URL is unreachable, it hangs. Use `make demo` to re-scaffold demo decks instead.
 - **MCP Apps sandbox** — VS Code and other hosts render MCP App previews in sandboxed iframes. `window.open()` is blocked (no `allow-popups`). Speaker notes use an inline panel in sandboxed contexts (detected via `window.parent !== window`). Export button also blocked in sandbox.
 - **Elicitation UX** — if a tool's schema lists options in the description, the LLM will proactively ask the user and pass a value, preventing elicitation from triggering. Use descriptions like "omit to let the user choose interactively" to nudge the LLM to skip the parameter.
-- **MCP Auth** — JWT validation via `--jwks-url`, `--issuer`, `--audience`. Serves PRM endpoint at `/.well-known/oauth-protected-resource/mcp` for OAuth discovery. Scoped access: mutation tools require `slyds:write` scope, read tools work with any valid token. `MCPAuthConfig` in `cmd/mcp_auth.go` encapsulates auth setup for reuse. Falls back to `--token` (static bearer) when `--jwks-url` is not set. Both `slyds mcp` and `slyds mcp-proto` share the same auth config via `AuthServerOptions()` and `BuildMCPMux()`.
+- **MCP Auth** — JWT validation via `--jwks-url`, `--issuer`, `--audience`. PRM at `/.well-known/oauth-protected-resource/mcp` + RFC 8414 AS metadata proxy for OIDC-only providers (Keycloak). Scoped access: mutation tools require `slyds-write` scope (not `slyds:write` — Keycloak uses hyphens). `MCPAuthConfig` in `cmd/mcp_auth.go` encapsulates auth setup. `--verbose` enables request logging. Falls back to `--token` when `--jwks-url` not set. VS Code browser OAuth works via PKCE with `slyds-public` client. See [docs/AUTH-TESTING.md](docs/AUTH-TESTING.md) for 7 manual test flows.
 - **`SLYDS_MCP_TOKEN`** env var — fallback for `--token` flag in container/CI deployments.
 - **`SLYDS_DECK_ROOT`** env var — fallback for `--deck-root` flag on both `slyds mcp` and `slyds ws`. Precedence: explicit flag > env var > `.` (cwd).
 
@@ -65,9 +65,10 @@ All Deck I/O goes through `templar.WritableFS` (v0.1.0). No `os.*`/`filepath.*` 
 | Component | Version | Notes |
 |-----------|---------|-------|
 | templar | v0.1.0 | WritableFS, FSFolder, MemFS, module system |
-| mcpkit | v0.2.26 | Typed handler contexts, ToolCallFull, NotifyResourceUpdated, schema validation, streaming, completions, sampling, elicitation |
-| mcpkit/ext/ui | v0.2.26 | MCP Apps — display modes, auto-fallback template URIs, RequestDisplayMode, App Bridge (postMessage transport, theme adaptation, bidirectional tools) |
-| mcpkit/ext/protogen | v0.2.26 | Proto→MCP codegen, completable_fields, raw content for non-JSON resources |
+| mcpkit | v0.2.38 | TypedTool, typed handler contexts, schema validation, sampling, elicitation |
+| mcpkit/ext/auth | v0.2.38 | JWT validation, PRM, RFC 8414 proxy, scope enforcement, OAuth discovery |
+| mcpkit/ext/ui | v0.2.38 | MCP Apps — display modes, App Bridge, theme adaptation, bidirectional tools |
+| mcpkit/ext/protogen | v0.2.38 | Proto→MCP codegen, completable_fields, mcp_sampling, mcp_elicit, mcp_prompt |
 
 See [Stackfile.md](Stackfile.md) for full dependency list.
 
