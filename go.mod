@@ -5,7 +5,7 @@ go 1.26.1
 require (
 	github.com/PuerkitoBio/goquery v1.12.0
 	github.com/panyam/mcpkit v0.2.26
-	github.com/panyam/mcpkit/ext/auth v0.2.30
+	github.com/panyam/mcpkit/ext/auth v0.2.38
 	github.com/panyam/mcpkit/ext/protogen v0.2.26
 	github.com/panyam/mcpkit/ext/ui v0.2.26
 	github.com/panyam/servicekit v0.0.25
@@ -28,7 +28,7 @@ require (
 	github.com/mailru/easyjson v0.7.7 // indirect
 	github.com/panyam/gocurrent v0.1.0 // indirect
 	github.com/panyam/goutils v0.1.13 // indirect
-	github.com/panyam/oneauth v0.0.71 // indirect
+	github.com/panyam/oneauth v0.0.75 // indirect
 	github.com/panyam/protokit v0.0.5 // indirect
 	github.com/santhosh-tekuri/jsonschema/v6 v6.0.2 // indirect
 	github.com/spf13/pflag v1.0.10 // indirect
