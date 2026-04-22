@@ -1,9 +1,9 @@
 version: v2
+modules:
+  - path: .
 deps:
   - buf.build/protocolbuffers/wellknowntypes
-  - buf.build/googleapis/googleapis
-  # TODO: uncomment once mcpkit annotations are published to buf.build
-  # - buf.build/panyam/mcpkit
+  - buf.build/mcpkit/protogen
 lint:
   use:
     - STANDARD

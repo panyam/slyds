@@ -58,7 +58,7 @@
 - [ ] MCP Apps: CSP config for external scripts in preview iframes (#104)
 - [ ] MCP Apps: cancellable slide generation with AbortSignal (#102)
 - [ ] App-backed elicitation for theme/layout selection (from #93)
-- [ ] Remove hand-written mcp_tools.go / mcp_resources.go once proto path validated
+- [ ] Remove hand-written mcp_tools.go / mcp_resources.go once proto path validated (**blocked**: protogen is experimental in mcpkit)
 - [ ] Multi-root workspace.yaml config (#80)
 - [ ] Slide folders with co-located assets (e.g., `slides/03-architecture/slide.html` + `diagram.png`)
 - [ ] Live reload on file changes during `slyds serve`

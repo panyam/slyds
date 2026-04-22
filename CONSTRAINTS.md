@@ -13,3 +13,8 @@ Read this before making structural changes. These are enforceable architectural 
 **Why**: Same correctness guarantees as single-query; atomic mode relies on consistent parse/serialize per slide.
 **Verify**: Batch implementation calls shared mutation helpers with `goquery` documents, not `strings.Replace` on file bodies.
 
+### No proto-path work until protogen graduates
+**Rule**: Do not add, modify, or consolidate proto-based MCP code (`slyds mcp-proto`, `proto/`, `gen/`, `cmd/mcp_proto*.go`) until `mcpkit/ext/protogen` moves out of experimental status.
+**Why**: protogen was moved to mcpkit experimental — the API is unstable and not ready for production consumers. The hand-written MCP path (`slyds mcp`) remains the production path.
+**Verify**: `git diff --name-only HEAD | grep -E 'proto/|gen/|mcp_proto' | grep -v _test.go` should be empty in normal PRs.
+

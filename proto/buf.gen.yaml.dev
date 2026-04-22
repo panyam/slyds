@@ -1,22 +1,12 @@
 version: v2
-clean: true
-managed:
-  enabled: true
-  disable:
-    - module: buf.build/googleapis/googleapis
-  override:
-    - file_option: go_package_prefix
-      value: github.com/panyam/slyds/gen/go
 plugins:
-  - remote: buf.build/protocolbuffers/go
+  - local: protoc-gen-go
     out: ../gen/go
     opt: paths=source_relative
-    include_imports: true
 
   # MCP server bindings — generates RegisterSlydsServiceMCP() etc.
   - local: protoc-gen-go-mcp
     out: ../gen/go
     opt:
       - paths=source_relative
-      - package_suffix=
       - variants=inprocess

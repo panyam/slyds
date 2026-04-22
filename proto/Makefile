@@ -30,7 +30,7 @@ setupprod: cleanall remove-proto-symlinks
 	@echo "Prod environment ready. Run 'make buf' to generate."
 
 symlink-protos: remove-proto-symlinks
-	ln -s $(HOME)/newstack/mcpkit/main/ext/protogen/proto/mcp mcp
+	ln -s $(HOME)/newstack/mcpkit/main/experimental/ext/protogen/proto/mcp mcp
 	@echo "Symlinked mcp/ → local mcpkit protogen protos"
 
 remove-proto-symlinks:

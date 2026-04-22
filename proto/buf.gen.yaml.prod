@@ -1,24 +1,12 @@
 version: v2
-clean: true
-managed:
-  enabled: true
-  disable:
-    - module: buf.build/googleapis/googleapis
-    # TODO: uncomment once mcpkit annotations are published
-    # - module: buf.build/panyam/mcpkit
-  override:
-    - file_option: go_package_prefix
-      value: github.com/panyam/slyds/gen/go
 plugins:
-  - remote: buf.build/protocolbuffers/go
+  - local: protoc-gen-go
     out: ../gen/go
     opt: paths=source_relative
-    include_imports: true
 
   # MCP server bindings — generates RegisterSlydsServiceMCP() etc.
-  # TODO: switch to remote plugin once published to buf.build
   - local: protoc-gen-go-mcp
     out: ../gen/go
     opt:
       - paths=source_relative
-      - package_suffix=mcp
+      - variants=inprocess

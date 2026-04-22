@@ -1,7 +1,8 @@
 version: v2
+modules:
+  - path: .
 deps:
   - buf.build/protocolbuffers/wellknowntypes
-  - buf.build/googleapis/googleapis
 lint:
   use:
     - STANDARD
