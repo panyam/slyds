@@ -21,6 +21,7 @@ type IntrospectDocument struct {
 	Deck            *DeckContext `json:"deck,omitempty"`
 	Layouts         []IntrospectLayout `json:"layouts"`
 	ThemesBuiltin   []string           `json:"themes_builtin"`
+	ThemesExternal  []string           `json:"themes_external,omitempty"`
 	Commands        []AgentCommandInfo `json:"commands"`
 }
 
@@ -87,6 +88,14 @@ func buildIntrospectDocument(dir string) (*IntrospectDocument, error) {
 		Layouts:        nil,
 		ThemesBuiltin:  core.AvailableThemeNames(),
 		Commands:       agentCommandCatalog(),
+	}
+
+	// Discover external themes from {dir}/themes/ subdirectories.
+	if ws, err := NewLocalWorkspace(dir); err == nil {
+		ext := ws.externalThemeNames()
+		if len(ext) > 0 {
+			doc.ThemesExternal = ext
+		}
 	}
 
 	reg, err := core.LoadRegistry()

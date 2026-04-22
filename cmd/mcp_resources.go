@@ -30,7 +30,7 @@ func registerResources(srv *server.Server) {
 				info := map[string]any{
 					"name":    "slyds",
 					"version": Version,
-					"themes":  core.AvailableThemeNames(),
+					"themes":  ws.AvailableThemes(),
 				}
 				if lw, ok := ws.(*LocalWorkspace); ok {
 					info["deck_root"] = lw.Root()

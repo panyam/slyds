@@ -93,6 +93,9 @@ All 12 hand-written MCP tools migrated from `map[string]any` InputSchema to `mcp
 ## Phase 9r — MCP Auth (done)
 Full MCP auth spec compliance (2025-11-25). `MCPAuthConfig` encapsulates JWT validation (`--jwks-url`, `--issuer`, `--audience`), PRM endpoint (RFC 9728), RFC 8414 AS metadata proxy (bridges OIDC-only providers like Keycloak), and scoped access (`slyds-write` on mutations). VS Code browser OAuth via PKCE works end-to-end with Keycloak. `--verbose` flag for request logging. Shared `AuthServerOptions()` / `BuildMCPMux()` / `PrintAuthInfo()` for both `slyds mcp` and `slyds mcp-proto`. `bump-mcpkit` Makefile target for lock-step dependency updates. Keycloak interop tests (6 tests) with `testall` integration. Auth testing guide at `docs/AUTH-TESTING.md`. mcpkit v0.2.38, oneauth v0.0.75.
 
+## Phase 9s — External Themes (done)
+Auto-discover external themes from `{deck-root}/themes/` — any subdirectory containing `theme.yaml` is surfaced alongside built-in themes. `Workspace.AvailableThemes()` merges both sets. `Workspace.ExternalThemeFS()` returns an `fs.FS` for scaffolding. `CreateDeck` detects external themes and delegates to `core.CreateInDirWithThemeFS` / `ScaffoldFromThemeDir`. All MCP surfaces (`create_deck` elicitation, `describe_deck`, prompts, `server/info` resource) and `slyds introspect` (new `themes_external` field) use workspace themes. No `--themes-folder` flag needed — implicit from workspace root.
+
 ## Phase 10 — Slide Folders
 Support `slides/03-name/slide.html` with co-located assets (images, per-slide CSS). Auto-detect folder vs file slides.
 

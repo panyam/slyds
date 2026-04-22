@@ -57,6 +57,27 @@ core/templates/
 
 Templates receive `{{.Title}}`, `{{.Number}}`, `{{.Includes}}` etc. Adding a new theme means adding a new directory with theme-specific files. Common templates like `index.html.tmpl` live at the shared level and are inherited unless a theme provides its own override. Non-template static files (images, fonts) are copied as-is during `slyds init`.
 
+### External Themes
+
+In addition to embedded themes, the workspace auto-discovers external themes from `{deck-root}/themes/`. Any subdirectory containing a `theme.yaml` is treated as an external theme:
+
+```
+deck-root/
+  themes/                    ← auto-discovered external themes
+    my-brand/
+      theme.yaml             ← name, description, slide_types
+      theme.css.tmpl
+      slides/
+        title.html.tmpl
+        content.html.tmpl
+        closing.html.tmpl
+  my-deck/                   ← a deck (subdirectory)
+    index.html
+    slides/
+```
+
+`Workspace.AvailableThemes()` merges built-in and external themes (deduped, built-in first). `Workspace.ExternalThemeFS(name)` returns an `os.DirFS` for the theme directory. `CreateDeck` detects external themes and scaffolds via `core.ScaffoldFromThemeDir` instead of the embedded theme path. The MCP `create_deck` elicitation, `describe_deck`, prompts, resources, and `slyds introspect` all surface external themes alongside built-in ones.
+
 ## Layout System
 
 Layouts define the structural arrangement of slide content, independent of visual themes. Six built-in layouts live in `core/layouts/`:

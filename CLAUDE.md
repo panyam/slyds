@@ -37,6 +37,7 @@ All Deck I/O goes through `templar.WritableFS` (v0.1.0). No `os.*`/`filepath.*` 
 
 - **Deck is the single API** — cmd/ calls Deck methods, never touches FS internals
 - **Workspace is the MCP boundary** — MCP tool and resource handlers resolve decks via `workspaceFromContext(ctx).OpenDeck(name)`, never from raw paths. The workspace is installed on every request via `workspaceMiddleware`. See [cmd/workspace.go](cmd/workspace.go).
+- **External themes via `{deck-root}/themes/`** — subdirectories containing `theme.yaml` are auto-discovered as external themes. `Workspace.AvailableThemes()` merges built-in + external. `Workspace.ExternalThemeFS(name)` returns the `fs.FS` for scaffolding. `CreateDeck` uses `core.CreateInDirWithThemeFS` for external themes, `core.CreateInDir` for built-in. All theme-listing call sites in cmd/ use `ws.AvailableThemes()` instead of `core.AvailableThemeNames()`.
 - **Three-layer slide identity** — slides have position (mutable on insert), slug (stable across inserts, not across renames), and `slide_id` (stable across everything including renames). `slide_id` is a `sl_`-prefixed opaque ID stored per-slide in `.slyds.yaml` and returned by `describe_deck`/`list_slides`. Agents should use slug for human-readable references and slide_id for rename-safe caching. `ResolveSlide` accepts all three forms plus filenames/substrings.
 - **No hardcoded HTML** — use embedded `.tmpl` files under `assets/templates/`
 - **No regex HTML mutation** — use `d.Query()` (goquery/CSS selectors). See [CONSTRAINTS.md](CONSTRAINTS.md)

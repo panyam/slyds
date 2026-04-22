@@ -4,8 +4,10 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"io/fs"
 	"os"
 	"path/filepath"
+	"sort"
 	"strings"
 
 	mcpcore "github.com/panyam/mcpkit/core"
@@ -38,6 +40,15 @@ type Workspace interface {
 	// identifier in future backends). Returns ErrInvalidDeckName if the
 	// name contains disallowed characters.
 	CreateDeck(name, title, theme string, slides int) (*core.Deck, error)
+
+	// AvailableThemes returns all theme names visible to this workspace:
+	// built-in embedded themes plus any external themes discovered under
+	// {workspace-root}/themes/ (subdirectories containing theme.yaml).
+	AvailableThemes() []string
+
+	// ExternalThemeFS returns the fs.FS for an external theme by name,
+	// or nil if the theme is not an external theme.
+	ExternalThemeFS(name string) fs.FS
 }
 
 // DeckRef identifies a deck within a workspace. Kept small for now; future
@@ -146,6 +157,61 @@ func (w *LocalWorkspace) ListDecks() ([]DeckRef, error) {
 	return refs, nil
 }
 
+// AvailableThemes returns built-in theme names plus any external themes
+// discovered under {root}/themes/. An external theme is a subdirectory
+// containing a theme.yaml file.
+func (w *LocalWorkspace) AvailableThemes() []string {
+	builtin := core.AvailableThemeNames()
+	external := w.externalThemeNames()
+	if len(external) == 0 {
+		return builtin
+	}
+	// Merge, dedup (external overrides built-in with same name), preserve order.
+	seen := make(map[string]bool, len(builtin)+len(external))
+	var merged []string
+	for _, name := range builtin {
+		seen[name] = true
+		merged = append(merged, name)
+	}
+	for _, name := range external {
+		if !seen[name] {
+			merged = append(merged, name)
+		}
+	}
+	return merged
+}
+
+// ExternalThemeFS returns an os.DirFS for the named external theme, or nil
+// if no such theme exists under {root}/themes/{name}/theme.yaml.
+func (w *LocalWorkspace) ExternalThemeFS(name string) fs.FS {
+	dir := filepath.Join(w.root, "themes", name)
+	if _, err := os.Stat(filepath.Join(dir, "theme.yaml")); err != nil {
+		return nil
+	}
+	return os.DirFS(dir)
+}
+
+// externalThemeNames scans {root}/themes/ for subdirectories containing
+// theme.yaml and returns their names sorted alphabetically.
+func (w *LocalWorkspace) externalThemeNames() []string {
+	themesDir := filepath.Join(w.root, "themes")
+	entries, err := os.ReadDir(themesDir)
+	if err != nil {
+		return nil
+	}
+	var names []string
+	for _, e := range entries {
+		if !e.IsDir() {
+			continue
+		}
+		if _, err := os.Stat(filepath.Join(themesDir, e.Name(), "theme.yaml")); err == nil {
+			names = append(names, e.Name())
+		}
+	}
+	sort.Strings(names)
+	return names
+}
+
 // CreateDeck scaffolds a new deck at {root}/{name} via core.CreateInDir and
 // returns the opened Deck. Rejects names containing path separators so the
 // new directory can never escape the workspace root.
@@ -157,6 +223,16 @@ func (w *LocalWorkspace) CreateDeck(name, title, theme string, slides int) (*cor
 		return nil, fmt.Errorf("%w: cannot create deck at workspace root", ErrInvalidDeckName)
 	}
 	outDir := filepath.Join(w.root, name)
+
+	// Check if this is an external theme — if so, use ScaffoldFromThemeDir
+	// which loads templates from the external theme's FS.
+	if themeFS := w.ExternalThemeFS(theme); themeFS != nil {
+		if _, err := core.CreateInDirWithThemeFS(title, slides, themeFS, outDir); err != nil {
+			return nil, err
+		}
+		return w.OpenDeck(name)
+	}
+
 	if _, err := core.CreateInDir(title, slides, theme, outDir, true); err != nil {
 		return nil, err
 	}

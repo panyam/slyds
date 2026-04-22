@@ -13,7 +13,7 @@ v0.0.10
 - **slide-introspect**: JSON discovery of layouts, `data-slot` names, themes, and CLI catalog — for agents and automation
 - **slide-mcp**: MCP server with 11 semantic tools + 2 preview tools + 7 browsable resources. Single-struct registration, per-tool timeouts, StructuredResult, error handler, EventStore. Streamable HTTP default, SSE via `--sse`, stdio via `--stdio`. E2e tests via mcpkit/testutil (`go test ./cmd/... -run E2E`). See `docs/MCP.md`
 - **slide-export**: Client-side ZIP export/download of built presentations
-- **theme-system**: Config-driven theme templates with shared fallback, runtime theme switching
+- **theme-system**: Config-driven theme templates with shared fallback, runtime theme switching, auto-discovered external themes from `{deck-root}/themes/`
 - **slide-hooks**: Client-side `slideEnter`/`slideLeave` lifecycle events + `window.slydsContext` persistent state
 - **layout-system**: Six built-in layouts (title, content, two-col, section, blank, closing) independent of themes
 - **agent-onboarding**: AGENT.md auto-generated per deck with commands, layouts, hooks, and conventions; plus `docs/AGENT-THEMES.md` for manifest/theme packs

@@ -53,7 +53,7 @@ func registerPrompts(srv *server.Server) {
 // handleCreatePresentation returns guidance messages for creating a new deck.
 // Does not require workspace access — produces generic guidance with available
 // themes and layouts.
-func handleCreatePresentation(_ mcpcore.PromptContext, req mcpcore.PromptRequest) (mcpcore.PromptResult, error) {
+func handleCreatePresentation(ctx mcpcore.PromptContext, req mcpcore.PromptRequest) (mcpcore.PromptResult, error) {
 	topic, _ := req.Arguments["topic"].(string)
 	if topic == "" {
 		return mcpcore.PromptResult{}, fmt.Errorf("topic is required")
@@ -68,7 +68,13 @@ func handleCreatePresentation(_ mcpcore.PromptContext, req mcpcore.PromptRequest
 		theme = th
 	}
 
-	themes := core.AvailableThemeNames()
+	// Use workspace themes (built-in + external) if available, fall back to built-in only.
+	var themes []string
+	if ws := workspaceFromContext(ctx); ws != nil {
+		themes = ws.AvailableThemes()
+	} else {
+		themes = core.AvailableThemeNames()
+	}
 	layouts, _ := core.ListLayouts()
 
 	text := fmt.Sprintf(

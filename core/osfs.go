@@ -2,6 +2,7 @@ package core
 
 import (
 	"fmt"
+	"io/fs"
 	"os"
 	"path/filepath"
 
@@ -102,6 +103,36 @@ func CreateInDirWithOpts(outDir string, opts ScaffoldOpts) (string, error) {
 	os.Remove(claudeLink)
 	os.Symlink("AGENT.md", claudeLink)
 
+	return outDir, nil
+}
+
+// CreateInDirWithThemeFS scaffolds a presentation in outDir using an external
+// theme provided as an fs.FS. Validates the directory, creates it, delegates
+// to ScaffoldFromThemeDir, and creates the CLAUDE.md symlink.
+func CreateInDirWithThemeFS(title string, slideCount int, themeFS fs.FS, outDir string) (string, error) {
+	dir, err := filepath.Abs(outDir)
+	if err != nil {
+		return "", err
+	}
+	if info, err := os.Stat(dir); err == nil {
+		if !info.IsDir() {
+			return "", fmt.Errorf("%q exists and is not a directory", outDir)
+		}
+		entries, _ := os.ReadDir(dir)
+		if len(entries) > 0 {
+			return "", fmt.Errorf("directory %q already exists and is not empty", outDir)
+		}
+	}
+	if err := os.MkdirAll(dir, 0755); err != nil {
+		return "", err
+	}
+	fsys := templar.NewLocalFS(dir)
+	if err := ScaffoldFromThemeDir(fsys, title, slideCount, themeFS); err != nil {
+		return "", err
+	}
+	claudeLink := filepath.Join(dir, "CLAUDE.md")
+	os.Remove(claudeLink)
+	os.Symlink("AGENT.md", claudeLink)
 	return outDir, nil
 }
 

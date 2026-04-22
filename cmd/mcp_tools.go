@@ -94,7 +94,7 @@ func createDeckTool() mcpcore.TypedToolResult {
 				return *errResult, nil
 			}
 			if p.Theme == "" {
-				themes := core.AvailableThemeNames()
+				themes := ws.AvailableThemes()
 				themesJSON, _ := json.Marshal(themes)
 				schema := fmt.Sprintf(`{
 					"type": "object",
@@ -149,6 +149,10 @@ func describeDeckTool() mcpcore.TypedToolResult {
 			desc, err := d.Describe()
 			if err != nil {
 				return mcpcore.ErrorResult(err.Error()), nil
+			}
+			// Augment with external themes from workspace
+			if ws := workspaceFromContext(ctx); ws != nil {
+				desc.ThemesAvailable = ws.AvailableThemes()
 			}
 			return jsonResult(desc)
 		},

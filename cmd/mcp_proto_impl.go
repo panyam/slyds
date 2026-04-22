@@ -433,7 +433,7 @@ func (s *SlydsServiceImpl) BuildDeck(ctx mcpcore.ToolContext, req *slydsv1.DeckR
 
 func (s *SlydsServiceImpl) GetServerInfo(ctx mcpcore.ResourceContext, req *slydsv1.ServerInfoRequest) (*slydsv1.ServerInfo, error) {
 	ws := workspaceFromContext(ctx)
-	themes := core.AvailableThemeNames()
+	themes := ws.AvailableThemes()
 	layouts, _ := core.ListLayouts()
 	info := &slydsv1.ServerInfo{
 		Name:    "slyds",
@@ -549,7 +549,12 @@ func (s *SlydsServiceImpl) CreatePresentation(ctx mcpcore.PromptContext, req *sl
 	if req.Theme != nil && *req.Theme != "" {
 		theme = *req.Theme
 	}
-	themes := core.AvailableThemeNames()
+	var themes []string
+	if ws := workspaceFromContext(ctx); ws != nil {
+		themes = ws.AvailableThemes()
+	} else {
+		themes = core.AvailableThemeNames()
+	}
 	layouts, _ := core.ListLayouts()
 	text := fmt.Sprintf(
 		"Create a slyds presentation about %q with %s slides using the %q theme.\n\n"+
@@ -673,6 +678,7 @@ func (s *SlydsServiceImpl) describeDeck(d *core.Deck) (*slydsv1.DeckDescription,
 		})
 	}
 	deckVer, _ := d.DeckVersion()
+	// TODO: pass workspace context to include external themes
 	themes := core.AvailableThemeNames()
 	layouts, _ := core.ListLayouts()
 	return &slydsv1.DeckDescription{

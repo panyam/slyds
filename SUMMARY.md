@@ -21,7 +21,7 @@ slyds is a Go CLI for creating, serving, and building self-contained HTML presen
 
 ## Current State
 
-The Go rewrite is complete with all core commands working, 130+ tests passing, CI/CD via GitHub Actions, and cross-platform binary releases via goreleaser. Five built-in themes, six built-in layouts, slide lifecycle hooks, runtime theme switching, and MCP server via mcpkit. All core/ production code uses `templar.WritableFS` (v0.1.0) — zero `os.*` except the OS boundary in `osfs.go`. Published as `github.com/panyam/slyds` at v0.0.10.
+The Go rewrite is complete with all core commands working, 130+ tests passing, CI/CD via GitHub Actions, and cross-platform binary releases via goreleaser. Five built-in themes plus auto-discovered external themes from `{deck-root}/themes/`, six built-in layouts, slide lifecycle hooks, runtime theme switching, and MCP server via mcpkit. All core/ production code uses `templar.WritableFS` (v0.1.0) — zero `os.*` except the OS boundary in `osfs.go`. Published as `github.com/panyam/slyds` at v0.0.10.
 
 ## Key Patterns
 

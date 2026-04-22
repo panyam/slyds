@@ -55,6 +55,7 @@
 - [x] ~~MCP Auth — JWT/Keycloak, PRM, RFC 8414 proxy, scoped access (slyds-write), VS Code browser OAuth PKCE, Keycloak interop tests (#63, #60, #61)~~
 - [x] ~~TypedTool migration — auto-derived InputSchema from Go struct tags (mcpkit v0.2.26)~~
 - [x] ~~Fix slyds update for custom themes + fetch timeout (#48)~~
+- [x] ~~External themes — auto-discover themes from `{deck-root}/themes/` subdirectories with `theme.yaml`; merged into elicitation, describe, prompts, introspect~~
 - [ ] MCP Apps: CSP config for external scripts in preview iframes (#104)
 - [ ] MCP Apps: cancellable slide generation with AbortSignal (#102)
 - [ ] App-backed elicitation for theme/layout selection (from #93)
