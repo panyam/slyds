@@ -55,6 +55,13 @@ func ScaffoldFromThemeDir(fsys templar.WritableFS, title string, slideCount int,
 		return err
 	}
 
+	// Resolve theme name from theme.yaml (defaults to "custom") so it flows
+	// into both the rendered index.html and the manifest.
+	themeName := "custom"
+	if theme, err := LoadTheme(themeFS); err == nil && theme.Config.Name != "" {
+		themeName = theme.Config.Name
+	}
+
 	// Render index.html
 	var includes strings.Builder
 	sort.Strings(slideFiles)
@@ -63,23 +70,26 @@ func ScaffoldFromThemeDir(fsys templar.WritableFS, title string, slideCount int,
 	}
 	indexData := map[string]any{
 		"Title":      title,
-		"Theme":      "custom",
+		"Theme":      themeName,
 		"ThemeLinks": themeLinksHTML(),
 		"Includes":   includes.String(),
 	}
-	if err := renderTemplateToFS(fsys, readTmpl, "index.html.tmpl", indexData, "index.html"); err != nil {
-		return fmt.Errorf("failed to render index.html: %w", err)
+	// Prefer the external theme's own index.html.tmpl; fall back to the shared
+	// embedded template when the theme doesn't ship one.
+	if _, err := fs.Stat(themeFS, "index.html.tmpl"); err == nil {
+		if err := renderTemplateToFS(fsys, readTmpl, "index.html.tmpl", indexData, "index.html"); err != nil {
+			return fmt.Errorf("failed to render index.html: %w", err)
+		}
+	} else {
+		if err := renderEmbeddedTemplateFS(fsys, themeName, "index.html.tmpl", indexData, "index.html"); err != nil {
+			return fmt.Errorf("failed to render fallback index.html: %w", err)
+		}
 	}
 
 	// Copy static assets from theme FS (images, fonts, etc.)
 	copyThemeAssetsToFS(fsys, themeFS)
 
 	// Write manifest
-	themeName := "custom"
-	// Try to get theme name from theme.yaml
-	if theme, err := LoadTheme(themeFS); err == nil && theme.Config.Name != "" {
-		themeName = theme.Config.Name
-	}
 	if err := WriteManifestFS(fsys, Manifest{Theme: themeName, Title: title}); err != nil {
 		return fmt.Errorf("failed to write manifest: %w", err)
 	}
