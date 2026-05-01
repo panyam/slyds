@@ -34,6 +34,12 @@ checksum:
 snapshot:
   name_template: "{{ incpatch .Version }}-next"
 
+release:
+  # Auto-detect pre-release tags by suffix (rc, alpha, beta, pre, nightly).
+  # GoReleaser's default is `false`, so without this, v0.2.11-rc1 published
+  # as a regular release and accidentally claimed the "latest" badge.
+  prerelease: auto
+
 changelog:
   sort: asc
   filters:
