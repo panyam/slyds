@@ -126,16 +126,26 @@ func RequireWriteScope(ctx mcpcore.ToolContext) error {
 // BuildMCPMux creates an http.ServeMux with the MCP handler at / and
 // optionally mounts PRM endpoints for OAuth discovery. Shared by
 // both slyds mcp and slyds mcp-proto.
+//
+// When OAuth is NOT configured (token-only or no auth), well-known
+// paths return 404 so MCP clients don't mistake a 401 from the
+// transport layer for OAuth discovery and start a PKCE flow.
 func BuildMCPMux(mcpHandler http.Handler, authCfg *MCPAuthConfig) *http.ServeMux {
 	mux := http.NewServeMux()
-	mux.Handle("/", mcpHandler)
 	if authCfg != nil && authCfg.IsEnabled() {
 		resourceURI := fmt.Sprintf("http://%s", mcpListen)
 		if mcpPublicURL != "" {
 			resourceURI = mcpPublicURL
 		}
 		authCfg.MountPRM(mux, resourceURI, "/mcp")
+	} else {
+		// Explicitly return 404 for OAuth well-known paths so MCP clients
+		// don't fall through to the transport handler (which returns 401,
+		// triggering OAuth discovery loops in VS Code and other clients).
+		mux.HandleFunc("/.well-known/oauth-protected-resource", http.NotFound)
+		mux.HandleFunc("/.well-known/oauth-authorization-server", http.NotFound)
 	}
+	mux.Handle("/", mcpHandler)
 	return mux
 }
 
