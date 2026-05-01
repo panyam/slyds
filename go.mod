@@ -4,10 +4,10 @@ go 1.26.1
 
 require (
 	github.com/PuerkitoBio/goquery v1.12.0
-	github.com/panyam/mcpkit v0.2.38
+	github.com/panyam/mcpkit v0.2.40
 	github.com/panyam/mcpkit/experimental/ext/protogen v0.2.41
-	github.com/panyam/mcpkit/ext/auth v0.2.38
-	github.com/panyam/mcpkit/ext/ui v0.2.38
+	github.com/panyam/mcpkit/ext/auth v0.2.40
+	github.com/panyam/mcpkit/ext/ui v0.2.40
 	github.com/panyam/servicekit v0.0.25
 	github.com/panyam/templar v0.1.0
 	github.com/spf13/cobra v1.10.2

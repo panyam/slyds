@@ -66,9 +66,9 @@ All Deck I/O goes through `templar.WritableFS` (v0.1.0). No `os.*`/`filepath.*` 
 | Component | Version | Notes |
 |-----------|---------|-------|
 | templar | v0.1.0 | WritableFS, FSFolder, MemFS, module system |
-| mcpkit | v0.2.38 | TypedTool, typed handler contexts, schema validation, sampling, elicitation |
-| mcpkit/ext/auth | v0.2.38 | JWT validation, PRM, RFC 8414 proxy, scope enforcement, OAuth discovery |
-| mcpkit/ext/ui | v0.2.38 | MCP Apps — display modes, App Bridge, theme adaptation, bidirectional tools |
+| mcpkit | v0.2.40 | TypedTool, typed handler contexts, schema validation, sampling, elicitation |
+| mcpkit/ext/auth | v0.2.40 | JWT validation, PRM, RFC 8414 proxy, scope enforcement, OAuth discovery |
+| mcpkit/ext/ui | v0.2.40 | MCP Apps — display modes, App Bridge, theme adaptation, bidirectional tools |
 | mcpkit/experimental/ext/protogen | v0.2.41 | Proto→MCP codegen (experimental), completable_fields, mcp_sampling, mcp_elicit, mcp_prompt |
 
 See [Stackfile.md](Stackfile.md) for full dependency list.
