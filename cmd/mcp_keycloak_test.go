@@ -206,12 +206,12 @@ func TestKC_ValidToken(t *testing.T) {
 		mcpcore.ClientInfo{Name: "kc-test", Version: "0.1.0"},
 		client.WithClientBearerToken(token),
 	)
-	if err := c.Connect(); err != nil {
+	if err := c.Connect(t.Context()); err != nil {
 		t.Fatalf("connect: %v", err)
 	}
 	defer c.Close()
 
-	result, err := c.ToolCall("list_decks", map[string]any{})
+	result, err := c.ToolCall(t.Context(), "list_decks", map[string]any{})
 	if err != nil {
 		t.Fatalf("list_decks: %v", err)
 	}
@@ -255,12 +255,12 @@ func TestKC_ScopeWrite(t *testing.T) {
 		mcpcore.ClientInfo{Name: "kc-test", Version: "0.1.0"},
 		client.WithClientBearerToken(token),
 	)
-	if err := c.Connect(); err != nil {
+	if err := c.Connect(t.Context()); err != nil {
 		t.Fatalf("connect: %v", err)
 	}
 	defer c.Close()
 
-	result, err := c.ToolCall("create_deck", map[string]any{
+	result, err := c.ToolCall(t.Context(), "create_deck", map[string]any{
 		"name": "kc-deck", "title": "KC Created", "theme": "default",
 	})
 	if err != nil {
@@ -282,13 +282,13 @@ func TestKC_ScopeReadOnly(t *testing.T) {
 		mcpcore.ClientInfo{Name: "kc-test", Version: "0.1.0"},
 		client.WithClientBearerToken(token),
 	)
-	if err := c.Connect(); err != nil {
+	if err := c.Connect(t.Context()); err != nil {
 		t.Fatalf("connect: %v", err)
 	}
 	defer c.Close()
 
 	// Read should work
-	result, err := c.ToolCall("list_decks", map[string]any{})
+	result, err := c.ToolCall(t.Context(), "list_decks", map[string]any{})
 	if err != nil {
 		t.Fatalf("list_decks: %v", err)
 	}
@@ -297,7 +297,7 @@ func TestKC_ScopeReadOnly(t *testing.T) {
 	}
 
 	// Mutation should fail
-	result, err = c.ToolCall("create_deck", map[string]any{
+	result, err = c.ToolCall(t.Context(), "create_deck", map[string]any{
 		"name": "blocked", "title": "Should Fail", "theme": "default",
 	})
 	if err != nil {
@@ -348,12 +348,12 @@ func TestKC_UserToken(t *testing.T) {
 		mcpcore.ClientInfo{Name: "kc-test", Version: "0.1.0"},
 		client.WithClientBearerToken(token),
 	)
-	if err := c.Connect(); err != nil {
+	if err := c.Connect(t.Context()); err != nil {
 		t.Fatalf("connect: %v", err)
 	}
 	defer c.Close()
 
-	result, err := c.ToolCall("list_decks", map[string]any{})
+	result, err := c.ToolCall(t.Context(), "list_decks", map[string]any{})
 	if err != nil {
 		t.Fatalf("list_decks: %v", err)
 	}

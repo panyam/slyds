@@ -151,7 +151,7 @@ func registerAppTools(srv *server.Server) {
 		},
 		ResourceURI:           "ui://slyds/decks/{deck}/preview",
 		SupportedDisplayModes: previewDisplayModes,
-		ToolHandler: func(ctx mcpcore.ToolContext, req mcpcore.ToolRequest) (mcpcore.ToolResult, error) {
+		ToolHandler: func(ctx mcpcore.ToolContext, req mcpcore.ToolRequest) (mcpcore.ToolResponse, error) {
 			var p struct {
 				Deck        string `json:"deck"`
 				DisplayMode string `json:"display_mode"`
@@ -217,7 +217,7 @@ func registerAppTools(srv *server.Server) {
 		},
 		ResourceURI:           "ui://slyds/decks/{deck}/slides/{position}/preview",
 		SupportedDisplayModes: previewDisplayModes,
-		ToolHandler: func(ctx mcpcore.ToolContext, req mcpcore.ToolRequest) (mcpcore.ToolResult, error) {
+		ToolHandler: func(ctx mcpcore.ToolContext, req mcpcore.ToolRequest) (mcpcore.ToolResponse, error) {
 			var p struct {
 				Deck     string `json:"deck"`
 				Position int    `json:"position"`

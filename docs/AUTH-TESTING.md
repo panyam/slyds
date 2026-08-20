@@ -249,17 +249,6 @@ Expected: 200 — user token accepted.
 
 ---
 
-## Flow 7: Proto Path (same auth)
-
-All flows above work identically with `slyds mcp-proto`:
-```bash
-slyds mcp-proto --deck-root /tmp/slyds-demo/ \
-  --jwks-url http://localhost:8180/realms/slyds-test/protocol/openid-connect/certs \
-  --issuer http://localhost:8180/realms/slyds-test
-```
-
----
-
 ## Cleanup
 
 ```bash

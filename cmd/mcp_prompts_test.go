@@ -137,7 +137,7 @@ func TestE2E_PromptsGet_ReviewSlides_DeckNotFound(t *testing.T) {
 	c := newSlydsMCPClient(t, root)
 
 	// Use the raw client.Call to avoid t.Fatal on expected errors.
-	result, err := c.Client.Call("prompts/get", map[string]any{
+	result, err := c.Client.Call(t.Context(), "prompts/get", map[string]any{
 		"name":      "review-slides",
 		"arguments": map[string]any{"name": "nonexistent"},
 	})

@@ -7,12 +7,20 @@
 
 | Component | Module | Version | Updated |
 |-----------|--------|---------|---------|
-| templar | github.com/panyam/templar | v0.1.0 | 2026-04-04 |
-| mcpkit | github.com/panyam/mcpkit | v0.2.40 | 2026-05-01 |
-| mcpkit/ext/auth | github.com/panyam/mcpkit/ext/auth | v0.2.40 | 2026-05-01 |
-| mcpkit/ext/ui | github.com/panyam/mcpkit/ext/ui | v0.2.40 | 2026-05-01 |
-| mcpkit/experimental/ext/protogen | github.com/panyam/mcpkit/experimental/ext/protogen | v0.2.41 | 2026-04-21 |
+| templar | github.com/panyam/templar | v0.1.2 | 2026-08-20 |
+| mcpkit | github.com/panyam/mcpkit | v0.5.1 | 2026-08-20 |
+| mcpkit/ext/auth | github.com/panyam/mcpkit/ext/auth | v0.5.1 | 2026-08-20 |
+| mcpkit/ext/ui | github.com/panyam/mcpkit/ext/ui | v0.5.1 | 2026-08-20 |
+| servicekit | github.com/panyam/servicekit | v0.1.4 | 2026-08-20 |
+| oneauth | github.com/panyam/oneauth | v0.1.36 | 2026-08-20 |
 | goutils | github.com/panyam/goutils | v0.1.13 | 2026-04-01 |
+
+`oneauth` is an indirect dependency, pulled in by `mcpkit/ext/auth` for JWT
+validation and OAuth discovery. It is listed because auth behavior tracks it.
+
+`mcpkit/experimental/ext/protogen` was dropped in the v0.5.1 upgrade. It is
+still pinned to the mcpkit v0.2.x API, so depending on it would have held the
+module three minor versions back. See [proto/README.md](proto/README.md).
 
 ## Third-Party Dependencies
 
@@ -25,7 +33,8 @@
 ## Project Conventions
 
 - **grpc**: none
+- **go-toolchain-floor**: 1.26.6 (raised above mcpkit's 1.26.5 floor to clear six reachable stdlib advisories)
 - **replace-pattern**: locallinks
 - **frontend**: vanilla
-- **proto-build**: buf (dev: local symlink + local plugins, prod: buf.build/mcpkit/protogen)
+- **proto-build**: none in the Go build. `proto/` is parked design source; buf config remains for a future regen (see [proto/README.md](proto/README.md))
 - **wasm**: no

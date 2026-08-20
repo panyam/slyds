@@ -273,7 +273,7 @@ func withWorkspace(ctx context.Context, ws Workspace) context.Context {
 // a future HostedWorkspace variant would resolve a per-request workspace
 // from authentication instead of capturing a constant.
 func workspaceMiddleware(ws Workspace) server.Middleware {
-	return func(ctx context.Context, req *mcpcore.Request, next server.MiddlewareFunc) *mcpcore.Response {
+	return func(ctx context.Context, req *mcpcore.Request, next server.MiddlewareFunc) (*mcpcore.Response, error) {
 		ctx = withWorkspace(ctx, ws)
 		return next(ctx, req)
 	}

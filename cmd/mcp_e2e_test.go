@@ -16,6 +16,7 @@ import (
 	"github.com/panyam/mcpkit/server"
 	"github.com/panyam/mcpkit/testutil"
 	"github.com/panyam/slyds/core"
+	"gopkg.in/yaml.v3"
 )
 
 // --- Test-only result structs for ToolCallTyped ---
@@ -66,7 +67,7 @@ type testCheckResult struct {
 // the test on error. Requires tools to return mcpcore.StructuredResult.
 func toolCallTyped[T any](t *testing.T, tc *testutil.TestClient, name string, args any) T {
 	t.Helper()
-	result, err := client.ToolCallTyped[T](tc.Client, name, args)
+	result, err := client.ToolCallTyped[T](t.Context(), tc.Client, name, args)
 	if err != nil {
 		t.Fatalf("ToolCallTyped(%s): %v", name, err)
 	}
@@ -274,6 +275,38 @@ func TestE2E_ServerInfo(t *testing.T) {
 	}
 }
 
+// TestE2E_ResourceDeckConfig verifies the slyds://decks/{name}/config
+// resource template returns the deck's raw .slyds.yaml manifest, and that
+// a deck with no manifest surfaces a clear error rather than empty content.
+func TestE2E_ResourceDeckConfig(t *testing.T) {
+	root := t.TempDir()
+	core.CreateInDir("Config Test", 2, "dark", filepath.Join(root, "deck"), true)
+
+	c := newSlydsMCPClient(t, root)
+
+	text := c.ReadResource("slyds://decks/deck/config")
+	if text == "" {
+		t.Fatal("config resource returned empty content")
+	}
+	// The manifest is YAML, so assert on parsed structure rather than
+	// substrings that would break on key ordering or quoting changes.
+	var manifest map[string]any
+	if err := yaml.Unmarshal([]byte(text), &manifest); err != nil {
+		t.Fatalf("config resource is not valid YAML: %v\n%s", err, text)
+	}
+	if manifest["theme"] != "dark" {
+		t.Errorf("manifest theme = %v, want dark", manifest["theme"])
+	}
+	if manifest["title"] != "Config Test" {
+		t.Errorf("manifest title = %v, want \"Config Test\"", manifest["title"])
+	}
+
+	// A deck that does not exist must error rather than return empty text.
+	if _, err := c.Client.ReadResource(t.Context(), "slyds://decks/nonexistent/config"); err == nil {
+		t.Error("expected error reading config for nonexistent deck")
+	}
+}
+
 // TestE2E_ListDecks verifies that the list_decks tool returns typed structured
 // content with name, title, theme, and slide count for each deck. Uses
 // ToolCallTyped to verify structured result unmarshaling end-to-end.
@@ -475,10 +508,16 @@ func TestE2E_SlugOnlyDeckWorkflow(t *testing.T) {
 
 // TestE2E_SchemaValidation_RejectsInvalidArgs verifies that mcpkit's
 // server-side JSON Schema validation (active by default since v0.1.24)
-// rejects malformed tool arguments with a -32602 error before the
-// handler runs. This is the contract that lets agents rely on structured
-// error data (field path, keyword) to fix their arguments without a
-// round-trip through the handler's error handling.
+// rejects malformed tool arguments before the handler runs, and reports
+// the rejection as an isError tool result carrying structured
+// ValidationErrors. That structured payload is the contract agents rely on
+// to fix their arguments without a round-trip through the handler's own
+// error handling.
+//
+// mcpkit v0.5 moved this from a JSON-RPC -32602 protocol error to an
+// isError result (see server.toolValidationErrorResult). The guarantee that
+// matters here is unchanged: the handler never sees invalid arguments, and
+// the caller gets a machine-readable field path and keyword.
 func TestE2E_SchemaValidation_RejectsInvalidArgs(t *testing.T) {
 	root := t.TempDir()
 	core.CreateInDir("Schema Test", 2, "default", fmt.Sprintf("%s/test-deck", root), true)
@@ -488,17 +527,41 @@ func TestE2E_SchemaValidation_RejectsInvalidArgs(t *testing.T) {
 	// Call read_slide with position as a string instead of the required int.
 	// The schema declares position as "type": "integer"; a string should be
 	// rejected by the schema validator, not by the handler.
-	_, err := c.Client.ToolCall("read_slide", map[string]any{
+	result, err := c.Client.ToolCallFull(t.Context(), "read_slide", map[string]any{
 		"deck":     "test-deck",
 		"position": "not-a-number",
 	})
-	if err == nil {
-		t.Fatal("expected error for invalid position type, got nil")
+	if err != nil {
+		t.Fatalf("ToolCallFull: %v", err)
 	}
-	errMsg := err.Error()
-	// mcpkit returns -32602 for schema validation failures.
-	if !strings.Contains(errMsg, "-32602") && !strings.Contains(errMsg, "validation") {
-		t.Errorf("expected -32602 schema validation error; got: %s", errMsg)
+	if !result.IsError {
+		t.Fatal("expected IsError result for invalid position type")
+	}
+
+	// The structured payload is what an agent reads to self-correct.
+	raw, err := json.Marshal(result.StructuredContent)
+	if err != nil {
+		t.Fatalf("marshal StructuredContent: %v", err)
+	}
+	var ve mcpcore.ValidationErrors
+	if err := json.Unmarshal(raw, &ve); err != nil {
+		t.Fatalf("unmarshal ValidationErrors from %s: %v", raw, err)
+	}
+	if len(ve.Errors) == 0 {
+		t.Fatalf("expected at least one validation error; got %s", raw)
+	}
+
+	var found bool
+	for _, e := range ve.Errors {
+		if strings.Contains(e.Path, "position") {
+			found = true
+			if e.Keyword == "" {
+				t.Errorf("validation error for /position has no keyword: %+v", e)
+			}
+		}
+	}
+	if !found {
+		t.Errorf("no validation error named the /position field; got %+v", ve.Errors)
 	}
 }
 
@@ -714,7 +777,7 @@ func TestE2E_EditSlideVersionConflict(t *testing.T) {
 
 	// Read the current version.
 	// Edit with the WRONG version → should fail with isError result.
-	result, err := c.Client.ToolCallFull("edit_slide", map[string]any{
+	result, err := c.Client.ToolCallFull(t.Context(), "edit_slide", map[string]any{
 		"deck":             "deck",
 		"position":         1,
 		"content":          `<div class="slide"><h1>Conflict</h1></div>`,
@@ -820,7 +883,7 @@ func TestE2E_AddSlideDeckVersionConflict(t *testing.T) {
 
 	c := newSlydsMCPClient(t, root)
 
-	result, err := c.Client.ToolCallFull("add_slide", map[string]any{
+	result, err := c.Client.ToolCallFull(t.Context(), "add_slide", map[string]any{
 		"deck":                  "deck",
 		"position":              2,
 		"name":                  "extra",
@@ -845,7 +908,7 @@ func TestE2E_RemoveSlideDeckVersionConflict(t *testing.T) {
 
 	c := newSlydsMCPClient(t, root)
 
-	result, err := c.Client.ToolCallFull("remove_slide", map[string]any{
+	result, err := c.Client.ToolCallFull(t.Context(), "remove_slide", map[string]any{
 		"deck":                  "deck",
 		"slide":                 "1",
 		"expected_deck_version": "0000000000000000",
