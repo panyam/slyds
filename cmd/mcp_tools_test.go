@@ -42,11 +42,15 @@ func workspaceCtx(t *testing.T, root string) context.Context {
 func callTool(t *testing.T, root string, handler mcpcore.ToolHandler, args any) mcpcore.ToolResult {
 	t.Helper()
 	data, _ := json.Marshal(args)
-	result, err := handler(mcpcore.NewToolContext(workspaceCtx(t, root)), mcpcore.ToolRequest{
+	resp, err := handler(mcpcore.NewToolContext(workspaceCtx(t, root)), mcpcore.ToolRequest{
 		Arguments: data,
 	})
 	if err != nil {
 		t.Fatalf("tool handler error: %v", err)
+	}
+	result, ok := resp.(mcpcore.ToolResult)
+	if !ok {
+		t.Fatalf("tool handler returned %T, want mcpcore.ToolResult", resp)
 	}
 	return result
 }
@@ -411,11 +415,15 @@ func TestMCPTools_NoWorkspaceReturnsError(t *testing.T) {
 	for name, handler := range tools {
 		t.Run(name, func(t *testing.T) {
 			// Bare context, no workspace installed.
-			result, err := handler(mcpcore.NewToolContext(context.Background()), mcpcore.ToolRequest{
+			resp, err := handler(mcpcore.NewToolContext(context.Background()), mcpcore.ToolRequest{
 				Arguments: json.RawMessage(`{"deck":"whatever"}`),
 			})
 			if err != nil {
 				t.Fatalf("handler returned err: %v", err)
+			}
+			result, ok := resp.(mcpcore.ToolResult)
+			if !ok {
+				t.Fatalf("handler returned %T, want mcpcore.ToolResult", resp)
 			}
 			if !result.IsError {
 				t.Errorf("expected IsError=true without workspace")

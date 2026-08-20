@@ -213,13 +213,15 @@ func TestWorkspaceMiddleware_InjectsIntoContext(t *testing.T) {
 	want, _ := NewLocalWorkspace(t.TempDir())
 
 	var seen Workspace
-	next := func(ctx context.Context, req *mcpcore.Request) *mcpcore.Response {
+	next := func(ctx context.Context, req *mcpcore.Request) (*mcpcore.Response, error) {
 		seen = workspaceFromContext(ctx)
-		return &mcpcore.Response{}
+		return &mcpcore.Response{}, nil
 	}
 
 	mw := workspaceMiddleware(want)
-	mw(context.Background(), &mcpcore.Request{}, next)
+	if _, err := mw(context.Background(), &mcpcore.Request{}, next); err != nil {
+		t.Fatalf("middleware returned error: %v", err)
+	}
 
 	if seen == nil {
 		t.Fatal("workspaceFromContext returned nil inside middleware-wrapped handler")

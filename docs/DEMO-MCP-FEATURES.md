@@ -153,16 +153,6 @@ Copilot will:
 
 ---
 
-## 10. Proto path parity
-
-Stop the server and restart with the proto-generated path:
-```bash
-slyds mcp-proto --deck-root /tmp/slyds-demo/ --listen 127.0.0.1:8274
-```
-
-Repeat any of the above — all features work identically. The proto path uses generated helpers: `SampleForImproveSlide()`, `ElicitThemeChoice()`, `ElicitRemoveSlideConfirmation()`.
-
----
 
 ## Quick demo script (5 minutes)
 

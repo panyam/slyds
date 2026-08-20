@@ -49,7 +49,7 @@
 - [x] ~~MCP Apps display modes + template resources — supportedDisplayModes, RequestDisplayMode, template resource URIs, NotifyResourceUpdated (#93)~~
 - [x] ~~Resource template completions for deck names and slide positions (#59)~~
 - [x] ~~Optimistic versioning on MCP mutations — expected_version, expected_deck_version, version_conflict (#79)~~
-- [x] ~~Proto-based MCP server — slyds mcp-proto with proto-generated registrations, parity tests (#97)~~
+- [x] ~~Proto-based MCP server — slyds mcp-proto with proto-generated registrations, parity tests (#97)~~ (removed in the mcpkit v0.5.1 upgrade)
 - [x] ~~MCP prompts, sampling, elicitation — 3 prompts (create-presentation, review-slides, suggest-speaker-notes), improve_slide with sampling, remove_slide/create_deck with elicitation. Proto-generated helpers via mcp_sampling/mcp_elicit annotations.~~
 - [x] ~~MCP Apps bridge — host theme adaptation, interactive slide navigation via bidirectional tools, inline speaker notes for sandboxed iframes (#100, #101, #105)~~
 - [x] ~~MCP Auth — JWT/Keycloak, PRM, RFC 8414 proxy, scoped access (slyds-write), VS Code browser OAuth PKCE, Keycloak interop tests (#63, #60, #61)~~
@@ -59,7 +59,7 @@
 - [ ] MCP Apps: CSP config for external scripts in preview iframes (#104)
 - [ ] MCP Apps: cancellable slide generation with AbortSignal (#102)
 - [ ] App-backed elicitation for theme/layout selection (from #93)
-- [ ] Remove hand-written mcp_tools.go / mcp_resources.go once proto path validated (**blocked**: protogen is experimental in mcpkit)
+- [ ] Revive the proto path once protogen graduates out of mcpkit experimental and tracks the current mcpkit release (**parked**: `proto/` kept as design source, `gen/` and `slyds mcp-proto` removed in the v0.5.1 upgrade — see [proto/README.md](proto/README.md))
 - [ ] Multi-root workspace.yaml config (#80)
 - [ ] Slide folders with co-located assets (e.g., `slides/03-architecture/slide.html` + `diagram.png`)
 - [ ] Live reload on file changes during `slyds serve`

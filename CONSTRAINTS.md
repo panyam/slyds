@@ -13,8 +13,9 @@ Read this before making structural changes. These are enforceable architectural 
 **Why**: Same correctness guarantees as single-query; atomic mode relies on consistent parse/serialize per slide.
 **Verify**: Batch implementation calls shared mutation helpers with `goquery` documents, not `strings.Replace` on file bodies.
 
-### No proto-path work until protogen graduates
-**Rule**: Do not add, modify, or consolidate proto-based MCP code (`slyds mcp-proto`, `proto/`, `gen/`, `cmd/mcp_proto*.go`) until `mcpkit/ext/protogen` moves out of experimental status.
-**Why**: protogen was moved to mcpkit experimental — the API is unstable and not ready for production consumers. The hand-written MCP path (`slyds mcp`) remains the production path.
-**Verify**: `git diff --name-only HEAD | grep -E 'proto/|gen/|mcp_proto' | grep -v _test.go` should be empty in normal PRs.
+### No protogen dependency until it graduates
+**Rule**: Do not add `github.com/panyam/mcpkit/experimental/ext/protogen` (or a generated `gen/` tree that imports it) back to `go.mod` until protogen moves out of mcpkit experimental. The `proto/` definitions stay in the tree as design source, but nothing in the Go build may depend on them.
+**Why**: protogen is pinned to the mcpkit v0.2.x API while mcpkit ships v0.5.x, so depending on it strands the whole module on an old, unsupported mcpkit. That is exactly what blocked the v0.5.1 upgrade until the proto path was cut. The hand-written MCP path (`slyds mcp`) is the only production path.
+**Verify**: `grep -q protogen go.mod` should find nothing, and `ls gen/ cmd/mcp_proto*.go` should not exist.
+**When it graduates**: regenerate from `proto/slyds/v1/` (see [proto/README.md](proto/README.md)), reinstate `cmd/mcp_proto*.go` from git history, and rewrite this constraint.
 

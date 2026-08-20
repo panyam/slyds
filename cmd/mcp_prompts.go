@@ -53,10 +53,10 @@ func registerPrompts(srv *server.Server) {
 // handleCreatePresentation returns guidance messages for creating a new deck.
 // Does not require workspace access — produces generic guidance with available
 // themes and layouts.
-func handleCreatePresentation(ctx mcpcore.PromptContext, req mcpcore.PromptRequest) (mcpcore.PromptResult, error) {
+func handleCreatePresentation(ctx mcpcore.PromptContext, req mcpcore.PromptRequest) (mcpcore.PromptResponse, error) {
 	topic, _ := req.Arguments["topic"].(string)
 	if topic == "" {
-		return mcpcore.PromptResult{}, fmt.Errorf("topic is required")
+		return nil, fmt.Errorf("topic is required")
 	}
 
 	slideCount := "5"
@@ -101,24 +101,24 @@ func handleCreatePresentation(ctx mcpcore.PromptContext, req mcpcore.PromptReque
 
 // handleReviewSlides reads all slides from a deck and returns messages asking
 // the agent to review for clarity, flow, and consistency.
-func handleReviewSlides(ctx mcpcore.PromptContext, req mcpcore.PromptRequest) (mcpcore.PromptResult, error) {
+func handleReviewSlides(ctx mcpcore.PromptContext, req mcpcore.PromptRequest) (mcpcore.PromptResponse, error) {
 	name, _ := req.Arguments["name"].(string)
 	if name == "" {
-		return mcpcore.PromptResult{}, fmt.Errorf("name is required")
+		return nil, fmt.Errorf("name is required")
 	}
 
 	ws := workspaceFromContext(ctx)
 	if ws == nil {
-		return mcpcore.PromptResult{}, fmt.Errorf("no workspace available")
+		return nil, fmt.Errorf("no workspace available")
 	}
 	d, err := ws.OpenDeck(name)
 	if err != nil {
-		return mcpcore.PromptResult{}, fmt.Errorf("deck %q: %w", name, err)
+		return nil, fmt.Errorf("deck %q: %w", name, err)
 	}
 
 	desc, err := d.Describe()
 	if err != nil {
-		return mcpcore.PromptResult{}, fmt.Errorf("describe deck: %w", err)
+		return nil, fmt.Errorf("describe deck: %w", err)
 	}
 
 	var sb strings.Builder
@@ -145,32 +145,32 @@ func handleReviewSlides(ctx mcpcore.PromptContext, req mcpcore.PromptRequest) (m
 
 // handleSuggestSpeakerNotes reads a specific slide and returns messages asking
 // the agent to draft speaker notes.
-func handleSuggestSpeakerNotes(ctx mcpcore.PromptContext, req mcpcore.PromptRequest) (mcpcore.PromptResult, error) {
+func handleSuggestSpeakerNotes(ctx mcpcore.PromptContext, req mcpcore.PromptRequest) (mcpcore.PromptResponse, error) {
 	name, _ := req.Arguments["name"].(string)
 	if name == "" {
-		return mcpcore.PromptResult{}, fmt.Errorf("name is required")
+		return nil, fmt.Errorf("name is required")
 	}
 	slide, _ := req.Arguments["slide"].(string)
 	if slide == "" {
-		return mcpcore.PromptResult{}, fmt.Errorf("slide is required")
+		return nil, fmt.Errorf("slide is required")
 	}
 
 	ws := workspaceFromContext(ctx)
 	if ws == nil {
-		return mcpcore.PromptResult{}, fmt.Errorf("no workspace available")
+		return nil, fmt.Errorf("no workspace available")
 	}
 	d, err := ws.OpenDeck(name)
 	if err != nil {
-		return mcpcore.PromptResult{}, fmt.Errorf("deck %q: %w", name, err)
+		return nil, fmt.Errorf("deck %q: %w", name, err)
 	}
 
 	pos, err := resolveSlidePosition(d, slide, 0)
 	if err != nil {
-		return mcpcore.PromptResult{}, fmt.Errorf("resolve slide: %w", err)
+		return nil, fmt.Errorf("resolve slide: %w", err)
 	}
 	content, err := d.GetSlideContent(pos)
 	if err != nil {
-		return mcpcore.PromptResult{}, fmt.Errorf("read slide %d: %w", pos, err)
+		return nil, fmt.Errorf("read slide %d: %w", pos, err)
 	}
 
 	desc, _ := d.Describe()

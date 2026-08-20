@@ -107,7 +107,7 @@ func TestE2E_ScopeCheck_WriteToolBlocked(t *testing.T) {
 	c := newAuthMCPClient(t, root, claims)
 
 	// Mutation should be blocked
-	text, err := c.Client.ToolCall("create_deck", map[string]any{
+	text, err := c.Client.ToolCall(t.Context(), "create_deck", map[string]any{
 		"name": "blocked", "title": "Should Fail", "theme": "default",
 	})
 	msg := text
@@ -164,7 +164,7 @@ func TestE2E_ScopeCheck_QueryReadAllowed(t *testing.T) {
 	}
 
 	// Mutation query should be blocked
-	text, err := c.Client.ToolCall("query_slide", map[string]any{
+	text, err := c.Client.ToolCall(t.Context(), "query_slide", map[string]any{
 		"deck": "deck", "slide": "1", "selector": "h1", "set": "Hacked",
 	})
 	msg := text

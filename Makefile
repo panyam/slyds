@@ -280,8 +280,8 @@ testkcl-auto: ## Start Keycloak if needed, run interop tests, stop after
 
 MCPKIT_MODS := github.com/panyam/mcpkit github.com/panyam/mcpkit/ext/auth github.com/panyam/mcpkit/ext/ui
 
-bump-mcpkit: ## Bump all mcpkit modules to the same version. Usage: make bump-mcpkit V=v0.2.38
-	@if [ -z "$(V)" ]; then echo "Usage: make bump-mcpkit V=v0.2.38"; exit 1; fi
+bump-mcpkit: ## Bump all mcpkit modules to the same version. Usage: make bump-mcpkit V=v0.5.1
+	@if [ -z "$(V)" ]; then echo "Usage: make bump-mcpkit V=v0.5.1"; exit 1; fi
 	@echo "Bumping mcpkit modules to $(V)..."
 	GONOSUMDB=github.com/panyam/* GONOSUMCHECK=github.com/panyam/* GOPROXY=direct \
 		go get $(foreach mod,$(MCPKIT_MODS),$(mod)@$(V))

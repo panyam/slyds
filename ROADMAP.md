@@ -75,7 +75,7 @@ Introduced a `NamingScheme` interface to decouple slide filename generation from
 ## Phase 9l — MCP Apps display modes + template resources (done)
 Adopted mcpkit v0.1.31 MCP Apps extensions: `supportedDisplayModes` (inline, fullscreen) on preview tools, `RequestDisplayMode` for presentation mode, template resource URIs (`ui://slyds/decks/{deck}/preview`, `ui://slyds/decks/{deck}/slides/{position}/preview`) eliminating mutable preview state, `NotifyResourceUpdated` for targeted resource change notifications. App elicitation deferred to follow-up.
 
-## Phase 9m — Proto-based MCP server (done)
+## Phase 9m — Proto-based MCP server (done, later removed in 9t)
 Proto definition (`proto/slyds/v1/`) with all 12 tools, 7 resources, and 3 prompts as annotated RPCs. `protoc-gen-go-mcp` (mcpkit ext/protogen v0.2.21) generates typed MCP tool/resource/prompt registrations, sampling helpers (`SampleForImproveSlide`), and elicitation helpers (`ElicitThemeChoice`, `ElicitRemoveSlideConfirmation`). `SlydsServiceImpl` wraps Workspace with typed proto request/response messages and gRPC status codes. Handler contexts use `mcpcore.ToolContext`/`ResourceContext`/`PromptContext` for access to `Sample()`, `Elicit()`, `EmitProgress()`. `slyds mcp-proto` subcommand runs the proto-generated server alongside the hand-written `slyds mcp`. Proto E2E tests with parity checks including prompts, sampling, and elicitation.
 
 ## Phase 9n — MCP Prompts, Sampling, Elicitation (done)
@@ -95,6 +95,15 @@ Full MCP auth spec compliance (2025-11-25). `MCPAuthConfig` encapsulates JWT val
 
 ## Phase 9s — External Themes (done)
 Auto-discover external themes from `{deck-root}/themes/` — any subdirectory containing `theme.yaml` is surfaced alongside built-in themes. `Workspace.AvailableThemes()` merges both sets. `Workspace.ExternalThemeFS()` returns an `fs.FS` for scaffolding. `CreateDeck` detects external themes and delegates to `core.CreateInDirWithThemeFS` / `ScaffoldFromThemeDir`. All MCP surfaces (`create_deck` elicitation, `describe_deck`, prompts, `server/info` resource) and `slyds introspect` (new `themes_external` field) use workspace themes. No `--themes-folder` flag needed — implicit from workspace root.
+
+## Phase 9t — mcpkit v0.5.1 upgrade, proto path removed (done)
+Upgraded mcpkit v0.2.40 to v0.5.1 across the root module, `ext/auth`, and `ext/ui`, crossing the 0.3.0, 0.4.0, and 0.5.0 breaking boundaries. Also servicekit v0.0.25 to v0.1.4, oneauth v0.0.75 to v0.1.36, templar v0.1.0 to v0.1.2.
+
+The proto path was removed rather than carried forward. `protoc-gen-go-mcp` is still in mcpkit *experimental*, pinned to the mcpkit v0.2.x API, so keeping it would have stranded the module three minor versions back. `gen/`, `cmd/mcp_proto*.go`, and the `slyds mcp-proto` subcommand are gone; `proto/slyds/v1/` stays as design source with a revival procedure in [proto/README.md](proto/README.md). Dropping it also took `grpc`, `protobuf`, and `protokit` out of the direct dependency set.
+
+API changes absorbed: tool and prompt handlers now return the sealed `ToolResponse` / `PromptResponse` interfaces; middleware returns `(*Response, error)`; `core.Request.Params` is `core.RawJSON`; every client I/O method takes a `context.Context` first. Behavior changes absorbed: tool-argument schema validation surfaces as an `isError` result with structured `ValidationErrors` instead of JSON-RPC `-32602`; list and `resources/read` responses carry SEP-2549 `ttlMs` / `cacheScope`; unsupported protocol versions negotiate down instead of erroring.
+
+Go toolchain floor raised to 1.26.6, one patch above mcpkit's 1.26.5, clearing six reachable stdlib advisories. `x/net` pinned to v0.56.0 for GO-2026-5942. `govulncheck` reports no reachable vulnerabilities.
 
 ## Phase 10 — Slide Folders
 Support `slides/03-name/slide.html` with co-located assets (images, per-slide CSS). Auto-detect folder vs file slides.

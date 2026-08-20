@@ -65,7 +65,7 @@ func TestE2E_ImproveSlide_NotSupported(t *testing.T) {
 	// No WithSamplingHandler — client doesn't support sampling.
 	c := newSlydsMCPClient(t, root)
 
-	text, err := c.Client.ToolCall("improve_slide", map[string]any{
+	text, err := c.Client.ToolCall(t.Context(), "improve_slide", map[string]any{
 		"deck":        "deck",
 		"slide":       "1",
 		"instruction": "make it better",
@@ -101,7 +101,7 @@ func TestE2E_ImproveSlide_InvalidHTML(t *testing.T) {
 		}),
 	)
 
-	text, err := c.Client.ToolCall("improve_slide", map[string]any{
+	text, err := c.Client.ToolCall(t.Context(), "improve_slide", map[string]any{
 		"deck":        "deck",
 		"slide":       "1",
 		"instruction": "anything",

@@ -299,7 +299,7 @@ func TestE2E_TemplateResourceNonexistentDeck(t *testing.T) {
 
 	c := newSlydsMCPClientWithUI(t, root)
 
-	_, err := c.Client.ReadResource("ui://slyds/decks/nonexistent/preview")
+	_, err := c.Client.ReadResource(t.Context(), "ui://slyds/decks/nonexistent/preview")
 	if err == nil {
 		t.Error("expected error reading template resource for nonexistent deck")
 	}
@@ -315,7 +315,7 @@ func TestE2E_PreviewResourceNonexistentDeck(t *testing.T) {
 
 	c := newSlydsMCPClientWithUI(t, root)
 
-	_, err := c.Client.ReadResource("ui://slyds/decks/nonexistent/preview")
+	_, err := c.Client.ReadResource(t.Context(), "ui://slyds/decks/nonexistent/preview")
 	if err == nil {
 		t.Error("expected error reading preview for nonexistent deck")
 	}
@@ -564,16 +564,23 @@ func extractRegisteredTool(root, name string) server.Tool {
 		JSONRPC: "2.0",
 		ID:      json.RawMessage(`"1"`),
 		Method:  "initialize",
-		Params:  json.RawMessage(`{"protocolVersion":"2025-03-26","capabilities":{},"clientInfo":{"name":"test","version":"1.0"}}`),
+		Params:  mcpcore.NewRawJSON(json.RawMessage(`{"protocolVersion":"2025-03-26","capabilities":{},"clientInfo":{"name":"test","version":"1.0"}}`)),
 	}
-	srv.Dispatch(ctx, initReq)
-	srv.Dispatch(ctx, &mcpcore.Request{JSONRPC: "2.0", Method: "notifications/initialized"})
+	if _, err := srv.Dispatch(ctx, initReq); err != nil {
+		panic("initialize: " + err.Error())
+	}
+	if _, err := srv.Dispatch(ctx, &mcpcore.Request{JSONRPC: "2.0", Method: "notifications/initialized"}); err != nil {
+		panic("notifications/initialized: " + err.Error())
+	}
 
-	listResp := srv.Dispatch(ctx, &mcpcore.Request{
+	listResp, err := srv.Dispatch(ctx, &mcpcore.Request{
 		JSONRPC: "2.0",
 		ID:      json.RawMessage(`"2"`),
 		Method:  "tools/list",
 	})
+	if err != nil {
+		panic("tools/list: " + err.Error())
+	}
 	var listResult struct {
 		Tools []mcpcore.ToolDef `json:"tools"`
 	}
@@ -584,18 +591,21 @@ func extractRegisteredTool(root, name string) server.Tool {
 		if tool.Name == name {
 			return server.Tool{
 				ToolDef: tool,
-				Handler: func(ctx mcpcore.ToolContext, req mcpcore.ToolRequest) (mcpcore.ToolResult, error) {
+				Handler: func(ctx mcpcore.ToolContext, req mcpcore.ToolRequest) (mcpcore.ToolResponse, error) {
 					args, _ := json.Marshal(map[string]any{"name": name, "arguments": json.RawMessage(req.Arguments)})
 					callReq := &mcpcore.Request{
 						JSONRPC: "2.0",
 						ID:      json.RawMessage(`"3"`),
 						Method:  "tools/call",
-						Params:  args,
+						Params:  mcpcore.NewRawJSON(args),
 					}
-					callResp := srv.Dispatch(ctx, callReq)
+					callResp, err := srv.Dispatch(ctx, callReq)
+					if err != nil {
+						return nil, err
+					}
 					var result mcpcore.ToolResult
 					crBytes, _ := json.Marshal(callResp.Result)
-						json.Unmarshal(crBytes, &result)
+					json.Unmarshal(crBytes, &result)
 					return result, nil
 				},
 			}
