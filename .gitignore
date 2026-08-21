@@ -7,3 +7,7 @@ examples/*/dist/
 examples/dist/
 _site/
 .slyds-modules/
+
+# Test/coverage output written by `make cover-html`, `make cover-func`, and
+# the `testall` stages. Build artifacts, not source.
+tests/reports/

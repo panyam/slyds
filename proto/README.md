@@ -19,12 +19,11 @@ regenerating from them is cheap once the generator catches up.
 
 ## Reviving the proto path
 
-When `protogen` graduates out of mcpkit experimental and tracks the current
-mcpkit release:
+When `protogen` is tagged against a current mcpkit release (mcpkit issue 1319):
 
-1. `cd proto && make setup-plugin` to build `protoc-gen-go-mcp`, then
-   `make setupprod` to point buf at the published annotations.
-2. `make buf` to regenerate `gen/`
+1. Get `protoc-gen-go-mcp` onto your PATH. `make check-plugin` says whether it
+   is there, and prints the workaround if not.
+2. `cd proto && make buf` to regenerate `gen/`.
 3. Restore the server wiring from git history. It was removed in the
    mcpkit v0.5.1 upgrade; the last commit that still carried it is `4f1e060`:
    ```
@@ -40,24 +39,23 @@ recovering carefully. They asserted that the proto path and the hand-written
 path produce byte-identical output for the same call, which is the only
 check that kept the two from drifting.
 
+## Where the pieces come from
+
+Everything here resolves from published artifacts. The annotation protos come
+from `buf.build/mcpkit/protogen`, pinned by digest in the committed
+`buf.lock`. There is no dev/prod split and no `MCPKIT_DIR`: slyds makes no
+assumption about anyone's local filesystem layout.
+
+The one exception is the `protoc-gen-go-mcp` plugin, and it is an upstream
+gap rather than a choice. It is not on the BSR, and `go install ...@version`
+fails because protogen's `go.mod` carries `replace github.com/panyam/mcpkit
+=> ../../../` and Go refuses to install a versioned module with replace
+directives. Both that and the tagging gap are tracked in mcpkit issue 1319.
+Until one of them is fixed, building the plugin needs an mcpkit checkout;
+`make check-plugin` prints the command.
+
 ## Gotchas worth keeping
 
 Elicitation schema messages must live in `service.proto`, the same file as the
 RPC that references them, not in `models.proto`. `protoc-gen-go-mcp` resolves
 `schema_message` within `file.Messages` only.
-
-## Where the pieces come from
-
-The annotation protos come from `buf.build/mcpkit/protogen`, pinned by digest
-in `buf.lock`. That is what `make setupprod` selects, and it needs no local
-mcpkit checkout. `make setupdev` swaps in a symlink to a local worktree
-instead; use it only when co-developing slyds and protogen together.
-
-The `protoc-gen-go-mcp` plugin is the one piece that still needs a checkout.
-It is not on the BSR, and `go install ...@v0.2.47` fails because protogen's
-`go.mod` carries `replace github.com/panyam/mcpkit => ../../../` and Go
-refuses to install a versioned module with replace directives. `make
-setup-plugin` builds it from `MCPKIT_DIR` (default
-`~/newstack/mcpkit/main`, overridable) as a workaround. If protogen drops
-that replace or publishes the plugin, the checkout requirement goes away
-entirely and `MCPKIT_DIR` can be deleted.
