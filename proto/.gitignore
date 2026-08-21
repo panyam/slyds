@@ -1,5 +1,3 @@
-# Environment-specific (created by make setupdev / setupprod)
-buf.yaml
-buf.gen.yaml
-buf.lock
-mcp
+# Nothing generated lives here anymore. buf.yaml, buf.gen.yaml, and buf.lock
+# are committed: the lock file is what pins the buf.build/mcpkit/protogen
+# annotations by digest, so a regen is reproducible.
