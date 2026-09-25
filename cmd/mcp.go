@@ -46,6 +46,8 @@ var (
 
 func init() {
 	addCommonFlags(mcpCmd)
+	mcpCmd.Flags().StringVar(&mcpAnalyzeCmd, "analyze-cmd", "", "Command run once per slide by the analyze_deck task tool; {prompt} is replaced by the prompt, otherwise it goes to stdin (default: $SLYDS_ANALYZE_CMD; unset disables the tool)")
+	mcpCmd.Flags().DurationVar(&mcpAnalyzeTimeout, "analyze-timeout", defaultAnalyzeTimeout, "Per-slide timeout for --analyze-cmd")
 	rootCmd.AddCommand(mcpCmd)
 }
 
@@ -68,6 +70,14 @@ func runMCPServer() error {
 	cfg := &mcpServerConfig{ServerName: "slyds", Workspace: ws}
 	srv := cfg.buildServer()
 	registerHandwrittenTools(srv)
+	if cmdline := resolveAnalyzeCmd(mcpAnalyzeCmd); cmdline != "" {
+		an, err := newCommandAnalyzer(cmdline, mcpAnalyzeTimeout)
+		if err != nil {
+			return err
+		}
+		registerAnalyzeTask(srv, an)
+		fmt.Fprintf(os.Stderr, "analyze_deck enabled (tasks extension on): %s\n", cmdline)
+	}
 
 	if mcpUseStdio {
 		return cfg.runStdio(srv)

@@ -110,6 +110,9 @@ Upgraded mcpkit v0.5.1 to v0.7.0 across the root module, `ext/auth`, and `ext/ui
 
 Behavior changes picked up: the `ext/ui` bridge JS injected into previews speaks the MCP Apps `2026-01-26` wire shapes (`hostCapabilities`, `notifications/message`, `ui/notifications/request-teardown`, parent-only messages); `ClientSupportsUI` now honours a stateless (SEP-2575) client's per-request extension declaration, so such clients get App previews; `resources/read` on the stateless wire now runs the middleware chain (a v0.6.0 fix for a bypass on that path). The Go toolchain floor stays at 1.26.6, which now matches mcpkit's.
 
+## Phase 9v — MCP Tasks demo (done)
+`analyze_deck` runs a configurable command (`--analyze-cmd`, e.g. Cursor's CLI) once per slide and is registered as a SEP-2663 task-capable tool via mcpkit `ext/tasks`. Clients that declare `io.modelcontextprotocol/tasks` get a task with a per-slide `statusMessage`; other clients get the result synchronously with `notifications/progress`. `tasks/cancel` kills the analyzer's process group. `slyds ws analyze` is a tasks-aware client (in-process or `--server`), and `make demo-tasks` runs it with a stub analyzer. mcpkit v0.7.0 has no public way to set `statusMessage`, so slyds writes it through its own handle on the task store.
+
 ## Phase 10 — Slide Folders
 Support `slides/03-name/slide.html` with co-located assets (images, per-slide CSS). Auto-detect folder vs file slides.
 
