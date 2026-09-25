@@ -154,6 +154,27 @@ Copilot will:
 ---
 
 
+## 10. Tasks — Long-running analysis you don't wait on
+
+Editors don't declare the tasks extension yet, so this one runs from a terminal with slyds' own tasks-aware client:
+
+```bash
+make demo-tasks                                                       # stub analyzer, no setup
+make demo-tasks ANALYZE_CMD='agent -p --output-format text {prompt}'  # Cursor's CLI
+```
+
+**What happens:**
+1. `slyds ws analyze` calls `analyze_deck` and declares `io.modelcontextprotocol/tasks`
+2. The server returns a task immediately, not the result
+3. For each slide the server runs the analyzer and updates the task's status message, which arrives as `notifications/tasks`: `[working] Analyzing slide 3/5: slide-2`
+4. The client reads the finished analysis from `tasks/get`
+
+**Try:** Ctrl-C part-way through. The client sends `tasks/cancel`, the server kills the analyzer process, and no further slides run.
+
+**Key point:** the same tool works in an editor too. A client without the tasks extension gets the analysis synchronously, with per-slide `notifications/progress`, so start the server with `--analyze-cmd` and ask "Analyze the dark-mode-talk deck".
+
+---
+
 ## Quick demo script (5 minutes)
 
 | Step | Say this | Shows |

@@ -65,6 +65,7 @@ Agents call tools to create, read, modify, and build decks. Each tool takes a `d
 | `build_deck` | `deck` | Build self-contained HTML (resolves includes, inlines CSS/JS/images) |
 | `preview_deck` | `deck`, `display_mode?` | Preview deck as MCP App iframe. `display_mode: "fullscreen"` for presentation mode. |
 | `preview_slide` | `deck`, `position` | Preview deck opened on a specific slide |
+| `analyze_deck` | `deck`, `slides?`, `instruction?` | Run the server's analyzer once per slide. **Only registered with `--analyze-cmd`.** Task-capable: see [Long-running analysis](#long-running-analysis-tasks). |
 
 ### Resources (7 data + 2 preview)
 
@@ -101,7 +102,38 @@ slyds mcp [flags]
 --public-url string   Public URL for reverse proxy deployments
 --sse                 Use legacy HTTP+SSE transport instead of Streamable HTTP
 --stdio               Use stdio transport (Content-Length framed JSON-RPC on stdin/stdout)
+--analyze-cmd string  Command run once per slide by analyze_deck (default: $SLYDS_ANALYZE_CMD; unset = tool off)
+--analyze-timeout     Per-slide timeout for --analyze-cmd (default 2m)
 ```
+
+## Long-running analysis (tasks)
+
+`analyze_deck` is slyds' MCP Tasks demo (SEP-2663, `io.modelcontextprotocol/tasks`). It runs an external command once per slide and returns one analysis per slide. It only exists when the server is started with an analyzer, because it runs a local program:
+
+```bash
+# Cursor's CLI (installs from before its rename call the binary cursor-agent)
+slyds mcp --analyze-cmd 'agent -p --output-format text {prompt}'
+```
+
+- **The command.** Split on whitespace, with no shell and no quoting. A `{prompt}` argument is replaced by the prompt; without one, the prompt goes to stdin. Whatever the command prints to stdout is that slide's analysis. The prompt carries the deck title, the slide's position and HTML, and the `instruction` (a general review by default). Don't pass `--force` to Cursor: without it the agent only proposes edits.
+- **Clients that declare the tasks extension** get a task back from `tools/call` right away. While it runs, `statusMessage` reads `Analyzing slide 3/12: <slug>`, pushed as `notifications/tasks` and visible on `tasks/get`. `tasks/cancel` kills the running command, including anything it started (process group on Unix), and no later slide starts.
+- **Other clients** get the same result synchronously from `tools/call`, with `notifications/progress` per slide if they sent a progress token. No editor declares the tasks extension yet, so this is what Cursor, VS Code and Claude see today.
+- **Errors.** An unknown deck or slide fails before any work starts. A slide whose command fails or times out gets an `error` entry, and the remaining slides still run.
+
+`slyds ws analyze` is a tasks-aware client for watching it:
+
+```bash
+slyds ws analyze talk --analyze-cmd 'agent -p --output-format text {prompt}'   # in-process server
+slyds ws analyze talk --server http://127.0.0.1:8274/mcp                       # a running slyds mcp
+slyds ws analyze talk --slides 2,closing --instruction 'check the speaker notes' --json
+```
+
+It prints each status line to stderr and the analysis to stdout. Ctrl-C sends `tasks/cancel`. `make demo-tasks` runs it over the demo decks with a stub analyzer.
+
+Two limits to know about:
+
+- **mcpkit v0.7.0 has no public way to set `statusMessage`.** slyds keeps its own handle on the task store and writes the field itself (`setTaskStatusMessage` in `cmd/mcp_analyze.go`). Remove that once mcpkit adds one.
+- **Tasks from stateless-wire clients share one bucket** in mcpkit's in-memory store, so with auth on, one user could read another's task by ID. That's fine for a demo but not for a multi-tenant deployment.
 
 ## Transports
 
@@ -484,6 +516,7 @@ Clients send `Authorization: Bearer YOUR_SECRET`. The `--public-url` ensures the
 ### Security
 
 - **`--token`**: require Bearer token on all requests
+- **`--analyze-cmd`**: runs a local program with slide content as input. It is off unless set, the command comes only from the flag or env var (never from tool arguments), and it runs without a shell
 - **Origin checks**: non-localhost origins are rejected by default (DNS rebinding protection)
 - Always use TLS when exposing beyond localhost
 

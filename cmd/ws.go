@@ -19,6 +19,7 @@ var wsCmd = &cobra.Command{
 Subcommands:
   slyds ws info            Print the workspace root path
   slyds ws list            List decks visible to the workspace
+  slyds ws analyze DECK    Run analyze_deck as an MCP task and watch it
 
 Workspaces are how the MCP server resolves decks from authenticated context.
 For the CLI, there is one implicit workspace rooted at --deck-root (default: ".").`,

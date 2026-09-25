@@ -145,6 +145,15 @@ demo: build
 # real MCP server in the background, calls list_decks via curl/JSON-RPC,
 # and tears everything down. Verifies both the CLI workspace path and the
 # MCP middleware path resolve the same decks.
+# Runs analyze_deck as an MCP task over the demo decks and prints each status
+# update. Uses a stub analyzer; override with a real one, for example
+#   make demo-tasks ANALYZE_CMD='agent -p --output-format text {prompt}'
+ANALYZE_CMD ?= $(CURDIR)/scripts/analyze-stub.sh
+demo-tasks: demo
+	$(CURDIR)/slyds ws analyze dark-mode-talk --deck-root $(DEMO_DIR) --analyze-cmd "$(ANALYZE_CMD)"
+
+.PHONY: demo-tasks
+
 demo-smoke: demo
 	@set -e; \
 	echo "== slyds ws info =="; \

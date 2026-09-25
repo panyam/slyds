@@ -10,6 +10,7 @@
 | templar | github.com/panyam/templar | v0.1.2 | 2026-08-20 |
 | mcpkit | github.com/panyam/mcpkit | v0.7.0 | 2026-09-25 |
 | mcpkit/ext/auth | github.com/panyam/mcpkit/ext/auth | v0.7.0 | 2026-09-25 |
+| mcpkit/ext/tasks | github.com/panyam/mcpkit/ext/tasks | v0.7.0 | 2026-09-25 |
 | mcpkit/ext/ui | github.com/panyam/mcpkit/ext/ui | v0.7.0 | 2026-09-25 |
 | servicekit | github.com/panyam/servicekit | v0.1.5 | 2026-09-25 |
 | oneauth | github.com/panyam/oneauth | v0.1.37 | 2026-09-25 |
