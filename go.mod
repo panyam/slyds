@@ -4,9 +4,10 @@ go 1.26.6
 
 require (
 	github.com/PuerkitoBio/goquery v1.12.0
-	github.com/panyam/mcpkit v0.7.0
-	github.com/panyam/mcpkit/ext/auth v0.7.0
-	github.com/panyam/mcpkit/ext/ui v0.7.0
+	github.com/panyam/mcpkit v0.7.1
+	github.com/panyam/mcpkit/ext/auth v0.7.1
+	github.com/panyam/mcpkit/ext/tasks v0.7.1
+	github.com/panyam/mcpkit/ext/ui v0.7.1
 	github.com/panyam/servicekit v0.1.5
 	github.com/panyam/templar v0.1.2
 	github.com/spf13/cobra v1.10.2
@@ -25,7 +26,6 @@ require (
 	github.com/invopop/jsonschema v0.14.0 // indirect
 	github.com/panyam/gocurrent v0.1.2 // indirect
 	github.com/panyam/goutils v0.1.13 // indirect
-	github.com/panyam/mcpkit/ext/tasks v0.7.0 // indirect
 	github.com/panyam/oneauth v0.1.37 // indirect
 	github.com/pb33f/ordered-map/v2 v2.3.1 // indirect
 	github.com/santhosh-tekuri/jsonschema/v6 v6.0.3 // indirect
