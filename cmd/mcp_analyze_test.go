@@ -291,19 +291,3 @@ func TestAnalyzeDeck_NotRegisteredWithoutAnalyzer(t *testing.T) {
 		}
 	}
 }
-
-func TestSetTaskStatusMessage_DoesNotReviveTerminalTask(t *testing.T) {
-	store := server.NewInMemoryStore()
-	info := mcpcore.TaskInfo{TaskID: "task-1", Status: mcpcore.TaskWorking}
-	if err := store.Create(info, ""); err != nil {
-		t.Fatal(err)
-	}
-	if _, err := store.Cancel("task-1", ""); err != nil {
-		t.Fatal(err)
-	}
-	setTaskStatusMessage(context.Background(), store, "task-1", "Analyzing slide 9/9")
-	got, _ := store.Get("task-1", "")
-	if got.Status != mcpcore.TaskCancelled || got.StatusMessage == "Analyzing slide 9/9" {
-		t.Errorf("cancelled task changed: status=%s message=%q", got.Status, got.StatusMessage)
-	}
-}

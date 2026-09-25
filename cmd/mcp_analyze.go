@@ -136,11 +136,8 @@ func registerAnalyzeTask(srv *server.Server, an slideAnalyzer) {
 	if an == nil {
 		return
 	}
-	// slyds keeps its own handle on the store so it can set statusMessage,
-	// which mcpkit v0.7.0 has no public call for. See setTaskStatusMessage.
-	store := server.NewInMemoryStore()
-	tasks.Register(tasks.Config{Server: srv, Store: store})
-	srv.Register(analyzeDeckTool(an, store))
+	tasks.Register(tasks.Config{Server: srv})
+	srv.Register(analyzeDeckTool(an))
 }
 
 type analyzeDeckInput struct {
@@ -169,7 +166,7 @@ const defaultAnalyzeInstruction = "Review this slide for clarity, structure and 
 	"Point out anything confusing, overloaded or inconsistent with the rest of the deck, " +
 	"and suggest concrete fixes. Be brief."
 
-func analyzeDeckTool(an slideAnalyzer, store server.TaskStore) mcpcore.TypedToolResult {
+func analyzeDeckTool(an slideAnalyzer) mcpcore.TypedToolResult {
 	return mcpcore.TypedTool[analyzeDeckInput, mcpcore.ToolResponse](
 		"analyze_deck",
 		"Analyze each slide of a deck with the server's configured analyzer (one call per slide). "+
@@ -195,7 +192,7 @@ func analyzeDeckTool(an slideAnalyzer, store server.TaskStore) mcpcore.TypedTool
 
 			report := func(done, total int, msg string) {
 				if tc != nil {
-					setTaskStatusMessage(ctx, store, tc.TaskID(), msg)
+					tc.SetStatusMessage(msg)
 				} else {
 					ctx.Progress(float64(done), float64(total), msg)
 				}
@@ -306,43 +303,4 @@ func runDeckAnalysis(
 	}
 	report(total, total, fmt.Sprintf("Analyzed %d/%d slides", out.Analyzed, total))
 	return out, nil
-}
-
-// setTaskStatusMessage writes statusMessage on a running task and sends
-// notifications/tasks so watching clients see it. mcpkit v0.7.0's
-// TaskContext.SetStatus can't set the message, so this goes to the store
-// directly and builds the notification itself. The terminal check keeps a
-// late progress update from reviving a task that was just cancelled.
-func setTaskStatusMessage(ctx context.Context, store server.TaskStore, taskID, msg string) {
-	bucket := mcpcore.TaskBucketKey(ctx)
-	live := false
-	err := store.Update(taskID, bucket, func(t *mcpcore.TaskInfo) {
-		if t.Status.IsTerminal() {
-			return
-		}
-		t.StatusMessage = msg
-		t.LastUpdatedAt = time.Now().UTC().Format(time.RFC3339)
-		live = true
-	})
-	if err != nil || !live {
-		return
-	}
-	info, ok := store.Get(taskID, bucket)
-	if !ok {
-		return
-	}
-	wire := mcpcore.TaskInfoV2{
-		TaskID:        info.TaskID,
-		Status:        info.Status,
-		StatusMessage: info.StatusMessage,
-		CreatedAt:     info.CreatedAt,
-		LastUpdatedAt: info.LastUpdatedAt,
-	}
-	if info.TTL != nil && *info.TTL > 0 {
-		wire.TTLMs = mcpcore.IntPtr(*info.TTL)
-	}
-	if info.PollInterval > 0 {
-		wire.PollIntervalMs = mcpcore.IntPtr(info.PollInterval)
-	}
-	mcpcore.Notify(ctx, "notifications/tasks", mcpcore.DetailedTask{TaskInfoV2: wire})
 }
