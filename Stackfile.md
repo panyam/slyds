@@ -8,11 +8,11 @@
 | Component | Module | Version | Updated |
 |-----------|--------|---------|---------|
 | templar | github.com/panyam/templar | v0.1.2 | 2026-08-20 |
-| mcpkit | github.com/panyam/mcpkit | v0.5.1 | 2026-08-20 |
-| mcpkit/ext/auth | github.com/panyam/mcpkit/ext/auth | v0.5.1 | 2026-08-20 |
-| mcpkit/ext/ui | github.com/panyam/mcpkit/ext/ui | v0.5.1 | 2026-08-20 |
-| servicekit | github.com/panyam/servicekit | v0.1.4 | 2026-08-20 |
-| oneauth | github.com/panyam/oneauth | v0.1.36 | 2026-08-20 |
+| mcpkit | github.com/panyam/mcpkit | v0.7.0 | 2026-09-25 |
+| mcpkit/ext/auth | github.com/panyam/mcpkit/ext/auth | v0.7.0 | 2026-09-25 |
+| mcpkit/ext/ui | github.com/panyam/mcpkit/ext/ui | v0.7.0 | 2026-09-25 |
+| servicekit | github.com/panyam/servicekit | v0.1.5 | 2026-09-25 |
+| oneauth | github.com/panyam/oneauth | v0.1.37 | 2026-09-25 |
 | goutils | github.com/panyam/goutils | v0.1.13 | 2026-04-01 |
 
 `oneauth` is an indirect dependency, pulled in by `mcpkit/ext/auth` for JWT

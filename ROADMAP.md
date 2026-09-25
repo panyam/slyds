@@ -105,6 +105,11 @@ API changes absorbed: tool and prompt handlers now return the sealed `ToolRespon
 
 Go toolchain floor raised to 1.26.6, one patch above mcpkit's 1.26.5, clearing six reachable stdlib advisories. `x/net` pinned to v0.56.0 for GO-2026-5942. `govulncheck` reports no reachable vulnerabilities.
 
+## Phase 9u — mcpkit v0.7.0 upgrade (done)
+Upgraded mcpkit v0.5.1 to v0.7.0 across the root module, `ext/auth`, and `ext/ui`, covering v0.5.2, v0.6.0, and v0.7.0. Also servicekit v0.1.4 to v0.1.5 and oneauth v0.1.36 to v0.1.37. No slyds code changed: the breaking changes in those releases are in `ext/skills`, `experimental/ext/events`, and `experimental/ext/agents`, which slyds does not import.
+
+Behavior changes picked up: the `ext/ui` bridge JS injected into previews speaks the MCP Apps `2026-01-26` wire shapes (`hostCapabilities`, `notifications/message`, `ui/notifications/request-teardown`, parent-only messages); `ClientSupportsUI` now honours a stateless (SEP-2575) client's per-request extension declaration, so such clients get App previews; `resources/read` on the stateless wire now runs the middleware chain (a v0.6.0 fix for a bypass on that path). The Go toolchain floor stays at 1.26.6, which now matches mcpkit's.
+
 ## Phase 10 — Slide Folders
 Support `slides/03-name/slide.html` with co-located assets (images, per-slide CSS). Auto-detect folder vs file slides.
 
