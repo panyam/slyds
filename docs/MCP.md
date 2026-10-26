@@ -130,10 +130,7 @@ slyds ws analyze talk --slides 2,closing --instruction 'check the speaker notes'
 
 It prints each status line to stderr and the analysis to stdout. Ctrl-C sends `tasks/cancel`. `make demo-tasks` runs it over the demo decks with a stub analyzer.
 
-Two limits to know about:
-
-- **mcpkit v0.7.0 has no public way to set `statusMessage`.** slyds keeps its own handle on the task store and writes the field itself (`setTaskStatusMessage` in `cmd/mcp_analyze.go`). Remove that once mcpkit adds one.
-- **Tasks from stateless-wire clients share one bucket** in mcpkit's in-memory store, so with auth on, one user could read another's task by ID. That's fine for a demo but not for a multi-tenant deployment.
+One limit to know about: **tasks from stateless-wire clients share one bucket** in mcpkit's in-memory store, so with auth on, one user could read another's task by ID. That's fine for a demo but not for a multi-tenant deployment.
 
 ## Transports
 

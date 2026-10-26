@@ -57,7 +57,6 @@
 - [x] ~~Fix slyds update for custom themes + fetch timeout (#48)~~
 - [x] ~~External themes — auto-discover themes from `{deck-root}/themes/` subdirectories with `theme.yaml`; merged into elicitation, describe, prompts, introspect~~
 - [x] ~~MCP Tasks demo — `analyze_deck` as a SEP-2663 task (per-slide status, cancel kills the analyzer), `slyds ws analyze` tasks-aware client, `make demo-tasks`~~
-- [ ] Drop `setTaskStatusMessage` once mcpkit exposes a public way to set a task's `statusMessage`
 - [ ] Serve an embedded slyds-authoring skill via mcpkit `ext/skills` (SEP-2640)
 - [ ] MCP Apps: CSP config for external scripts in preview iframes (#104)
 - [ ] MCP Apps: cancellable slide generation with AbortSignal (#102)
